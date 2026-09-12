@@ -1,15 +1,23 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { getLocation } from '@/content/locations';
 import { getTargetOrPlaceholder } from '@/content/targets';
 import { getClue } from '@/content/clues';
-import { focusJournal, game } from '@/core/gameState';
-import { RARITY_LABEL, type DiscoveryRecord, type Rarity } from '@/core/types';
-import { chainProgress } from '@/systems/mystery';
+import { activeAssemblies, type AssemblyProgress } from '@/systems/assembly';
+import {
+  focusJournal,
+  game,
+  isExamined,
+  markExamined,
+  performAssembly,
+} from '@/core/gameState';
+import { RARITY_LABEL, type DiscoveryRecord, type Rarity, type TargetDef } from '@/core/types';
+import { chainProgress, symbolConnections } from '@/systems/mystery';
 import { conditionLabel } from '@/systems/discovery';
 import { useGameState } from '../useGame';
 import { Btn, FindArt, RarityTag, TopBar } from '../components/ui';
 import { Nav } from '../components/Nav';
 
+type Tab = 'finds' | 'mysteries' | 'connections' | 'assemble';
 type GroupMode = 'location' | 'category' | 'rarity' | 'era';
 const GROUPS: { id: GroupMode; label: string }[] = [
   { id: 'location', label: 'Place' },
@@ -29,9 +37,15 @@ const CATEGORY_LABEL: Record<string, string> = {
   artifact: 'Artifacts',
 };
 
+/** What the journal calls a find right now — the mystery name until examined. */
+export function displayName(def: TargetDef, examined: boolean): string {
+  if (def.unidentifiedName && !examined) return def.unidentifiedName;
+  return def.name;
+}
+
 export function JournalScreen() {
   const { save, journalFocus } = useGameState();
-  const [tab, setTab] = useState<'finds' | 'mysteries'>('finds');
+  const [tab, setTab] = useState<Tab>('finds');
   const [group, setGroup] = useState<GroupMode>('location');
   const [openUid, setOpenUid] = useState<string | null>(null);
 
@@ -45,6 +59,8 @@ export function JournalScreen() {
 
   const grouped = useMemo(() => groupFinds(save.discoveries, group), [save.discoveries, group]);
   const progress = chainProgress(save.clues);
+  const connections = useMemo(() => symbolConnections(save.clues), [save.clues]);
+  const assemblies = useMemo(() => activeAssemblies(save), [save]);
 
   return (
     <div className="screen">
@@ -62,6 +78,20 @@ export function JournalScreen() {
           onClick={() => setTab('mysteries')}
         >
           Mysteries
+        </button>
+        <button
+          className={`tab ${tab === 'connections' ? 'tab--active' : ''}`}
+          onClick={() => setTab('connections')}
+          data-testid="tab-connections"
+        >
+          Links
+        </button>
+        <button
+          className={`tab ${tab === 'assemble' ? 'tab--active' : ''}`}
+          onClick={() => setTab('assemble')}
+          data-testid="tab-assemble"
+        >
+          Assemble
         </button>
       </div>
 
@@ -92,6 +122,7 @@ export function JournalScreen() {
                   </div>
                   {records.map((record) => {
                     const def = getTargetOrPlaceholder(record.targetId);
+                    const examined = isExamined(def.id);
                     return (
                       <button
                         key={record.uid}
@@ -108,10 +139,12 @@ export function JournalScreen() {
                           className="entry__art"
                         />
                         <div style={{ flex: 1, minWidth: 0 }}>
-                          <h3 className="entry__name">{def.name}</h3>
+                          <h3 className="entry__name">{displayName(def, examined)}</h3>
                           <p className="entry__meta">
-                            {def.significance === 'unknown' ? 'Unknown' : def.materialName} ·{' '}
-                            {record.condition}% · {record.depthCm} cm
+                            {def.significance === 'unknown' || (!examined && def.unidentifiedName)
+                              ? 'Unidentified'
+                              : def.materialName}{' '}
+                            · {record.condition}% · {record.depthCm > 0 ? `${record.depthCm} cm` : 'assembled'}
                           </p>
                         </div>
                         <RarityTag rarity={def.rarity} />
@@ -122,7 +155,7 @@ export function JournalScreen() {
               ))}
             </>
           )
-        ) : (
+        ) : tab === 'mysteries' ? (
           <>
             {progress.map((p) => (
               <div key={p.chain.id} className="panel" style={{ marginBottom: 12 }}>
@@ -168,6 +201,16 @@ export function JournalScreen() {
               </p>
             ) : null}
           </>
+        ) : tab === 'connections' ? (
+          <ConnectionsTab connections={connections} />
+        ) : (
+          <AssembleTab
+            assemblies={assemblies}
+            onOpenPiece={(targetId) => {
+              const pieceRecord = save.discoveries.find((d) => d.targetId === targetId);
+              if (pieceRecord) setOpenUid(pieceRecord.uid);
+            }}
+          />
         )}
       </div>
 
@@ -178,12 +221,160 @@ export function JournalScreen() {
   );
 }
 
+function ConnectionsTab({ connections }: { connections: ReturnType<typeof symbolConnections> }) {
+  if (connections.length === 0) {
+    return (
+      <p className="empty">
+        Nothing lines up yet.
+        <br />
+        The same mark on two different finds is worth a second look.
+      </p>
+    );
+  }
+  return (
+    <>
+      {connections.map((group) => (
+        <div key={group.symbol} className="panel banner--mystery" style={{ marginBottom: 12 }}>
+          <div className="row row--between">
+            <strong className="serif" style={{ fontSize: 17 }}>
+              {group.symbol}
+            </strong>
+            <span className="label">{group.clues.length} finds</span>
+          </div>
+          <p className="card__sub" style={{ marginTop: 6 }}>
+            This mark shows up on {group.clues.length} separate finds. That is not a coincidence.
+          </p>
+          {group.clues.map((clue) => (
+            <div
+              key={clue.id}
+              style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid var(--line)' }}
+            >
+              <strong className="serif">{clue.title}</strong>
+              <p className="card__sub" style={{ margin: '4px 0 0' }}>
+                {clue.text}
+              </p>
+            </div>
+          ))}
+        </div>
+      ))}
+    </>
+  );
+}
+
+function AssembleTab({
+  assemblies,
+  onOpenPiece,
+}: {
+  assemblies: AssemblyProgress[];
+  onOpenPiece: (targetId: string) => void;
+}) {
+  if (assemblies.length === 0) {
+    return (
+      <p className="empty">
+        Nothing to put together yet.
+        <br />
+        Some finds are only part of something.
+      </p>
+    );
+  }
+  return (
+    <>
+      {assemblies.map((progress) => (
+        <div key={progress.composite.id} className="panel" style={{ marginBottom: 14 }} data-testid="assembly-row">
+          <div className="row row--between">
+            <strong className="serif" style={{ fontSize: 17 }}>
+              {progress.done ? progress.composite.name : '??? — pieces found'}
+            </strong>
+            <span className="label">
+              {progress.heldCount}/{progress.totalCount}
+            </span>
+          </div>
+
+          <div
+            style={{
+              display: 'flex',
+              gap: 8,
+              marginTop: 12,
+              flexWrap: 'wrap',
+            }}
+          >
+            {progress.pieces.map(({ def, held, record }) => (
+              <button
+                key={def.id}
+                disabled={!held}
+                onClick={() => held && onOpenPiece(def.id)}
+                data-testid={`piece-${def.id}`}
+                style={{
+                  width: 56,
+                  height: 56,
+                  borderRadius: 10,
+                  border: `1px solid ${held ? 'var(--line-strong)' : 'var(--line)'}`,
+                  background: held ? '#1b1512' : 'rgba(255,255,255,0.02)',
+                  opacity: held ? 1 : 0.4,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                {held ? (
+                  <FindArt silhouette={def.silhouette} condition={record?.condition ?? 100} size={44} />
+                ) : (
+                  <span className="tiny" style={{ opacity: 0.6 }}>
+                    ?
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+
+          {progress.done ? (
+            <p className="tiny" style={{ marginTop: 12 }}>
+              Assembled. See it in your Finds.
+            </p>
+          ) : progress.ready ? (
+            <Btn
+              small
+              wide
+              variant="primary"
+              style={{ marginTop: 14 }}
+              data-testid={`assemble-${progress.composite.id}`}
+              onClick={() => performAssembly(progress.composite.id)}
+            >
+              Fit the pieces together
+            </Btn>
+          ) : (
+            <p className="tiny" style={{ marginTop: 12 }}>
+              {progress.totalCount - progress.heldCount} more piece
+              {progress.totalCount - progress.heldCount === 1 ? '' : 's'} needed.
+            </p>
+          )}
+        </div>
+      ))}
+    </>
+  );
+}
+
 function FindSheet({ record, onClose }: { record: DiscoveryRecord; onClose: () => void }) {
   const def = getTargetOrPlaceholder(record.targetId);
   const location = getLocation(record.locationId);
   const unknown = def.significance === 'unknown';
   const clue = def.clueId ? getClue(def.clueId) : undefined;
   const held = game.get().save.clues.includes(def.clueId ?? '');
+
+  // Capture identification state BEFORE marking examined, so a first-time
+  // open can show the "just identified" beat instead of the already-known one.
+  const [wasUnidentified] = useState(() => !!def.unidentifiedName && !isExamined(def.id));
+  useEffect(() => {
+    markExamined(def.id);
+    // Runs once per mounted sheet (a fresh FindSheet mounts per record.uid via
+    // React's key-less remount-on-prop-identity here is fine since `record`
+    // only changes by the parent swapping which record is open).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [def.id]);
+  const examined = true; // always true from here on down — opening the sheet examines it
+
+  const composite = def.pieceOf ? getTargetOrPlaceholder(def.pieceOf) : null;
+  const compositeAssembled = composite ? game.get().save.assembled.includes(composite.id) : false;
 
   return (
     <div
@@ -197,8 +388,19 @@ function FindSheet({ record, onClose }: { record: DiscoveryRecord; onClose: () =
         <div style={{ display: 'flex', justifyContent: 'center' }}>
           <FindArt silhouette={def.silhouette} condition={record.condition} size={140} animate />
         </div>
+
+        {wasUnidentified ? (
+          <p
+            className="label"
+            style={{ textAlign: 'center', color: 'var(--gold)', marginTop: 4 }}
+            data-testid="newly-identified"
+          >
+            Newly identified
+          </p>
+        ) : null}
+
         <h2 className="serif" style={{ textAlign: 'center', fontSize: 23, margin: '4px 0 8px' }}>
-          {def.name}
+          {displayName(def, examined)}
         </h2>
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}>
           <RarityTag rarity={def.rarity} />
@@ -211,11 +413,11 @@ function FindSheet({ record, onClose }: { record: DiscoveryRecord; onClose: () =
           </div>
           <div>
             <div className="stat__label">Origin</div>
-            <div className="stat__value">{unknown ? 'Unknown' : location?.name ?? 'Unknown'}</div>
+            <div className="stat__value">{unknown ? 'Unknown' : (location?.name ?? 'Unknown')}</div>
           </div>
           <div>
             <div className="stat__label">Date</div>
-            <div className="stat__value">{unknown ? 'Unknown' : def.era ?? 'Unknown'}</div>
+            <div className="stat__value">{unknown ? 'Unknown' : (def.era ?? 'Unknown')}</div>
           </div>
           <div>
             <div className="stat__label">Condition</div>
@@ -236,6 +438,23 @@ function FindSheet({ record, onClose }: { record: DiscoveryRecord; onClose: () =
         </div>
 
         <p style={{ fontFamily: 'var(--serif)', marginTop: 18, color: '#cfc7b2' }}>{def.description}</p>
+        {def.examineText ? (
+          <p style={{ fontFamily: 'var(--serif)', marginTop: 10, color: '#cfc7b2', fontStyle: 'italic' }}>
+            {def.examineText}
+          </p>
+        ) : null}
+
+        {composite ? (
+          <div className="banner" style={{ marginTop: 16 }}>
+            <div className="banner__kicker">{compositeAssembled ? 'Part of' : 'Piece of something'}</div>
+            <strong className="serif">{compositeAssembled ? composite.name : '???'}</strong>
+            <p className="card__sub" style={{ margin: '4px 0 0' }}>
+              {compositeAssembled
+                ? 'Already assembled — see it in your Finds.'
+                : 'Find the other pieces, then put them together from the Assemble tab.'}
+            </p>
+          </div>
+        ) : null}
 
         {clue && held ? (
           <div className="banner banner--mystery">
@@ -287,7 +506,7 @@ function groupFinds(records: DiscoveryRecord[], mode: GroupMode): [string, Disco
         key = RARITY_LABEL[def.rarity as Rarity];
         break;
       case 'era':
-        key = def.significance === 'unknown' ? 'Unknown era' : def.era ?? 'Unknown era';
+        key = def.significance === 'unknown' ? 'Unknown era' : (def.era ?? 'Unknown era');
         break;
     }
     const list = map.get(key);

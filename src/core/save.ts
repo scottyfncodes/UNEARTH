@@ -31,6 +31,8 @@ export function freshSave(now = Date.now()): SaveData {
     adventures: {},
     settings: { sound: true, haptics: true },
     flags: { seenIntro: false, tutorialFound: false },
+    examined: [],
+    assembled: [],
   };
 }
 
@@ -181,6 +183,8 @@ export function sanitize(raw: unknown): SaveData {
       seenIntro: bool(flagsRaw.seenIntro, false),
       tutorialFound: bool(flagsRaw.tutorialFound, false),
     },
+    examined: strArray(r.examined),
+    assembled: strArray(r.assembled),
   };
 }
 

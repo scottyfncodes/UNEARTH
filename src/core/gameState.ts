@@ -10,6 +10,7 @@ import { getDetector, getTool } from '@/content/equipment';
 import { getTarget } from '@/content/targets';
 import { generateField } from '@/systems/placement';
 import { resolveDiscovery, type DiscoveryOutcome, type ExtractionInput } from '@/systems/discovery';
+import { resolveAssembly } from '@/systems/assembly';
 import { Store } from './store';
 import { defaultStorage, freshSave, loadSave, writeSave, clearSave, type StorageLike } from './save';
 import type { DetectorDef, FieldState, SaveData, ToolDef } from './types';
@@ -50,6 +51,8 @@ export interface GameState {
   notice: string | null;
   journalFocus: string | null;
   loadOutcome: 'new' | 'loaded' | 'migrated' | 'recovered';
+  /** Which authored adventure the 'adventure' route should render. */
+  activeAdventure: string | null;
 }
 
 let storage: StorageLike = defaultStorage();
@@ -63,6 +66,7 @@ export const game = new Store<GameState>({
   notice: null,
   journalFocus: null,
   loadOutcome: loaded.outcome,
+  activeAdventure: null,
 });
 
 // ── persistence ─────────────────────────────────────────────────────────────
@@ -274,6 +278,37 @@ export function adventureStatus(id: string): 'locked' | 'available' | 'complete'
   return game.get().save.adventures[id] ?? 'locked';
 }
 
+/** Enter an authored adventure by id — the 'adventure' route reads this. */
+export function enterAdventure(adventureId: string): void {
+  game.update((s) => ({ ...s, activeAdventure: adventureId, route: 'adventure', notice: null }));
+}
+
+// ── artifact examination & assembly ─────────────────────────────────────────
+/** Marks a find as examined — the journal flips from unidentified to identified. */
+export function markExamined(targetId: string): void {
+  const save = game.get().save;
+  if (save.examined.includes(targetId)) return;
+  setSave((s) => ({ ...s, examined: [...s.examined, targetId] }));
+}
+
+export function isExamined(targetId: string): boolean {
+  return game.get().save.examined.includes(targetId);
+}
+
+/**
+ * Assembles a composite from its held pieces. Pushes the resulting discovery
+ * through the same 'pending' + discovery-screen ceremony a dig produces.
+ * Returns null if the composite was not actually ready (defensive; the UI
+ * should only ever offer this when it is).
+ */
+export function performAssembly(compositeId: string): DiscoveryOutcome | null {
+  const result = resolveAssembly(game.get().save, compositeId);
+  if (!result) return null;
+  game.update((s) => ({ ...s, save: result.save, pending: result.outcome, route: 'discovery' }));
+  persistNow();
+  return result.outcome;
+}
+
 // ── settings / reset ────────────────────────────────────────────────────────
 export function setSetting<K extends keyof SaveData['settings']>(
   key: K,
@@ -292,6 +327,7 @@ export function resetProgress(): void {
     notice: null,
     journalFocus: null,
     loadOutcome: 'new',
+    activeAdventure: null,
   });
   persistNow();
 }

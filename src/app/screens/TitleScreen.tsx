@@ -28,7 +28,7 @@ export function TitleScreen() {
       <p className="title-screen__tag">
         Most of what the ground gives up is rubbish.
         <br />
-        That is what makes the rest worth finding.
+        Some of it is the first piece of something much bigger.
       </p>
       <Btn variant="primary" onClick={begin} sound="open">
         {returning ? 'Continue' : 'Begin'}

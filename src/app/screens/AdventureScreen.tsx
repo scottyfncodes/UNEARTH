@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { SEALED_CHAMBER } from '@/content/adventure/sealedChamber';
+import { getAdventure, type DialPuzzle, type EscapeBeat, type MechanismConfig } from '@/content/adventure';
 import { getTarget } from '@/content/targets';
 import {
   adventureStatus,
@@ -7,6 +7,7 @@ import {
   go,
   setAdventureStatus,
 } from '@/core/gameState';
+import { useGame } from '../useGame';
 import { clamp } from '@/core/rng';
 import {
   brushPlate,
@@ -29,45 +30,55 @@ import { Btn, Meter, TopBar } from '../components/ui';
 
 type Stage = 'intro' | 'beat' | 'puzzle' | 'mechanism' | 'escape' | 'outro' | 'revisit';
 
-const ADV = SEALED_CHAMBER;
-
 export function AdventureScreen() {
-  const complete = adventureStatus(ADV.id) === 'complete';
-  const [stage, setStage] = useState<Stage>(complete ? 'revisit' : 'intro');
-  const [beatId, setBeatId] = useState(ADV.startBeat);
-  const [dials, setDials] = useState<number[]>([...ADV.puzzle.start]);
+  const activeId = useGame((s) => s.activeAdventure);
+  const adv = activeId ? getAdventure(activeId) : undefined;
+
+  const [stage, setStage] = useState<Stage>(
+    adv && adventureStatus(adv.id) === 'complete' ? 'revisit' : 'intro',
+  );
+  const [beatId, setBeatId] = useState(adv?.startBeat ?? '');
+  const [dials, setDials] = useState<number[]>(adv ? [...adv.puzzle.start] : []);
   const [conditionAfterMechanism, setConditionAfterMechanism] = useState(100);
   const [escapeCondition, setEscapeCondition] = useState(100);
 
-  const beat = ADV.beats.find((b) => b.id === beatId) ?? ADV.beats[0]!;
-
   useEffect(() => {
+    if (!adv) {
+      go('map');
+      return;
+    }
     audio.unlock();
-    audio.ambience('chamber');
+    audio.ambience(adv.ambience);
     return () => {
       audio.danger(false);
       audio.ambience(null);
     };
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [adv?.id]);
 
   const solved = useMemo(
-    () => dials.every((value, index) => value === ADV.puzzle.solution[index]),
-    [dials],
+    () => (adv ? dials.every((value, index) => value === adv.puzzle.solution[index]) : false),
+    [dials, adv],
   );
+
+  // Nothing to render until the active adventure resolves — the effect above
+  // is already sending the player back to the map in that case.
+  if (!adv) return null;
+
+  const beat = adv.beats.find((b) => b.id === beatId) ?? adv.beats[0]!;
 
   if (stage === 'revisit') {
     return (
       <div className="screen">
-        <TopBar title={ADV.title} subtitle="Already emptied" />
+        <TopBar title={adv.title} subtitle="Already emptied" />
         <div className="scroll">
-          {ADV.outro.map((line, i) => (
+          {adv.outro.map((line, i) => (
             <p key={i} className="serif" style={{ color: '#cfc7b2' }}>
               {line}
             </p>
           ))}
           <p className="card__sub">
-            The jaws of the mechanism are open and there is nothing left in them. Whatever else is
-            down here, it is not in this room.
+            Whatever was here, you already have it. There is nothing left to find in this place.
           </p>
           <Btn variant="ghost" wide onClick={() => go('map')} sound="back">
             Back to the map
@@ -80,9 +91,9 @@ export function AdventureScreen() {
   if (stage === 'intro') {
     return (
       <TextStage
-        title={ADV.title}
-        subtitle="Beneath the north-west spur"
-        lines={ADV.intro}
+        title={adv.title}
+        subtitle={adv.introSubtitle}
+        lines={adv.intro}
         actionLabel="Go in"
         onAction={() => setStage('beat')}
       />
@@ -92,7 +103,7 @@ export function AdventureScreen() {
   if (stage === 'beat') {
     return (
       <div className="screen">
-        <TopBar title={beat.heading} subtitle={ADV.title} />
+        <TopBar title={beat.heading} subtitle={adv.title} />
         <div className="scroll">
           {beat.lines.map((line, i) => (
             <p key={i} className="serif" style={{ color: '#cfc7b2', fontSize: 16 }}>
@@ -125,35 +136,47 @@ export function AdventureScreen() {
   if (stage === 'puzzle') {
     return (
       <DialPuzzleStage
+        puzzle={adv.puzzle}
         dials={dials}
         solved={solved}
         onTurn={(index) => {
           setDials((prev) =>
-            prev.map((value, i) => (i === index ? (value + 1) % ADV.puzzle.positions : value)),
+            prev.map((value, i) => (i === index ? (value + 1) % adv.puzzle.positions : value)),
           );
           audio.mechanism();
           haptics.tap();
         }}
-        onContinue={() => setStage('mechanism')}
-      />
-    );
-  }
-
-  if (stage === 'mechanism') {
-    return (
-      <MechanismStage
-        onDone={(condition) => {
-          setConditionAfterMechanism(condition);
-          setEscapeCondition(condition);
-          setStage('escape');
+        onContinue={() => {
+          if (adv.mechanism) {
+            setStage('mechanism');
+          } else {
+            // No physical extraction for this adventure — a clean recovery.
+            setEscapeCondition(adv.cleanCondition);
+            setStage('outro');
+          }
         }}
       />
     );
   }
 
-  if (stage === 'escape') {
+  if (stage === 'mechanism' && adv.mechanism) {
+    return (
+      <MechanismStage
+        config={adv.mechanism}
+        title={adv.title}
+        onDone={(condition) => {
+          setConditionAfterMechanism(condition);
+          setEscapeCondition(condition);
+          setStage(adv.escape && adv.escape.length > 0 ? 'escape' : 'outro');
+        }}
+      />
+    );
+  }
+
+  if (stage === 'escape' && adv.escape && adv.escape.length > 0) {
     return (
       <EscapeStage
+        beats={adv.escape}
         startCondition={conditionAfterMechanism}
         onDone={(condition) => {
           setEscapeCondition(condition);
@@ -167,21 +190,21 @@ export function AdventureScreen() {
   return (
     <TextStage
       title="Out"
-      subtitle={ADV.title}
-      lines={ADV.outro}
+      subtitle={adv.title}
+      lines={adv.outro}
       actionLabel="Look at what you have"
       onAction={() => {
-        const def = getTarget(ADV.artifactTargetId);
+        const def = getTarget(adv.artifactTargetId);
         if (!def) {
           go('map');
           return;
         }
-        setAdventureStatus(ADV.id, 'complete');
+        setAdventureStatus(adv.id, 'complete');
         completeExtraction({
           def,
           condition: escapeCondition,
           depthCm: 0,
-          locationId: ADV.locationId,
+          locationId: adv.locationId,
         });
       }}
     />
@@ -221,23 +244,25 @@ function TextStage({
 }
 
 function DialPuzzleStage({
+  puzzle,
   dials,
   solved,
   onTurn,
   onContinue,
 }: {
+  puzzle: DialPuzzle;
   dials: number[];
   solved: boolean;
   onTurn: (index: number) => void;
   onContinue: () => void;
 }) {
-  const step = 360 / ADV.puzzle.positions;
+  const step = 360 / puzzle.positions;
   return (
     <div className="screen">
-      <TopBar title="The Door" subtitle="Three rings, one symbol" />
+      <TopBar title={puzzle.screenTitle} subtitle={puzzle.screenSubtitle} />
       <div className="scroll">
         <p className="serif" style={{ color: '#cfc7b2', fontSize: 16 }}>
-          {ADV.puzzle.prompt}
+          {puzzle.prompt}
         </p>
 
         <div
@@ -303,22 +328,22 @@ function DialPuzzleStage({
 
         <div style={{ textAlign: 'center' }}>
           <div className="label">
-            {solved ? 'The rings are seated' : 'Rays: ' + dials.map((d) => d).join(' · ')}
+            {solved ? 'Aligned.' : `${puzzle.unitLabel}: ` + dials.map((d) => d).join(' · ')}
           </div>
         </div>
 
         {solved ? (
           <>
             <p className="serif" style={{ color: '#cfc7b2', marginTop: 22 }}>
-              {ADV.puzzle.solvedText}
+              {puzzle.solvedText}
             </p>
             <Btn variant="primary" wide onClick={onContinue} data-testid="puzzle-continue">
-              Step inside
+              {puzzle.continueLabel}
             </Btn>
           </>
         ) : (
           <p className="tiny" style={{ textAlign: 'center', marginTop: 20 }}>
-            The token shows three rays, evenly spaced. Nothing else fits.
+            {puzzle.unsolvedHint}
           </p>
         )}
       </div>
@@ -326,10 +351,18 @@ function DialPuzzleStage({
   );
 }
 
-function MechanismStage({ onDone }: { onDone: (condition: number) => void }) {
+function MechanismStage({
+  config,
+  title,
+  onDone,
+}: {
+  config: MechanismConfig;
+  title: string;
+  onDone: (condition: number) => void;
+}) {
   const hostRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const stateRef = useRef<MechanismState>(createMechanism(ADV.mechanism));
+  const stateRef = useRef<MechanismState>(createMechanism(config));
   const rendererRef = useRef(new MechanismRenderer());
   const activeClampRef = useRef<string | null>(null);
   const flashRef = useRef(0);
@@ -523,7 +556,7 @@ function MechanismStage({ onDone }: { onDone: (condition: number) => void }) {
 
       <div className="world-ui">
         <div className="world-top">
-          <div className="chip">Sealed Chamber</div>
+          <div className="chip">{title}</div>
           <div style={{ flex: 1 }} />
         </div>
 
@@ -628,19 +661,21 @@ function MechanismStage({ onDone }: { onDone: (condition: number) => void }) {
 }
 
 function EscapeStage({
+  beats,
   startCondition,
   onDone,
 }: {
+  beats: EscapeBeat[];
   startCondition: number;
   onDone: (condition: number) => void;
 }) {
   const [index, setIndex] = useState(0);
-  const [remaining, setRemaining] = useState(ADV.escape[0]!.window);
+  const [remaining, setRemaining] = useState(beats[0]!.window);
   const [feedback, setFeedback] = useState<string | null>(null);
   const conditionRef = useRef(startCondition);
   const resolvedRef = useRef(false);
 
-  const beat = ADV.escape[index];
+  const beat = beats[index];
 
   const advance = useCallback(
     (hit: boolean) => {
@@ -658,7 +693,7 @@ function EscapeStage({
       }
       setTimeout(() => {
         const next = index + 1;
-        if (next >= ADV.escape.length) {
+        if (next >= beats.length) {
           audio.danger(false);
           onDone(Math.round(conditionRef.current));
           return;
@@ -666,7 +701,7 @@ function EscapeStage({
         resolvedRef.current = false;
         setFeedback(null);
         setIndex(next);
-        setRemaining(ADV.escape[next]!.window);
+        setRemaining(beats[next]!.window);
       }, 900);
     },
     [beat, index, onDone],
@@ -728,7 +763,7 @@ function EscapeStage({
         </>
       ) : (
         <p className="tiny">
-          {index + 1} / {ADV.escape.length}
+          {index + 1} / {beats.length}
         </p>
       )}
     </div>

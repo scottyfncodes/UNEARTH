@@ -224,6 +224,25 @@ function drawDetail(ctx: CanvasRenderingContext2D, sil: Silhouette, finish: Fini
       ctx.ellipse(-0.14, 0.02, 0.16, 0.1, -0.5, 0, Math.PI * 2);
       ctx.fill();
       break;
+    case 'knotmark': {
+      // The second mystery's signature: two interlocked loops, woven through
+      // each other — carved rather than cast, so it never reads perfectly round.
+      ctx.strokeStyle = hexA(finish.dark, 0.85);
+      ctx.lineWidth = 0.07;
+      ctx.beginPath();
+      ctx.ellipse(-0.16, 0, 0.32, 0.22, 0.5, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.ellipse(0.16, 0, 0.32, 0.22, -0.5, 0, Math.PI * 2);
+      ctx.stroke();
+      // A short break in the near loop where the far loop weaves over it.
+      ctx.strokeStyle = hexA(finish.light, 0.5);
+      ctx.lineWidth = 0.09;
+      ctx.beginPath();
+      ctx.arc(0, 0.02, 0.1, Math.PI * 0.15, Math.PI * 0.85);
+      ctx.stroke();
+      break;
+    }
     default:
       break;
   }

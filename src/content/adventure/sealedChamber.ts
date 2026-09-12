@@ -1,75 +1,19 @@
 /**
- * THE SEALED CHAMBER — the one authored adventure.
+ * THE SEALED CHAMBER — Act 4: the major discovery.
  *
  * Everything here is data: rooms, the dial puzzle, the mechanism holding the
- * artifact, and the escape beats. A second adventure would be another file
- * of this shape, not new gameplay code.
+ * artifact, and the escape beats.
  */
-export interface AdventureBeat {
-  id: string;
-  /** Short scene heading. */
-  heading: string;
-  /** Body text, one paragraph per entry. */
-  lines: string[];
-  /** Choices move to another beat; one may be marked as the way on. */
-  choices: { label: string; to: string; note?: string }[];
-}
-
-export interface DialPuzzle {
-  /** Number of positions each dial can take. */
-  positions: number;
-  /** Correct position per dial. */
-  solution: number[];
-  /** Starting position per dial. */
-  start: number[];
-  prompt: string;
-  solvedText: string;
-}
-
-export interface MechanismConfig {
-  /** Clamp angles in degrees around the disc. */
-  clamps: { id: string; angle: number; order: number }[];
-  /** Seconds of steady pressure needed to release a clamp. */
-  holdSeconds: number;
-  /** Tension added by releasing out of order. */
-  wrongOrderTension: number;
-  /** Tension added by touching the pressure rim. */
-  rimTension: number;
-  /** Condition lost per mistake. */
-  wrongOrderDamage: number;
-  /** Tension added per second once the first clamp is off. */
-  creepPerSecond: number;
-}
-
-export interface EscapeBeat {
-  prompt: string;
-  /** Seconds the player has to react. */
-  window: number;
-  /** Flavour shown after a success. */
-  success: string;
-  /** Flavour shown after a miss. */
-  failure: string;
-}
-
-export interface AdventureDef {
-  id: string;
-  locationId: string;
-  title: string;
-  artifactTargetId: string;
-  intro: string[];
-  beats: AdventureBeat[];
-  startBeat: string;
-  puzzle: DialPuzzle;
-  mechanism: MechanismConfig;
-  escape: EscapeBeat[];
-  outro: string[];
-}
+import type { AdventureDef } from './types';
 
 export const SEALED_CHAMBER: AdventureDef = {
   id: 'adv_sealed_chamber',
   locationId: 'loc_sealed_chamber',
   title: 'The Sealed Chamber',
+  introSubtitle: 'Beneath the north-west spur',
   artifactTargetId: 'tgt_sun_disc',
+  ambience: 'chamber',
+  cleanCondition: 96,
   intro: [
     'The collapsed adit takes two hours to clear by hand. Behind it, the tunnel stops being a mine.',
     'The walls are cut square. The floor is level. Nobody dug this for coal.',
@@ -117,6 +61,11 @@ export const SEALED_CHAMBER: AdventureDef = {
     prompt: 'Turn each ring until the three rays stand as they do on the token.',
     solvedText:
       'The last ring seats with a sound like a held breath being let go, and the slab swings inward on its own weight.',
+    screenTitle: 'The Door',
+    screenSubtitle: 'Three rings, one symbol',
+    unsolvedHint: 'The token shows three rays, evenly spaced. Nothing else fits.',
+    continueLabel: 'Step inside',
+    unitLabel: 'Rays',
   },
   mechanism: {
     clamps: [

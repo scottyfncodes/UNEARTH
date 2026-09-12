@@ -79,6 +79,26 @@ export interface TargetDef {
   authored?: boolean;
   /** Marks first-run teaching content so it can be told apart from real finds. */
   tutorial?: boolean;
+
+  /**
+   * Progressive identification. When set, the discovery card and journal show
+   * this name instead of `name` until the player examines the entry (opens
+   * its journal detail sheet) at least once — "UNKNOWN METAL FRAGMENT" before,
+   * the real name after. Absent means the object is identified on sight.
+   */
+  unidentifiedName?: string;
+  /** Extra context revealed only once the player has examined the find. */
+  examineText?: string;
+
+  /**
+   * Fragment/assembly system. A piece names the composite artifact it belongs
+   * to; the composite lists the piece ids it is built from. A composite is
+   * never rolled onto a loot table (it has no `locations`) — it is produced
+   * by systems/assembly.ts once every piece has been discovered.
+   */
+  pieceOf?: string;
+  /** Set only on a composite target: the piece target ids required to assemble it. */
+  assemblyOf?: string[];
 }
 
 export interface LocationDef {
@@ -97,7 +117,7 @@ export interface LocationDef {
   /** 0..1 — how stubborn the dirt is during excavation. */
   hardness: number;
   ground: GroundPalette;
-  ambience: 'park' | 'railway' | 'mine';
+  ambience: 'park' | 'railway' | 'mine' | 'ruins';
   /** Locked locations show as ??? on the map until a mystery unlocks them. */
   lockedBy?: string;
   /** What the map says about it while it is still unknown. */
@@ -239,4 +259,8 @@ export interface SaveData {
   adventures: Record<string, AdventureStatus>;
   settings: { sound: boolean; haptics: boolean };
   flags: { seenIntro: boolean; tutorialFound: boolean };
+  /** Target ids whose journal entry has been opened at least once. */
+  examined: string[];
+  /** Composite target ids that have been assembled from their pieces. */
+  assembled: string[];
 }

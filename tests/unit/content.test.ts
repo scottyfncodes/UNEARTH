@@ -96,22 +96,33 @@ describe('locations', () => {
   });
 
   it('every locked location can actually be reached from an unlocked one', () => {
-    // Each locking chain's clues must be obtainable somewhere already open.
+    // Each locking chain's clues must be obtainable somewhere already open —
+    // either dug up directly, or (for a composite) assembled from pieces that
+    // are all themselves obtainable, all without visiting a still-locked spot.
     const open = LOCATIONS.filter((l) => !l.lockedBy).map((l) => l.id);
     const reachable = new Set(open);
+
+    const placedAt = (targetId: string) =>
+      LOCATIONS.some(
+        (loc) => reachable.has(loc.id) && loc.table.some((entry) => entry.targetId === targetId),
+      );
+
+    const obtainable = (targetId: string): boolean => {
+      const def = TARGETS.find((t) => t.id === targetId);
+      if (!def) return false;
+      if (placedAt(targetId)) return true;
+      // A composite is obtainable once every one of its pieces is.
+      if (def.assemblyOf) return def.assemblyOf.every((pieceId) => obtainable(pieceId));
+      return false;
+    };
+
     let changed = true;
     while (changed) {
       changed = false;
       for (const chain of CHAINS) {
         const clueSources = chain.clueIds.map((clueId) => {
           const granters = TARGETS.filter((t) => t.clueId === clueId);
-          return granters.some((granter) =>
-            LOCATIONS.some(
-              (loc) =>
-                reachable.has(loc.id) &&
-                loc.table.some((entry) => entry.targetId === granter.id),
-            ),
-          );
+          return granters.some((granter) => obtainable(granter.id));
         });
         if (clueSources.every(Boolean) && chain.unlocksLocation && !reachable.has(chain.unlocksLocation)) {
           reachable.add(chain.unlocksLocation);
@@ -121,6 +132,20 @@ describe('locations', () => {
     }
     for (const location of LOCATIONS) {
       expect(reachable.has(location.id), `${location.id} is unreachable`).toBe(true);
+    }
+  });
+
+  it('every composite artifact can actually be assembled from obtainable pieces', () => {
+    for (const composite of TARGETS.filter((t) => t.assemblyOf)) {
+      for (const pieceId of composite.assemblyOf!) {
+        const piece = getTarget(pieceId);
+        expect(piece, `${composite.id} references missing piece ${pieceId}`).toBeDefined();
+        expect(piece!.pieceOf, `${pieceId} should point back at ${composite.id}`).toBe(composite.id);
+        // A piece must actually be findable somewhere (or itself a composite,
+        // though nothing in the game currently nests composites).
+        const findable = LOCATIONS.some((loc) => loc.table.some((e) => e.targetId === pieceId));
+        expect(findable, `${pieceId} is not on any loot table`).toBe(true);
+      }
     }
   });
 

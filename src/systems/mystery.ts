@@ -42,3 +42,31 @@ export function chainForClue(clueId: string): MysteryChain | undefined {
   const clue = getClue(clueId);
   return clue ? getChain(clue.chainId) : undefined;
 }
+
+export interface SymbolConnection {
+  symbol: string;
+  clues: ClueDef[];
+}
+
+/**
+ * Groups every held clue by its recurring symbol. A group of one is just a
+ * clue; a group of two or more is a connection — proof that finds made in
+ * different places, possibly a long session apart, are the same mystery.
+ * This is symbol-based rather than chain-based on purpose: two clues can
+ * share a mark without belonging to the same formal chain, and that overlap
+ * is exactly the "wait, that matters" moment worth surfacing.
+ */
+export function symbolConnections(heldClues: readonly string[]): SymbolConnection[] {
+  const bySymbol = new Map<string, ClueDef[]>();
+  for (const id of heldClues) {
+    const clue = getClue(id);
+    if (!clue) continue;
+    const list = bySymbol.get(clue.symbol);
+    if (list) list.push(clue);
+    else bySymbol.set(clue.symbol, [clue]);
+  }
+  return [...bySymbol.entries()]
+    .map(([symbol, clues]) => ({ symbol, clues }))
+    .filter((g) => g.clues.length >= 2)
+    .sort((a, b) => b.clues.length - a.clues.length);
+}

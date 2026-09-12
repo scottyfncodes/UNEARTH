@@ -87,6 +87,23 @@ describe('save round trip', () => {
     expect(loaded.field?.holes).toHaveLength(1);
   });
 
+  it('persists examined and assembled progress', () => {
+    const storage = memory();
+    const save = freshSave();
+    save.examined = ['tgt_shard_a', 'tgt_shard_a', 'tgt_shard_b'];
+    save.assembled = ['tgt_bound_tablet'];
+    writeSave(save, storage);
+    const loaded = loadSave(storage).save;
+    // sanitize dedupes via strArray, same as clues/unlockedLocations.
+    expect(loaded.examined.sort()).toEqual(['tgt_shard_a', 'tgt_shard_b']);
+    expect(loaded.assembled).toEqual(['tgt_bound_tablet']);
+  });
+
+  it('starts a fresh save with no examined or assembled entries', () => {
+    expect(freshSave().examined).toEqual([]);
+    expect(freshSave().assembled).toEqual([]);
+  });
+
   it('clears a save on request', () => {
     const storage = memory();
     writeSave(freshSave(), storage);
@@ -157,6 +174,28 @@ describe('bad save data never crashes the game', () => {
     expect(save.adventures).toEqual({});
     expect(save.settings.sound).toBe(true);
     expect(save.flags.seenIntro).toBe(false);
+  });
+
+  it('loads an old save saved before examined/assembled existed without crashing', () => {
+    // Simulates a save.v1 written by a build that pre-dates the assembly system.
+    const oldSave = {
+      version: 1,
+      discoveries: [],
+      clues: [],
+      chainsComplete: [],
+      unlockedLocations: ['loc_old_park'],
+      detectorId: 'det_starter',
+      ownedEquipment: ['det_starter'],
+      money: 0,
+      field: null,
+      adventures: {},
+      settings: { sound: true, haptics: true },
+      flags: { seenIntro: true, tutorialFound: true },
+      // no `examined`, no `assembled`
+    };
+    const save = sanitize(oldSave);
+    expect(save.examined).toEqual([]);
+    expect(save.assembled).toEqual([]);
   });
 
   it('always keeps the starting kit and locations available', () => {

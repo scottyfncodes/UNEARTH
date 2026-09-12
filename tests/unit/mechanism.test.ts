@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { SEALED_CHAMBER } from '@/content/adventure/sealedChamber';
+import { ADVENTURES, getAdventure } from '@/content/adventure';
+import { getTarget } from '@/content/targets';
+import { getLocation } from '@/content/locations';
 import {
   brushPlate,
   createMechanism,
@@ -12,7 +15,8 @@ import {
   touchRim,
 } from '@/systems/mechanism';
 
-const config = SEALED_CHAMBER.mechanism;
+// Sealed Chamber always defines a mechanism; the assertion documents that as a test precondition.
+const config = SEALED_CHAMBER.mechanism!;
 const HOLD = config.holdSeconds + 0.01;
 
 function mech() {
@@ -152,32 +156,85 @@ describe('lifting the artifact', () => {
 });
 
 describe('adventure content integrity', () => {
-  it('every beat choice points somewhere real', () => {
-    const ids = new Set(SEALED_CHAMBER.beats.map((b) => b.id));
-    ids.add('puzzle');
-    for (const beat of SEALED_CHAMBER.beats) {
-      for (const choice of beat.choices) {
-        expect(ids.has(choice.to), `${beat.id} -> ${choice.to}`).toBe(true);
-      }
+  const all = Object.values(ADVENTURES);
+
+  it('the registry is keyed by each adventure\'s own id and finds both authored adventures', () => {
+    expect(all.length).toBeGreaterThanOrEqual(2);
+    for (const [key, adv] of Object.entries(ADVENTURES)) {
+      expect(adv.id).toBe(key);
+      expect(getAdventure(adv.id)).toBe(adv);
     }
-    expect(ids.has(SEALED_CHAMBER.startBeat)).toBe(true);
+    expect(getAdventure('nonsense')).toBeUndefined();
   });
 
-  it('the dial puzzle is solvable and does not start solved', () => {
-    const { solution, start, positions } = SEALED_CHAMBER.puzzle;
-    expect(solution).toHaveLength(start.length);
-    expect(solution.every((v) => v >= 0 && v < positions)).toBe(true);
-    expect(start.every((v) => v >= 0 && v < positions)).toBe(true);
-    expect(start.join()).not.toBe(solution.join());
+  it('every adventure targets a real location and a real artifact target', () => {
+    for (const adv of all) {
+      const loc = getLocation(adv.locationId);
+      expect(loc, `${adv.id} -> ${adv.locationId}`).toBeDefined();
+      expect(loc!.adventureId).toBe(adv.id);
+      const artifact = getTarget(adv.artifactTargetId);
+      expect(artifact, `${adv.id} -> ${adv.artifactTargetId}`).toBeDefined();
+    }
+  });
+
+  it('every beat choice points somewhere real, for every adventure', () => {
+    for (const adv of all) {
+      const ids = new Set(adv.beats.map((b) => b.id));
+      ids.add('puzzle');
+      for (const beat of adv.beats) {
+        for (const choice of beat.choices) {
+          expect(ids.has(choice.to), `${adv.id}: ${beat.id} -> ${choice.to}`).toBe(true);
+        }
+      }
+      expect(ids.has(adv.startBeat), `${adv.id} startBeat`).toBe(true);
+    }
+  });
+
+  it('every dial puzzle is solvable, does not start solved, and has its own copy', () => {
+    for (const adv of all) {
+      const { solution, start, positions } = adv.puzzle;
+      expect(solution.length, adv.id).toBeGreaterThan(0);
+      expect(solution).toHaveLength(start.length);
+      expect(solution.every((v) => v >= 0 && v < positions)).toBe(true);
+      expect(start.every((v) => v >= 0 && v < positions)).toBe(true);
+      expect(start.join(), `${adv.id} starts pre-solved`).not.toBe(solution.join());
+      expect(adv.puzzle.screenTitle.length).toBeGreaterThan(0);
+      expect(adv.puzzle.continueLabel.length).toBeGreaterThan(0);
+    }
+  });
+
+  it('an adventure with a mechanism also has an escape, and vice versa is not required', () => {
+    for (const adv of all) {
+      if (adv.mechanism) {
+        expect(adv.mechanism.clamps.length).toBeGreaterThan(0);
+      }
+    }
   });
 
   it('has an escape sequence with reactable windows', () => {
-    expect(SEALED_CHAMBER.escape.length).toBeGreaterThan(0);
-    for (const beat of SEALED_CHAMBER.escape) {
+    const escape = SEALED_CHAMBER.escape!;
+    expect(escape.length).toBeGreaterThan(0);
+    for (const beat of escape) {
       expect(beat.window).toBeGreaterThan(1);
       expect(beat.prompt.length).toBeGreaterThan(0);
       expect(beat.success.length).toBeGreaterThan(0);
       expect(beat.failure.length).toBeGreaterThan(0);
+    }
+  });
+
+  it('the courtyard is a puzzle-only adventure: no mechanism, no escape', () => {
+    const courtyard = getAdventure('adv_courtyard')!;
+    expect(courtyard.mechanism).toBeUndefined();
+    expect(courtyard.escape).toBeUndefined();
+    expect(courtyard.cleanCondition).toBeGreaterThan(0);
+    expect(courtyard.cleanCondition).toBeLessThanOrEqual(100);
+  });
+
+  it('every adventure has non-empty intro and outro text', () => {
+    for (const adv of all) {
+      expect(adv.intro.length, adv.id).toBeGreaterThan(0);
+      expect(adv.outro.length, adv.id).toBeGreaterThan(0);
+      expect(adv.introSubtitle.length).toBeGreaterThan(0);
     }
   });
 });

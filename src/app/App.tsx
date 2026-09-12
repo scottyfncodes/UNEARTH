@@ -13,7 +13,7 @@ import { EquipmentScreen } from './screens/EquipmentScreen';
 import { AdventureScreen } from './screens/AdventureScreen';
 
 export function App() {
-  const { route, save } = useGameState();
+  const { route, save, activeAdventure } = useGameState();
 
   // Settings drive the engines, not the other way around.
   useEffect(() => {
@@ -58,7 +58,9 @@ export function App() {
     case 'equipment':
       return <EquipmentScreen />;
     case 'adventure':
-      return <AdventureScreen />;
+      // A fresh key per adventure forces a clean remount if the active
+      // adventure ever changes without leaving the route in between.
+      return <AdventureScreen key={activeAdventure ?? 'none'} />;
     default:
       return <MapScreen />;
   }

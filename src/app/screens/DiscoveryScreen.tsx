@@ -22,9 +22,12 @@ export function DiscoveryScreen() {
     return null;
   }
 
-  const { record, def, clue, chains, unlockedLocations } = pending;
+  const { record, def, clue, connections, chains, unlockedLocations } = pending;
   const location = getLocation(record.locationId);
   const unknown = def.significance === 'unknown';
+  // Discovery shows what you can tell at a glance — the full identification
+  // comes later, the first time you open this find in the journal.
+  const shownName = def.unidentifiedName ?? def.name;
   // After an adventure there is no field to go back to — offer the map instead.
   const field = game.get().save.field;
   const canResumeField = !!field && field.targets.some((t) => !t.dug);
@@ -38,7 +41,7 @@ export function DiscoveryScreen() {
         <FindArt silhouette={def.silhouette} condition={record.condition} animate />
       </div>
       <h1 className="discovery__name" data-testid="discovery-name">
-        {def.name}
+        {shownName}
       </h1>
       <div style={{ display: 'flex', justifyContent: 'center', marginTop: 10 }}>
         <RarityTag rarity={def.rarity} />
@@ -90,6 +93,18 @@ export function DiscoveryScreen() {
               <p style={{ margin: '6px 0 4px', fontFamily: 'var(--serif)', fontSize: 17 }}>{clue.title}</p>
               <p className="card__sub" style={{ margin: 0 }}>
                 {clue.text}
+              </p>
+            </div>
+          ) : null}
+
+          {connections.length > 0 ? (
+            <div className="banner banner--mystery" data-testid="connection-banner">
+              <div className="banner__kicker">Wait — that matches something</div>
+              <p style={{ margin: '6px 0 4px', fontFamily: 'var(--serif)', fontSize: 17 }}>
+                {clue?.symbol}
+              </p>
+              <p className="card__sub" style={{ margin: 0 }}>
+                The same mark is on {connections.length === 1 ? '"' + connections[0]!.title + '"' : `${connections.length} other finds`} already in your journal. Check the Links tab.
               </p>
             </div>
           ) : null}

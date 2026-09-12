@@ -8,7 +8,7 @@
 import type { ToneClass } from '@/systems/detection';
 import { clamp01 } from '@/core/rng';
 
-type AmbienceKind = 'park' | 'railway' | 'mine' | 'chamber' | null;
+export type AmbienceKind = 'park' | 'railway' | 'mine' | 'chamber' | 'ruins' | null;
 
 const TONE_FREQ: Record<ToneClass, number> = {
   iron: 196,
@@ -259,12 +259,12 @@ class AudioEngine {
     if (!src) return;
     const lp = this.ctx.createBiquadFilter();
     lp.type = 'lowpass';
-    lp.frequency.value = kind === 'park' ? 520 : kind === 'railway' ? 360 : 220;
+    lp.frequency.value = kind === 'park' ? 520 : kind === 'ruins' ? 440 : kind === 'railway' ? 360 : 220;
 
     const lfo = this.ctx.createOscillator();
-    lfo.frequency.value = kind === 'park' ? 0.13 : 0.08;
+    lfo.frequency.value = kind === 'park' || kind === 'ruins' ? 0.13 : 0.08;
     const lfoGain = this.ctx.createGain();
-    lfoGain.gain.value = kind === 'park' ? 160 : 80;
+    lfoGain.gain.value = kind === 'park' || kind === 'ruins' ? 160 : 80;
     lfo.connect(lfoGain).connect(lp.frequency);
 
     src.connect(lp).connect(this.ambienceGain);
@@ -272,7 +272,7 @@ class AudioEngine {
     lfo.start();
     this.ambienceNodes = [src, lfo, lp, lfoGain];
 
-    const level = kind === 'park' ? 0.1 : kind === 'railway' ? 0.09 : 0.12;
+    const level = kind === 'park' ? 0.1 : kind === 'ruins' ? 0.1 : kind === 'railway' ? 0.09 : 0.12;
     this.ambienceGain.gain.cancelScheduledValues(this.now());
     this.ambienceGain.gain.setValueAtTime(this.ambienceGain.gain.value, this.now());
     this.ambienceGain.gain.linearRampToValueAtTime(level, this.now() + 1.5);
@@ -284,6 +284,16 @@ class AudioEngine {
       drone.frequency.value = kind === 'chamber' ? 47 : 58;
       const dg = this.ctx.createGain();
       dg.gain.value = 0.5;
+      drone.connect(dg).connect(this.ambienceGain);
+      drone.start();
+      this.ambienceNodes.push(drone, dg);
+    } else if (kind === 'ruins') {
+      // Open air, not underground: a thin high tone instead of a dread drone.
+      const drone = this.ctx.createOscillator();
+      drone.type = 'triangle';
+      drone.frequency.value = 220;
+      const dg = this.ctx.createGain();
+      dg.gain.value = 0.16;
       drone.connect(dg).connect(this.ambienceGain);
       drone.start();
       this.ambienceNodes.push(drone, dg);

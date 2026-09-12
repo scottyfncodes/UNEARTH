@@ -17,7 +17,7 @@ export interface Silhouette {
   /** Surface family — drives colour and how it catches the light. */
   finish: 'iron' | 'brass' | 'copper' | 'silver' | 'gold' | 'bronze' | 'stone' | 'alloy' | 'painted';
   /** Relief detail drawn on top once exposed (engraving, teeth, lettering). */
-  detail?: 'coinface' | 'engraved' | 'teeth' | 'sunmark' | 'thread' | 'glass';
+  detail?: 'coinface' | 'engraved' | 'teeth' | 'sunmark' | 'thread' | 'glass' | 'knotmark';
 }
 
 const cap = (x1: number, y1: number, x2: number, y2: number, r: number): Shape => ({
@@ -191,6 +191,44 @@ export const SILHOUETTES: Record<string, Silhouette> = {
     ],
     finish: 'gold',
     detail: 'sunmark',
+  },
+
+  // ── The Bound Tablet: fragment pieces + the assembled whole ────────────────
+  shard_a: {
+    shapes: [
+      { kind: 'poly', pts: [[-0.75, -0.55], [0.15, -0.85], [0.7, -0.1], [0.35, 0.6], [-0.55, 0.35]] },
+    ],
+    finish: 'stone',
+    detail: 'knotmark',
+  },
+  shard_b: {
+    shapes: [
+      { kind: 'poly', pts: [[-0.6, -0.75], [0.5, -0.6], [0.8, 0.3], [0.1, 0.8], [-0.5, 0.2]] },
+    ],
+    finish: 'stone',
+    detail: 'knotmark',
+  },
+  shard_c: {
+    shapes: [
+      { kind: 'poly', pts: [[-0.4, -0.85], [0.65, -0.45], [0.55, 0.55], [-0.2, 0.8], [-0.75, 0.05]] },
+    ],
+    finish: 'stone',
+    detail: 'knotmark',
+  },
+  tablet: {
+    shapes: [{ kind: 'rect', x: 0, y: 0, w: 1.5, h: 1.1 }],
+    finish: 'stone',
+    detail: 'knotmark',
+  },
+  idol: {
+    shapes: [
+      { kind: 'circle', x: 0, y: -0.58, r: 0.24 },
+      { kind: 'poly', pts: [[-0.4, -0.3], [0.4, -0.3], [0.5, 0.75], [-0.5, 0.75]] },
+      cap(-0.42, -0.05, -0.62, 0.35, 0.14),
+      cap(0.42, -0.05, 0.62, 0.35, 0.14),
+    ],
+    finish: 'bronze',
+    detail: 'knotmark',
   },
 };
 

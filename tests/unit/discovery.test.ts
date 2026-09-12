@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { getTarget } from '@/content/targets';
+import { getTarget, TARGETS } from '@/content/targets';
 import { CHAINS } from '@/content/clues';
 import { freshSave } from '@/core/save';
 import { conditionLabel, resolveDiscovery } from '@/systems/discovery';
-import { chainForClue, chainProgress, newlyCompleted } from '@/systems/mystery';
+import { chainForClue, chainProgress, newlyCompleted, symbolConnections } from '@/systems/mystery';
 import type { SaveData } from '@/core/types';
 
 const coin = getTarget('tgt_silver_coin')!;
@@ -12,6 +12,8 @@ const tag = getTarget('tgt_survey_tag')!;
 const token = getTarget('tgt_bronze_token')!;
 const fragment = getTarget('tgt_stone_fragment')!;
 const mechanism = getTarget('tgt_mechanism_part')!;
+const shardA = getTarget('tgt_shard_a')!;
+const shardB = getTarget('tgt_shard_b')!;
 
 function find(save: SaveData, def = coin, condition = 80) {
   return resolveDiscovery(save, {
@@ -139,12 +141,52 @@ describe('clue chains', () => {
       expect(chain.clueIds.length).toBeGreaterThan(0);
       for (const clueId of chain.clueIds) {
         // Some target in the game must be able to grant this clue.
-        const granter = ['tgt_brakeman_badge', 'tgt_survey_tag', 'tgt_bronze_token', 'tgt_stone_fragment', 'tgt_mechanism_part']
-          .map((id) => getTarget(id)!)
-          .some((def) => def.clueId === clueId);
+        const granter = TARGETS.some((def) => def.clueId === clueId);
         expect(granter, `no target grants ${clueId}`).toBe(true);
       }
     }
+  });
+});
+
+describe('symbol connections', () => {
+  it('reports nothing for a single clue', () => {
+    const save = find(freshSave(), badge).save;
+    expect(symbolConnections(save.clues)).toHaveLength(0);
+  });
+
+  it('groups two clues that share a symbol, in the outcome and in the query', () => {
+    const step1 = find(freshSave(), badge);
+    expect(step1.outcome.connections).toHaveLength(0);
+
+    const step2 = find(step1.save, tag); // 'Bearing 312°' — a different symbol
+    expect(step2.outcome.connections).toHaveLength(0);
+
+    const step3 = find(step2.save, token); // 'Three-pointed sun' — matches badge
+    expect(step3.outcome.connections.map((c) => c.id)).toEqual(['clue_badge']);
+
+    const groups = symbolConnections(step3.save.clues);
+    const sun = groups.find((g) => g.symbol === 'Three-pointed sun');
+    expect(sun?.clues.map((c) => c.id).sort()).toEqual(['clue_badge', 'clue_token']);
+  });
+
+  it('grows the connection list as more sharing clues arrive', () => {
+    let save = find(freshSave(), token).save;
+    save = find(save, fragment).save;
+    const third = find(save, mechanism);
+    // clue_mechanism has its own symbol ('Machined teeth'), so it should NOT
+    // connect to the sun clues even though it belongs to the same chain.
+    expect(third.outcome.connections).toHaveLength(0);
+
+    const groups = symbolConnections(third.save.clues);
+    const sun = groups.find((g) => g.symbol === 'Three-pointed sun')!;
+    expect(sun.clues).toHaveLength(2);
+  });
+
+  it('does not report a connection for the very first clue with a new symbol', () => {
+    let save = find(freshSave(), shardA).save;
+    expect(symbolConnections(save.clues)).toHaveLength(0);
+    save = find(save, shardB).save;
+    expect(symbolConnections(save.clues)[0]?.clues).toHaveLength(2);
   });
 });
 

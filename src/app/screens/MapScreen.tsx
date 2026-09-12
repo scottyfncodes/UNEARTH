@@ -1,7 +1,7 @@
 import { LOCATIONS } from '@/content/locations';
 import { getChain } from '@/content/clues';
 import { chainProgress } from '@/systems/mystery';
-import { enterLocation, game, go } from '@/core/gameState';
+import { enterAdventure, enterLocation, game, go } from '@/core/gameState';
 import { useGameState } from '../useGame';
 import { Btn, TopBar } from '../components/ui';
 import { Nav } from '../components/Nav';
@@ -49,7 +49,7 @@ export function MapScreen() {
               data-testid={`location-${loc.id}`}
               onClick={() => {
                 if (isAdventure) {
-                  go('adventure');
+                  enterAdventure(loc.adventureId!);
                 } else {
                   enterLocation(loc.id);
                 }

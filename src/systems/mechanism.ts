@@ -4,7 +4,7 @@
  *
  * Pure logic — the screen renders it and feeds it input.
  */
-import type { MechanismConfig } from '@/content/adventure/sealedChamber';
+import type { MechanismConfig } from '@/content/adventure/types';
 import { clamp, clamp01 } from '@/core/rng';
 
 export interface ClampState {

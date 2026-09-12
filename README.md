@@ -1,15 +1,24 @@
 # UNEARTH
 
-A mobile-first metal detecting game. You sweep a coil over ordinary ground,
-interpret what the detector tells you, dig carefully, and find out what has
-been down there. Most of it is rubbish. Occasionally it is not.
+A mobile-first archaeological adventure. You sweep a metal detector over
+ordinary ground, dig carefully, and find out what has been down there. Most
+of it is rubbish. Occasionally it is the first piece of something much bigger
+— a shard that turns out to be one of three, a symbol that keeps recurring on
+finds made in different places, a clue that opens up ground you had no reason
+to go looking at before.
 
 **Play it: https://scottyfncodes.github.io/UNEARTH/** — best on a phone, with
 sound on.
 
 ```
-SEARCH → DETECT → LOCATE → DIG → EXTRACT → IDENTIFY → COLLECT → DISCOVER
+EXPLORE → SEARCH → DISCOVER → IDENTIFY → CONNECT → UNLOCK → FOLLOW THE CLUE → DISCOVER MORE
 ```
+
+The detector is one tool inside that loop, not the whole game: take it away
+and there is still an adventure underneath — fragments to piece together,
+clues that cross-reference each other, and two authored sites (a sealed
+mechanism chamber and an overgrown ruin) that only open once you have
+actually put together what you found.
 
 Deployed to GitHub Pages by `.github/workflows/deploy-pages.yml` on every push
 to the active branch; the unit suite has to pass before the site goes out.
@@ -27,7 +36,7 @@ npm run measure    # prints excavation timing/damage balance figures
 ```
 
 Everything is rendered at runtime — no image or audio assets. The whole game is
-about 110 kB gzipped.
+about 115 kB gzipped.
 
 ## How it plays
 
@@ -44,7 +53,11 @@ about 110 kB gzipped.
   something, switch to the brush. The scoop does not care what it hits.
 - **Lift it out** once about 70% of it is uncovered. Condition is permanent.
 - Some finds carry markings. Those go in the journal as clues, and clues
-  connect.
+  connect — the same recurring symbol on two "unrelated" finds is a real
+  in-game signal, not decoration, and the journal's Links tab surfaces it.
+- Some finds are only *part* of something. The Journal's Assemble tab shows
+  every fragment set you have made progress on; once you hold every piece,
+  fitting them together produces the whole object — and changes what you know.
 
 Digging in the wrong place gives you an empty hole. That is intended: the
 target stays in the ground and you can go back and find it properly.
@@ -57,12 +70,15 @@ React only draws screens. No gameplay rule lives in a component.
 ```
 src/
   content/        pure data — no logic, no imports from app/
-    targets.ts          every findable object
+    targets.ts          every findable object, including fragment pieces and
+                         the composites they assemble into
     locations.ts        plots and their loot tables
-    clues.ts            clues and the chains they form
+    clues.ts            clues and the chains (and cross-chain connections) they form
     equipment.ts        detectors and excavation tools
     silhouettes.ts      object shapes as primitives (used for both hit-testing and drawing)
-    adventure/          authored adventure scripts
+    adventure/          authored adventures — a registry keyed by id, so a
+                         second (or third) adventure is a content file plus
+                         one line in index.ts, not new gameplay code
   core/
     types.ts            shared content and state types
     gameState.ts        the store: persistent save + navigation + actions
@@ -75,8 +91,9 @@ src/
     placement.ts        procedural target placement from seeds
     excavation.ts       dirt, debris, contact, damage, exposure, extraction
     mechanism.ts        the precision artifact extraction
-    discovery.ts        extraction → journal record, clue, unlocks, funds
-    mystery.ts          clue chain evaluation
+    discovery.ts        extraction/assembly → journal record, clue, unlocks, funds
+    mystery.ts          clue chain evaluation + cross-chain symbol connections
+    assembly.ts         fragment-piece progress tracking and composite assembly
   engine/         browser-facing, imperative
     loop.ts             rAF loop with clamped delta, pauses when hidden
     input.ts            touch stick, drag tracker, canvas fitting
@@ -99,9 +116,15 @@ Two rules hold the shape:
 
 A new find is an entry in `targets.ts` plus a silhouette. A new location is an
 entry in `locations.ts` with its own loot table. A new mystery is clues plus a
-chain in `clues.ts`. None of that requires touching gameplay code — the content
-tests will tell you if a reference is broken or a locked location is
-unreachable.
+chain in `clues.ts`. A new fragment set is three or more `TargetDef`s with
+`pieceOf` pointing at a composite `TargetDef` with `assemblyOf` — the composite
+must be `authored: true` and never gets a `locations` list, since the only way
+to obtain it is `systems/assembly.ts`, not a dig. A new adventure is a content
+file shaped like `content/adventure/courtyard.ts` (a `mechanism`/`escape` are
+optional — a puzzle-only adventure just omits them) plus one line in
+`content/adventure/index.ts`. None of that requires touching gameplay code —
+the content tests will tell you if a reference is broken, a locked location is
+unreachable, or a composite's pieces are not actually findable.
 
 ## Save data
 
@@ -121,14 +144,17 @@ real input. It grants nothing a player could not work out by listening.
 
 ## Testing
 
-- `npm test` — 110 unit tests across the signal model, placement, excavation
-  and damage, discovery and unlocks, the mechanism, save robustness, and content
-  integrity.
+- `npm test` — unit tests across the signal model, placement, excavation and
+  damage, discovery and unlocks, the mechanism, fragment assembly and symbol
+  connections, save robustness, and content integrity (including that every
+  composite's pieces are actually findable, and every locked location —
+  chain-gated or assembly-gated — is reachable).
 - `npm run e2e` — plays the loop at a 390×844 viewport with touch: walks to a
   buried target using the real controls, pinpoints it, digs, excavates by
   dragging, extracts, checks the journal, and reloads to confirm persistence.
-  Also plays the authored adventure end to end, and checks an empty hole stays
-  honestly empty.
+  Also plays both authored adventures end to end (the chamber's door puzzle,
+  mechanism and escape; the courtyard's puzzle-only path), the tablet
+  assembly flow, and checks an empty hole stays honestly empty.
 
 Only Chromium is available in this environment, so the phone is emulated
 (iPhone-13 viewport, DPR 3, touch, mobile UA). That is not a substitute for a
@@ -136,11 +162,25 @@ pass on real iOS Safari and Android Chrome.
 
 ## Current scope
 
-Built and playable: the full detecting → excavation → discovery → journal →
-mystery loop across three detecting locations, equipment progression, and one
-authored adventure (The Sealed Chamber) with a door puzzle, a precision
-artifact extraction under rising tension, and an escape.
+Built and playable: the full explore → search → discover → identify → connect
+→ unlock → follow-the-clue loop across three detecting locations, equipment
+progression, and two authored adventures:
 
-Deliberately not built: a second adventure, any economy beyond funds for kit,
+- **The Sealed Chamber** — a door puzzle, a precision artifact extraction
+  under rising tension with an ordered clamp release, and a reactive escape.
+- **The Overgrown Courtyard** — a puzzle-only adventure (no mechanism, no
+  escape) reached only by assembling a fragmented artifact first, proving the
+  adventure format works without the chamber's extraction stakes.
+
+Two independent mystery threads run through the game, each with its own
+recurring symbol, and cross at the end: the three-pointed sun (paperwork →
+the mine → the sealed chamber) and the woven knot (three ordinary-looking
+shards, found in the two starting locations, that turn out to be one object —
+assemble it and it points somewhere new). The Journal's Links tab surfaces a
+connection the moment two held clues share a symbol, whether or not they
+belong to the same formal chain; its Assemble tab tracks progress on every
+fragment set and performs the assembly.
+
+Deliberately not built: a third adventure, any economy beyond funds for kit,
 and any progression system other than equipment, knowledge and unlocked
 ground.

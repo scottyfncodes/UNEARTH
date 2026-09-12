@@ -1,7 +1,10 @@
 /**
- * Turning an extracted object into a permanent record: journal entry, clue,
- * chain completion, unlocks and funds. Pure function of (save, extraction) so
- * the whole progression step is testable.
+ * Turning a find into a permanent record: journal entry, clue, chain
+ * completion, unlocks and funds.
+ *
+ * Two things produce a find: digging one up (resolveDiscovery) and completing
+ * an assembly (systems/assembly.ts, via applyDiscoveryRecord below). Both are
+ * pure functions of (save, record) so the whole progression step is testable.
  */
 import { getClue } from '@/content/clues';
 import { getLocation } from '@/content/locations';
@@ -28,6 +31,8 @@ export interface DiscoveryOutcome {
   record: DiscoveryRecord;
   def: TargetDef;
   clue: ClueDef | null;
+  /** Held clues that share a symbol with the new clue — "wait, that matters". */
+  connections: ClueDef[];
   /** Chains completed by this find. */
   chains: MysteryChain[];
   unlockedLocations: LocationDef[];
@@ -37,29 +42,32 @@ export interface DiscoveryOutcome {
   fundsGained: number;
 }
 
-export function resolveDiscovery(
+/**
+ * Applies a already-built DiscoveryRecord to a save: adds it to the journal,
+ * grants its clue (and reports any symbol connections), resolves newly
+ * completed chains and their unlocks, and credits funds. Shared by digging
+ * something up and by assembling a composite artifact.
+ */
+export function applyDiscoveryRecord(
   save: SaveData,
-  input: ExtractionInput,
+  record: DiscoveryRecord,
+  def: TargetDef,
 ): { save: SaveData; outcome: DiscoveryOutcome } {
-  const { def, locationId } = input;
-  const condition = Math.round(Math.max(0, Math.min(100, input.condition)));
-
-  const record: DiscoveryRecord = {
-    uid: uid('find'),
-    targetId: def.id,
-    condition,
-    depthCm: Math.round(input.depthCm * 10) / 10,
-    locationId,
-    foundAt: Date.now(),
-    // Condition drives value: a damaged artifact is worth less, always.
-    value: Math.round(def.value * (0.35 + 0.65 * (condition / 100))),
-    ...(input.tutorial ? { tutorial: true as const } : {}),
-  };
-
   const firstOfKind = !save.discoveries.some((d) => d.targetId === def.id);
 
-  const clue = def.clueId ? getClue(def.clueId) ?? null : null;
-  const clues = clue && !save.clues.includes(clue.id) ? [...save.clues, clue.id] : save.clues;
+  const clue = def.clueId ? (getClue(def.clueId) ?? null) : null;
+  const isNewClue = !!clue && !save.clues.includes(clue.id);
+
+  // A connection is any other clue the player already holds that shares this
+  // one's symbol — the moment two "unrelated" finds turn out not to be.
+  const connections =
+    isNewClue && clue
+      ? save.clues
+          .map((id) => getClue(id))
+          .filter((c): c is ClueDef => !!c && c.symbol === clue.symbol && c.id !== clue.id)
+      : [];
+
+  const clues = isNewClue && clue ? [...save.clues, clue.id] : save.clues;
 
   const chains = newlyCompleted(clues, save.chainsComplete);
   const unlockedLocations: LocationDef[] = [];
@@ -90,11 +98,11 @@ export function resolveDiscovery(
     stats: {
       ...save.stats,
       finds: save.stats.finds + 1,
-      bestCondition: Math.max(save.stats.bestCondition, condition),
+      bestCondition: Math.max(save.stats.bestCondition, record.condition),
     },
     flags: {
       ...save.flags,
-      tutorialFound: save.flags.tutorialFound || !!input.tutorial,
+      tutorialFound: save.flags.tutorialFound || !!record.tutorial,
     },
   };
 
@@ -103,7 +111,8 @@ export function resolveDiscovery(
     outcome: {
       record,
       def,
-      clue: clue && !save.clues.includes(clue.id) ? clue : null,
+      clue: isNewClue ? clue : null,
+      connections,
       chains,
       unlockedLocations,
       unlockedAdventures,
@@ -111,6 +120,28 @@ export function resolveDiscovery(
       fundsGained: record.value,
     },
   };
+}
+
+export function resolveDiscovery(
+  save: SaveData,
+  input: ExtractionInput,
+): { save: SaveData; outcome: DiscoveryOutcome } {
+  const { def, locationId } = input;
+  const condition = Math.round(Math.max(0, Math.min(100, input.condition)));
+
+  const record: DiscoveryRecord = {
+    uid: uid('find'),
+    targetId: def.id,
+    condition,
+    depthCm: Math.round(input.depthCm * 10) / 10,
+    locationId,
+    foundAt: Date.now(),
+    // Condition drives value: a damaged artifact is worth less, always.
+    value: Math.round(def.value * (0.35 + 0.65 * (condition / 100))),
+    ...(input.tutorial ? { tutorial: true as const } : {}),
+  };
+
+  return applyDiscoveryRecord(save, record, def);
 }
 
 export function conditionLabel(condition: number): string {
