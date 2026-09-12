@@ -4,9 +4,15 @@ A mobile-first metal detecting game. You sweep a coil over ordinary ground,
 interpret what the detector tells you, dig carefully, and find out what has
 been down there. Most of it is rubbish. Occasionally it is not.
 
+**Play it: https://scottyfncodes.github.io/UNEARTH/** — best on a phone, with
+sound on.
+
 ```
 SEARCH → DETECT → LOCATE → DIG → EXTRACT → IDENTIFY → COLLECT → DISCOVER
 ```
+
+Deployed to GitHub Pages by `.github/workflows/deploy-pages.yml` on every push
+to the active branch; the unit suite has to pass before the site goes out.
 
 ## Running it
 
