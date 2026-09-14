@@ -99,6 +99,26 @@ export const CLUES: ClueDef[] = [
     text:
       'Cut into the courtyard flagstones, worn almost flat: the same woven knot, and beside it, a line pointing down — toward the spoil heaps above the old mine.',
   },
+
+  // ── The Silent Court (content/sites/silentCourt.ts): two matching carvings,
+  // found by looking rather than digging — the game's first "wait, I've seen
+  // this" moment that happens entirely on foot, with no detector involved.
+  {
+    id: 'clue_court_coil_west',
+    chainId: 'chain_court_coil',
+    symbol: 'Twin Serpent Coil',
+    title: 'A serpent, coiled',
+    text:
+      'Cut into the base of the west wall: a serpent coiled tight around itself. Deliberate work, and old — but the stone around it is not worn the way the rest of the wall is.',
+  },
+  {
+    id: 'clue_court_coil_east',
+    chainId: 'chain_court_coil',
+    symbol: 'Twin Serpent Coil',
+    title: 'The same serpent, the other wall',
+    text:
+      'The east wall carries an identical coil — same proportions, same depth of cut, same hand. Two matching marks, on opposite walls of the same small court, do not happen by accident.',
+  },
 ];
 
 export const CHAINS: MysteryChain[] = [
@@ -150,6 +170,15 @@ export const CHAINS: MysteryChain[] = [
     completeTitle: 'ONE SYMBOL, THREE SITES',
     completeText:
       'The tablet pointed to the courtyard. The courtyard points to the mine. The same woven knot marks every step — a different mark entirely from the three-pointed sun on the badge and the survey tag, which means two separate mysteries are converging on the same patch of ground.',
+  },
+  {
+    id: 'chain_court_coil',
+    name: 'The Twin Serpent Coil',
+    clueIds: ['clue_court_coil_west', 'clue_court_coil_east'],
+    hint: 'A coiled serpent is cut into one wall of the court. Is it only on the one wall?',
+    completeTitle: 'BOTH WALLS AGREE',
+    completeText:
+      'The same coiled serpent, cut into stone on opposite sides of the court, by the same hand, at the same height. Whatever stood at the centre of this place was important enough to mark twice.',
   },
 ];
 

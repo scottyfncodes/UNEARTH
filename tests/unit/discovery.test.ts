@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { getTarget, TARGETS } from '@/content/targets';
 import { CHAINS } from '@/content/clues';
 import { freshSave } from '@/core/save';
-import { conditionLabel, resolveDiscovery } from '@/systems/discovery';
+import { conditionLabel, resolveDiscovery, resolveObservation } from '@/systems/discovery';
 import { chainForClue, chainProgress, newlyCompleted, symbolConnections } from '@/systems/mystery';
 import type { SaveData } from '@/core/types';
 
@@ -187,6 +187,31 @@ describe('symbol connections', () => {
     expect(symbolConnections(save.clues)).toHaveLength(0);
     save = find(save, shardB).save;
     expect(symbolConnections(save.clues)[0]?.clues).toHaveLength(2);
+  });
+});
+
+describe('resolveObservation', () => {
+  const carvingWest = getTarget('tgt_court_carving_west')!;
+  const carvingEast = getTarget('tgt_court_carving_east')!;
+
+  it('records a pristine, surface-level find through the same pipeline as a dig', () => {
+    const { save, outcome } = resolveObservation(freshSave(), {
+      def: carvingWest,
+      locationId: 'loc_silent_court',
+    });
+    expect(save.discoveries).toHaveLength(1);
+    const record = save.discoveries[0]!;
+    expect(record.condition).toBe(100);
+    expect(record.depthCm).toBe(0);
+    expect(record.locationId).toBe('loc_silent_court');
+    expect(outcome.clue?.id).toBe('clue_court_coil_west');
+  });
+
+  it('surfaces the connection and completes the chain once the matching carving is found', () => {
+    const first = resolveObservation(freshSave(), { def: carvingWest, locationId: 'loc_silent_court' });
+    const second = resolveObservation(first.save, { def: carvingEast, locationId: 'loc_silent_court' });
+    expect(second.outcome.connections.map((c) => c.id)).toEqual(['clue_court_coil_west']);
+    expect(second.outcome.chains.map((c) => c.id)).toEqual(['chain_court_coil']);
   });
 });
 

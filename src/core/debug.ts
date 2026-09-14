@@ -29,11 +29,25 @@ export interface DetectorFrame {
   dominant: string | null;
 }
 
-const frames: { detector?: DetectorFrame } = {};
+export interface ExploreFrame {
+  /** Metres, matching SiteDef coordinates. */
+  x: number;
+  z: number;
+  yaw: number;
+  /** Label of the single contextual prompt currently offered, if any. */
+  promptLabel: string | null;
+}
+
+const frames: { detector?: DetectorFrame; explore?: ExploreFrame } = {};
 
 export function publishDetectorFrame(frame: DetectorFrame): void {
   if (!DEBUG_ENABLED) return;
   frames.detector = frame;
+}
+
+export function publishExploreFrame(frame: ExploreFrame): void {
+  if (!DEBUG_ENABLED) return;
+  frames.explore = frame;
 }
 
 export function installDebug(): void {

@@ -9,7 +9,13 @@ import { getLocation } from '@/content/locations';
 import { getDetector, getTool } from '@/content/equipment';
 import { getTarget } from '@/content/targets';
 import { generateField } from '@/systems/placement';
-import { resolveDiscovery, type DiscoveryOutcome, type ExtractionInput } from '@/systems/discovery';
+import {
+  resolveDiscovery,
+  resolveObservation,
+  type DiscoveryOutcome,
+  type ExtractionInput,
+  type ObservationInput,
+} from '@/systems/discovery';
 import { resolveAssembly } from '@/systems/assembly';
 import { Store } from './store';
 import { defaultStorage, freshSave, loadSave, writeSave, clearSave, type StorageLike } from './save';
@@ -24,7 +30,8 @@ export type Route =
   | 'discovery'
   | 'journal'
   | 'equipment'
-  | 'adventure';
+  | 'adventure'
+  | 'explore3d';
 
 /** Everything the excavation scene needs to know about the hole being dug. */
 export interface DigContext {
@@ -53,6 +60,8 @@ export interface GameState {
   loadOutcome: 'new' | 'loaded' | 'migrated' | 'recovered';
   /** Which authored adventure the 'adventure' route should render. */
   activeAdventure: string | null;
+  /** Which first-person site the 'explore3d' route should render. */
+  activeSite: string | null;
 }
 
 let storage: StorageLike = defaultStorage();
@@ -67,6 +76,7 @@ export const game = new Store<GameState>({
   journalFocus: null,
   loadOutcome: loaded.outcome,
   activeAdventure: null,
+  activeSite: null,
 });
 
 // ── persistence ─────────────────────────────────────────────────────────────
@@ -283,6 +293,35 @@ export function enterAdventure(adventureId: string): void {
   game.update((s) => ({ ...s, activeAdventure: adventureId, route: 'adventure', notice: null }));
 }
 
+// ── first-person sites ──────────────────────────────────────────────────────
+/** Enter a first-person site by id — the 'explore3d' route reads this. */
+export function enterSite(siteId: string): void {
+  game.update((s) => ({ ...s, activeSite: siteId, route: 'explore3d', notice: null }));
+}
+
+/** Leave the active site and return to the map. */
+export function leaveSite(): void {
+  game.update((s) => ({ ...s, activeSite: null, route: 'map', notice: null }));
+}
+
+/** One-off world-state flags for a site: a fitted hand, a triggered mechanism. */
+export function hasSiteFlag(flag: string): boolean {
+  return game.get().save.siteProgress.includes(flag);
+}
+
+export function addSiteFlag(flag: string): void {
+  if (hasSiteFlag(flag)) return;
+  setSave((s) => ({ ...s, siteProgress: [...s.siteProgress, flag] }));
+}
+
+/** A find made by looking rather than digging — see systems/discovery.ts. */
+export function completeObservation(input: ObservationInput): DiscoveryOutcome {
+  const { save, outcome } = resolveObservation(game.get().save, input);
+  game.update((s) => ({ ...s, save, pending: outcome, route: 'discovery' }));
+  persistNow();
+  return outcome;
+}
+
 // ── artifact examination & assembly ─────────────────────────────────────────
 /** Marks a find as examined — the journal flips from unidentified to identified. */
 export function markExamined(targetId: string): void {
@@ -328,6 +367,7 @@ export function resetProgress(): void {
     journalFocus: null,
     loadOutcome: 'new',
     activeAdventure: null,
+    activeSite: null,
   });
   persistNow();
 }

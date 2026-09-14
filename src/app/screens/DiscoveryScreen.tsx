@@ -31,6 +31,9 @@ export function DiscoveryScreen() {
   // After an adventure there is no field to go back to — offer the map instead.
   const field = game.get().save.field;
   const canResumeField = !!field && field.targets.some((t) => !t.dug);
+  // A find made inside a first-person site returns to that site, not the
+  // (possibly unrelated, possibly nonexistent) 2D field.
+  const activeSite = game.get().activeSite;
 
   return (
     <div className="discovery" data-testid="discovery-screen">
@@ -143,9 +146,11 @@ export function DiscoveryScreen() {
             variant="primary"
             wide
             data-testid="keep-searching"
-            onClick={() => dismissDiscovery(canResumeField ? 'detect' : 'map')}
+            onClick={() =>
+              dismissDiscovery(activeSite ? 'explore3d' : canResumeField ? 'detect' : 'map')
+            }
           >
-            {canResumeField ? 'Keep searching' : 'Back to the map'}
+            {activeSite ? 'Keep exploring' : canResumeField ? 'Keep searching' : 'Back to the map'}
           </Btn>
           <Btn
             variant="ghost"

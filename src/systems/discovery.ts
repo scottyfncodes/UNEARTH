@@ -144,6 +144,34 @@ export function resolveDiscovery(
   return applyDiscoveryRecord(save, record, def);
 }
 
+export interface ObservationInput {
+  def: TargetDef;
+  locationId: string;
+}
+
+/**
+ * A find that comes from looking rather than digging: a wall carving, a
+ * fragment lying in the open. Always pristine and at the surface — there is
+ * no excavation step — but it goes through the exact same journal/clue/unlock
+ * pipeline as a dug-up target.
+ */
+export function resolveObservation(
+  save: SaveData,
+  input: ObservationInput,
+): { save: SaveData; outcome: DiscoveryOutcome } {
+  const { def, locationId } = input;
+  const record: DiscoveryRecord = {
+    uid: uid('find'),
+    targetId: def.id,
+    condition: 100,
+    depthCm: 0,
+    locationId,
+    foundAt: Date.now(),
+    value: def.value,
+  };
+  return applyDiscoveryRecord(save, record, def);
+}
+
 export function conditionLabel(condition: number): string {
   if (condition >= 92) return 'Exceptional';
   if (condition >= 78) return 'Good';

@@ -131,6 +131,80 @@ export class MoveController {
   }
 }
 
+/**
+ * Drag-to-look. Attach to a screen region separate from the move stick (e.g.
+ * the right half of the world) so both thumbs can act at once. Reports
+ * accumulated yaw/pitch deltas since the last `consume()` call rather than an
+ * absolute angle, so the render loop stays the single owner of camera state.
+ */
+export class LookController {
+  private yawDelta = 0;
+  private pitchDelta = 0;
+  private pointerId: number | null = null;
+  private last: Vec2 = { x: 0, y: 0 };
+  private keys = new Set<string>();
+  sensitivity = 0.0034;
+  /** Radians/sec for the desktop-only Q/E turn keys (keyboard has no pitch). */
+  keyTurnRate = 1.9;
+
+  attach(el: HTMLElement): () => void {
+    const down = (e: PointerEvent) => {
+      if (this.pointerId !== null) return;
+      const target = e.target as HTMLElement | null;
+      if (target?.closest('[data-ui="true"]')) return;
+      this.pointerId = e.pointerId;
+      this.last = { x: e.clientX, y: e.clientY };
+      capturePointer(el, e.pointerId);
+    };
+
+    const move = (e: PointerEvent) => {
+      if (e.pointerId !== this.pointerId) return;
+      const dx = e.clientX - this.last.x;
+      const dy = e.clientY - this.last.y;
+      this.last = { x: e.clientX, y: e.clientY };
+      this.yawDelta -= dx * this.sensitivity;
+      this.pitchDelta -= dy * this.sensitivity;
+    };
+
+    const up = (e: PointerEvent) => {
+      if (e.pointerId !== this.pointerId) return;
+      this.pointerId = null;
+    };
+
+    // Q/E turn left/right — a keyboard fallback so a mouse-less desktop (and
+    // the e2e suite) can still reorient, matching MoveController's WASD one.
+    const keyDown = (e: KeyboardEvent) => this.keys.add(e.key.toLowerCase());
+    const keyUp = (e: KeyboardEvent) => this.keys.delete(e.key.toLowerCase());
+
+    el.addEventListener('pointerdown', down);
+    el.addEventListener('pointermove', move);
+    el.addEventListener('pointerup', up);
+    el.addEventListener('pointercancel', up);
+    window.addEventListener('keydown', keyDown);
+    window.addEventListener('keyup', keyUp);
+
+    return () => {
+      el.removeEventListener('pointerdown', down);
+      el.removeEventListener('pointermove', move);
+      el.removeEventListener('pointerup', up);
+      el.removeEventListener('pointercancel', up);
+      window.removeEventListener('keydown', keyDown);
+      window.removeEventListener('keyup', keyUp);
+    };
+  }
+
+  /** Call once per frame with the frame's dt; returns and clears the accumulated look delta. */
+  consume(dt = 0): { yaw: number; pitch: number } {
+    let yaw = this.yawDelta;
+    this.yawDelta = 0;
+    const pitch = this.pitchDelta;
+    this.pitchDelta = 0;
+    if (this.keys.has('q')) yaw -= this.keyTurnRate * dt;
+    if (this.keys.has('e')) yaw += this.keyTurnRate * dt;
+    return { yaw, pitch };
+  }
+}
+
 /** Pointer drag in normalised element coordinates — used by the pit. */
 export class DragController {
   down = false;

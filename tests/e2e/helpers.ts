@@ -37,6 +37,55 @@ export async function readDetectorFrame(page: Page) {
   });
 }
 
+export async function readExploreFrame(page: Page) {
+  return page.evaluate(() => {
+    const hook = (window as unknown as { __unearth?: { frames: { explore?: unknown } } }).__unearth;
+    return (hook?.frames.explore ?? null) as { x: number; z: number; yaw: number; promptLabel: string | null } | null;
+  });
+}
+
+/** Holds a movement key for a burst, the same input path a player's thumb drives. */
+async function walkBurst(page: Page, key: string, ms: number): Promise<void> {
+  await page.keyboard.down(key);
+  await page.waitForTimeout(ms);
+  await page.keyboard.up(key);
+  await page.waitForTimeout(40);
+}
+
+/**
+ * Walks the 3D player toward a world (x, z) using the real keyboard fallback
+ * (WASD/arrows for movement, Q/E to turn) — the same LookController/MoveController
+ * path a touch drag drives, just without simulating the drag itself.
+ *
+ * This environment's synthetic input has a large, fairly fixed round-trip cost
+ * per keyboard.down/up pair (measured: a "50ms" hold and a "400ms" hold land
+ * within the same few-hundred-ms ballpark), so every burst is floored well
+ * above that cost and the yaw tolerance is generous — fine alignment comes
+ * from re-checking after every burst, not from any single burst being precise.
+ */
+export async function walkToSite(page: Page, x: number, z: number, tolerance = 2.2): Promise<number> {
+  const deadline = Date.now() + 55_000;
+  let distance = Infinity;
+  while (Date.now() < deadline) {
+    const frame = await readExploreFrame(page);
+    if (!frame) break;
+    const dx = x - frame.x;
+    const dz = z - frame.z;
+    distance = Math.hypot(dx, dz);
+    if (distance <= tolerance) break;
+
+    const desiredYaw = Math.atan2(dx, -dz);
+    let yawDiff = desiredYaw - frame.yaw;
+    yawDiff = ((yawDiff + Math.PI) % (Math.PI * 2)) - Math.PI;
+    if (Math.abs(yawDiff) > 0.5) {
+      await walkBurst(page, yawDiff > 0 ? 'e' : 'q', Math.max(400, Math.min(600, (Math.abs(yawDiff) / 1.9) * 1000)));
+      continue;
+    }
+    await walkBurst(page, 'w', Math.max(400, Math.min(1200, (Math.min(distance, 4) / 2.15) * 1000)));
+  }
+  return distance;
+}
+
 export async function undugTargets(page: Page): Promise<FieldTarget[]> {
   const save = (await readSave(page)) as { field?: { targets?: FieldTarget[] } } | null;
   return (save?.field?.targets ?? []).filter((t) => !t.dug);

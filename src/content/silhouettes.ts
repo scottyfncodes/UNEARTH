@@ -17,7 +17,7 @@ export interface Silhouette {
   /** Surface family — drives colour and how it catches the light. */
   finish: 'iron' | 'brass' | 'copper' | 'silver' | 'gold' | 'bronze' | 'stone' | 'alloy' | 'painted';
   /** Relief detail drawn on top once exposed (engraving, teeth, lettering). */
-  detail?: 'coinface' | 'engraved' | 'teeth' | 'sunmark' | 'thread' | 'glass' | 'knotmark';
+  detail?: 'coinface' | 'engraved' | 'teeth' | 'sunmark' | 'thread' | 'glass' | 'knotmark' | 'coilmark';
 }
 
 const cap = (x1: number, y1: number, x2: number, y2: number, r: number): Shape => ({
@@ -229,6 +229,37 @@ export const SILHOUETTES: Record<string, Silhouette> = {
     ],
     finish: 'bronze',
     detail: 'knotmark',
+  },
+
+  // ── The Silent Court: a third recurring symbol, the coiled serpent ─────────
+  carving: {
+    shapes: [{ kind: 'rect', x: 0, y: 0, w: 1.5, h: 1.05 }],
+    finish: 'stone',
+    detail: 'coilmark',
+  },
+  potteryShard: {
+    shapes: [
+      { kind: 'poly', pts: [[-0.7, -0.6], [0.4, -0.8], [0.75, 0.15], [0.1, 0.75], [-0.6, 0.35]] },
+    ],
+    finish: 'stone',
+  },
+  handFragment: {
+    shapes: [
+      { kind: 'poly', pts: [[-0.4, 0.5], [0.4, 0.5], [0.45, -0.2], [0.15, -0.85]] },
+      cap(-0.18, -0.2, -0.32, -0.75, 0.1),
+      cap(0.02, -0.25, -0.02, -0.85, 0.09),
+      cap(0.2, -0.22, 0.3, -0.78, 0.09),
+    ],
+    finish: 'stone',
+  },
+  serpentIdol: {
+    shapes: [
+      { kind: 'ring', x: 0, y: 0, r: 0.8, t: 0.16 },
+      { kind: 'ring', x: 0, y: 0, r: 0.5, t: 0.13 },
+      { kind: 'circle', x: 0, y: 0, r: 0.16 },
+    ],
+    finish: 'bronze',
+    detail: 'coilmark',
   },
 };
 

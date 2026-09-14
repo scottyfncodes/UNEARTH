@@ -1,7 +1,7 @@
 import { LOCATIONS } from '@/content/locations';
 import { getChain } from '@/content/clues';
 import { chainProgress } from '@/systems/mystery';
-import { enterAdventure, enterLocation, game, go } from '@/core/gameState';
+import { enterAdventure, enterLocation, enterSite, game, go } from '@/core/gameState';
 import { useGameState } from '../useGame';
 import { Btn, TopBar } from '../components/ui';
 import { Nav } from '../components/Nav';
@@ -25,6 +25,7 @@ export function MapScreen() {
           const findsHere = save.discoveries.filter((d) => d.locationId === loc.id).length;
           const isAdventure = !!loc.adventureId;
           const adventureDone = isAdventure && save.adventures[loc.adventureId!] === 'complete';
+          const isSite = !!loc.siteId;
 
           if (!unlocked) {
             return (
@@ -50,6 +51,8 @@ export function MapScreen() {
               onClick={() => {
                 if (isAdventure) {
                   enterAdventure(loc.adventureId!);
+                } else if (isSite) {
+                  enterSite(loc.siteId!);
                 } else {
                   enterLocation(loc.id);
                 }
@@ -70,6 +73,10 @@ export function MapScreen() {
               {isAdventure ? (
                 <p className="banner__kicker" style={{ marginTop: 10 }}>
                   {adventureDone ? 'Revisit' : 'Enter'}
+                </p>
+              ) : isSite ? (
+                <p className="banner__kicker" style={{ marginTop: 10 }}>
+                  Walk in
                 </p>
               ) : null}
             </button>

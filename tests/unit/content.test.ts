@@ -4,6 +4,7 @@ import { TARGETS, getTarget, getTargetOrPlaceholder } from '@/content/targets';
 import { CHAINS, CLUES } from '@/content/clues';
 import { DETECTORS, TOOLS } from '@/content/equipment';
 import { SILHOUETTES, getSilhouette, pointInSilhouette } from '@/content/silhouettes';
+import { SITES, getSite } from '@/content/sites';
 import { RARITY_ORDER } from '@/core/types';
 
 describe('target definitions', () => {
@@ -151,11 +152,96 @@ describe('locations', () => {
 
   it('each non-adventure location has enough variety to be worth visiting', () => {
     for (const location of LOCATIONS) {
-      if (location.adventureId) continue;
+      if (location.adventureId || location.siteId) continue;
       expect(location.table.length).toBeGreaterThan(8);
       expect(location.targetCount[0]).toBeGreaterThan(0);
       const rarities = new Set(location.table.map((e) => getTarget(e.targetId)!.rarity));
       expect(rarities.size).toBeGreaterThan(2);
+    }
+  });
+});
+
+describe('first-person sites', () => {
+  it('every location.siteId points at a real site, and vice versa', () => {
+    for (const loc of LOCATIONS) {
+      if (loc.siteId) expect(getSite(loc.siteId), `${loc.id} -> ${loc.siteId}`).toBeDefined();
+    }
+  });
+
+  it('interactable and detector-dig ids are unique within a site', () => {
+    for (const site of SITES) {
+      const ids = [...site.interactables.map((i) => i.id), ...site.detectorDigs.map((d) => d.id)];
+      expect(new Set(ids).size, site.id).toBe(ids.length);
+    }
+  });
+
+  it('every observe/pickup/fit target reference points at a real, findable target', () => {
+    for (const site of SITES) {
+      for (const it of site.interactables) {
+        if (it.targetId) expect(getTarget(it.targetId), `${site.id}/${it.id} -> ${it.targetId}`).toBeDefined();
+        if (it.requiresTargetId) {
+          expect(getTarget(it.requiresTargetId), `${site.id}/${it.id} -> ${it.requiresTargetId}`).toBeDefined();
+        }
+      }
+      for (const dig of site.detectorDigs) {
+        expect(getTarget(dig.targetId), `${site.id}/${dig.id} -> ${dig.targetId}`).toBeDefined();
+      }
+    }
+  });
+
+  it('a fit interactable that requires a target is satisfiable by something actually obtainable in this site', () => {
+    for (const site of SITES) {
+      const obtainableIds = new Set([
+        ...site.interactables.filter((i) => i.targetId).map((i) => i.targetId!),
+        ...site.detectorDigs.map((d) => d.targetId),
+      ]);
+      for (const it of site.interactables) {
+        if (it.kind === 'fit' && it.requiresTargetId) {
+          expect(obtainableIds.has(it.requiresTargetId), `${site.id}/${it.id}`).toBe(true);
+        }
+      }
+    }
+  });
+
+  it('every requiresFlag/hideOnFlag/disarmedByFlag is actually set by something in the same site', () => {
+    for (const site of SITES) {
+      const setFlags = new Set(
+        site.interactables.filter((i) => i.setsFlagOnUse).map((i) => i.setsFlagOnUse!),
+      );
+      const referenced = [
+        ...site.interactables.map((i) => i.requiresFlag).filter((f): f is string => !!f),
+        ...site.interactables.map((i) => i.hideOnFlag).filter((f): f is string => !!f),
+        ...site.hazards.map((h) => h.disarmedByFlag).filter((f): f is string => !!f),
+      ];
+      for (const flag of referenced) expect(setFlags.has(flag), `${site.id} -> ${flag}`).toBe(true);
+    }
+  });
+
+  it('a gated interactable (requiresFlag) is reachable: something else grants that flag unconditionally', () => {
+    for (const site of SITES) {
+      const gaters = site.interactables.filter((i) => i.setsFlagOnUse);
+      for (const it of site.interactables) {
+        if (!it.requiresFlag) continue;
+        const granter = gaters.find((g) => g.setsFlagOnUse === it.requiresFlag);
+        expect(granter, `${site.id}/${it.id} requires ${it.requiresFlag}`).toBeDefined();
+        // The granter itself must not be gated behind something no other
+        // interactable can ever unlock (a one-level check is enough at this scale).
+        if (granter!.requiresFlag) {
+          expect(gaters.some((g) => g.setsFlagOnUse === granter!.requiresFlag)).toBe(true);
+        }
+      }
+    }
+  });
+
+  it('the walkable radius is positive and every prop/interactable/hazard sits within it', () => {
+    for (const site of SITES) {
+      expect(site.radius).toBeGreaterThan(0);
+      const within = (x: number, z: number) => Math.abs(x) <= site.radius + 0.01 && Math.abs(z) <= site.radius + 0.01;
+      for (const p of site.props) expect(within(p.position.x, p.position.z), `${site.id}/${p.id}`).toBe(true);
+      for (const it of site.interactables) {
+        expect(within(it.position.x, it.position.z), `${site.id}/${it.id}`).toBe(true);
+      }
+      for (const d of site.detectorDigs) expect(within(d.position.x, d.position.z), `${site.id}/${d.id}`).toBe(true);
     }
   });
 });

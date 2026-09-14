@@ -16,9 +16,13 @@ EXPLORE → SEARCH → DISCOVER → IDENTIFY → CONNECT → UNLOCK → FOLLOW T
 
 The detector is one tool inside that loop, not the whole game: take it away
 and there is still an adventure underneath — fragments to piece together,
-clues that cross-reference each other, and two authored sites (a sealed
+clues that cross-reference each other, two authored adventures (a sealed
 mechanism chamber and an overgrown ruin) that only open once you have
-actually put together what you found.
+actually put together what you found, and one place — The Silent Court — you
+walk through in genuine first-person 3D rather than from above: two matching
+wall carvings are the game's first "wait, I've seen this" moment that happens
+by looking rather than digging, and there's exactly one buried find in the
+whole site, on purpose.
 
 Deployed to GitHub Pages by `.github/workflows/deploy-pages.yml` on every push
 to the active branch; the unit suite has to pass before the site goes out.
@@ -79,6 +83,9 @@ src/
     adventure/          authored adventures — a registry keyed by id, so a
                          second (or third) adventure is a content file plus
                          one line in index.ts, not new gameplay code
+    sites/              first-person 3D sites — same registry pattern; a
+                         SiteDef is walls, props, interactables, hazards and
+                         detector-findable spots, all still just data
   core/
     types.ts            shared content and state types
     gameState.ts        the store: persistent save + navigation + actions
@@ -91,15 +98,19 @@ src/
     placement.ts        procedural target placement from seeds
     excavation.ts       dirt, debris, contact, damage, exposure, extraction
     mechanism.ts        the precision artifact extraction
-    discovery.ts        extraction/assembly → journal record, clue, unlocks, funds
+    discovery.ts        extraction/assembly/observation → journal record, clue, unlocks, funds
     mystery.ts          clue chain evaluation + cross-chain symbol connections
     assembly.ts         fragment-piece progress tracking and composite assembly
+    explore.ts          first-person collision, hazards and interaction targeting
   engine/         browser-facing, imperative
     loop.ts             rAF loop with clamped delta, pauses when hidden
-    input.ts            touch stick, drag tracker, canvas fitting
+    input.ts            touch stick, drag tracker, look controller, canvas fitting
     audio.ts            everything synthesised with Web Audio
     haptics.ts          throttled vibration
-    render/             world, pit, mechanism, object and texture renderers
+    render/             world, pit, mechanism, object and texture renderers (2D)
+    scene3d/            builds a THREE.Scene from a SiteDef; artifact sprites
+                         reuse render/object.ts so a carving looks the same in
+                         the world as it does in the journal
   app/            React screens and a handful of components
 ```
 
@@ -122,9 +133,15 @@ must be `authored: true` and never gets a `locations` list, since the only way
 to obtain it is `systems/assembly.ts`, not a dig. A new adventure is a content
 file shaped like `content/adventure/courtyard.ts` (a `mechanism`/`escape` are
 optional — a puzzle-only adventure just omits them) plus one line in
-`content/adventure/index.ts`. None of that requires touching gameplay code —
-the content tests will tell you if a reference is broken, a locked location is
-unreachable, or a composite's pieces are not actually findable.
+`content/adventure/index.ts`. A new first-person site is a content file
+shaped like `content/sites/silentCourt.ts` (props, interactables, one or two
+hazards, and the spots a detector can actually find something) plus one line
+in `content/sites/index.ts` — the 3D engine draws whatever the props and
+interactables say, so a second site never touches `engine/scene3d/`. None of
+that requires touching gameplay code — the content tests will tell you if a
+reference is broken, a locked location is unreachable, a composite's pieces
+are not actually findable, or a site's flags gate something nothing else ever
+unlocks.
 
 ## Save data
 
@@ -154,7 +171,11 @@ real input. It grants nothing a player could not work out by listening.
   dragging, extracts, checks the journal, and reloads to confirm persistence.
   Also plays both authored adventures end to end (the chamber's door puzzle,
   mechanism and escape; the courtyard's puzzle-only path), the tablet
-  assembly flow, and checks an empty hole stays honestly empty.
+  assembly flow, checks an empty hole stays honestly empty, and walks into
+  The Silent Court on the real first-person controls (WASD/arrows plus a
+  keyboard turn fallback for a mouse-less run) to confirm the 3D scene
+  actually renders and a contextual prompt fires the same journal pipeline a
+  dig does.
 
 Only Chromium is available in this environment, so the phone is emulated
 (iPhone-13 viewport, DPR 3, touch, mobile UA). That is not a substitute for a
@@ -172,7 +193,24 @@ progression, and two authored adventures:
   escape) reached only by assembling a fragmented artifact first, proving the
   adventure format works without the chamber's extraction stakes.
 
-Two independent mystery threads run through the game, each with its own
+Also built, and open from the very start of the game: **The Silent Court**, a
+small walled ruin played in genuine first-person 3D (WebGL via Three.js,
+lazy-loaded so nobody pays for it who never walks in) rather than from above.
+Move with a thumb stick, look by dragging anywhere else on the screen, and a
+single contextual button does whatever standing in front of something makes
+possible — look closer, take it, or fit it. The detector still works here,
+but it finds exactly one thing in the whole site: everything else is found by
+looking, which is the point. Two matching serpent carvings on opposite walls
+produce the same "wait, that matches" connection the detecting locations
+build out of dug-up clues, except here it happens by walking up and looking;
+a buried stone hand fits an empty socket on the court's broken statue, which
+is the site's one puzzle and its payoff — a relic that was standing twelve
+metres away the whole time. One hazard (an old collapsed cistern) is never
+flagged by any UI; you only learn where it is by getting close enough to be
+pushed back from it. `content/sites/` and `systems/explore.ts` are built to
+take a second, larger site without changing engine code.
+
+Two independent mystery threads run through the detecting locations, each with its own
 recurring symbol, and cross at the end: the three-pointed sun (paperwork →
 the mine → the sealed chamber) and the woven knot (three ordinary-looking
 shards, found in the two starting locations, that turn out to be one object —
@@ -181,6 +219,9 @@ connection the moment two held clues share a symbol, whether or not they
 belong to the same formal chain; its Assemble tab tracks progress on every
 fragment set and performs the assembly.
 
-Deliberately not built: a third adventure, any economy beyond funds for kit,
-and any progression system other than equipment, knowledge and unlocked
-ground.
+Deliberately not built: a third adventure, a second first-person site, any
+economy beyond funds for kit, and any progression system other than
+equipment, knowledge and unlocked ground. The Silent Court drops one loose
+thread on purpose — boot prints that are not yours, near a dropped modern
+crate — and does nothing further with it. It is there for a future site to
+pick up, not for this one to resolve.

@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { lazy, Suspense, useEffect } from 'react';
 import { game, persistNow } from '@/core/gameState';
 import { audio } from '@/engine/audio';
 import { haptics } from '@/engine/haptics';
@@ -12,8 +12,12 @@ import { JournalScreen } from './screens/JournalScreen';
 import { EquipmentScreen } from './screens/EquipmentScreen';
 import { AdventureScreen } from './screens/AdventureScreen';
 
+// Three.js is a real slice of bundle weight — nobody should pay for it until
+// they actually walk into a first-person site.
+const ExploreScreen = lazy(() => import('./screens/ExploreScreen'));
+
 export function App() {
-  const { route, save, activeAdventure } = useGameState();
+  const { route, save, activeAdventure, activeSite } = useGameState();
 
   // Settings drive the engines, not the other way around.
   useEffect(() => {
@@ -61,6 +65,12 @@ export function App() {
       // A fresh key per adventure forces a clean remount if the active
       // adventure ever changes without leaving the route in between.
       return <AdventureScreen key={activeAdventure ?? 'none'} />;
+    case 'explore3d':
+      return (
+        <Suspense fallback={<div className="screen screen--world" />}>
+          <ExploreScreen key={activeSite ?? 'none'} />
+        </Suspense>
+      );
     default:
       return <MapScreen />;
   }

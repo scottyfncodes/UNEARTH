@@ -124,6 +124,8 @@ export interface LocationDef {
   lockedHint?: string;
   /** Authored adventure hosted at this location, if any. */
   adventureId?: string;
+  /** A first-person 3D site hosted at this location, if any (see content/sites). */
+  siteId?: string;
 }
 
 export interface GroundPalette {
@@ -263,4 +265,10 @@ export interface SaveData {
   examined: string[];
   /** Composite target ids that have been assembled from their pieces. */
   assembled: string[];
+  /**
+   * One-off world-state flags for first-person sites (content/sites): a
+   * statue's hand fitted, a mechanism triggered, a hazard disarmed. Generic
+   * on purpose — a site's own content decides what each flag means.
+   */
+  siteProgress: string[];
 }

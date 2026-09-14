@@ -243,6 +243,36 @@ function drawDetail(ctx: CanvasRenderingContext2D, sil: Silhouette, finish: Fini
       ctx.stroke();
       break;
     }
+    case 'coilmark': {
+      // The third mystery's signature: a serpent coiled tight, drawn as a
+      // single spiral that winds inward — distinct from the knot's two
+      // separate loops and the sun's straight rays.
+      ctx.strokeStyle = hexA(finish.dark, 0.85);
+      ctx.lineWidth = 0.06;
+      ctx.beginPath();
+      const turns = 2.25;
+      const steps = 48;
+      for (let i = 0; i <= steps; i++) {
+        const t = i / steps;
+        const a = t * turns * Math.PI * 2;
+        const r = 0.46 * (1 - t) + 0.04;
+        const x = Math.cos(a) * r;
+        const y = Math.sin(a) * r;
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+      // A small diamond head at the outer end, where the coil "looks out".
+      ctx.fillStyle = hexA(finish.light, 0.6);
+      ctx.beginPath();
+      ctx.moveTo(0.5, 0);
+      ctx.lineTo(0.42, 0.07);
+      ctx.lineTo(0.34, 0);
+      ctx.lineTo(0.42, -0.07);
+      ctx.closePath();
+      ctx.fill();
+      break;
+    }
     default:
       break;
   }

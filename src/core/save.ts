@@ -22,7 +22,7 @@ export function freshSave(now = Date.now()): SaveData {
     discoveries: [],
     clues: [],
     chainsComplete: [],
-    unlockedLocations: ['loc_old_park', 'loc_old_railway'],
+    unlockedLocations: ['loc_old_park', 'loc_old_railway', 'loc_silent_court'],
     detectorId: DEFAULT_DETECTOR,
     ownedEquipment: [DEFAULT_DETECTOR, 'tool_scoop', 'tool_brush'],
     money: 0,
@@ -33,6 +33,7 @@ export function freshSave(now = Date.now()): SaveData {
     flags: { seenIntro: false, tutorialFound: false },
     examined: [],
     assembled: [],
+    siteProgress: [],
   };
 }
 
@@ -185,6 +186,7 @@ export function sanitize(raw: unknown): SaveData {
     },
     examined: strArray(r.examined),
     assembled: strArray(r.assembled),
+    siteProgress: strArray(r.siteProgress),
   };
 }
 

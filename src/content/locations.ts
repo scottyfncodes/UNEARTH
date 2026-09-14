@@ -190,6 +190,29 @@ export const LOCATIONS: LocationDef[] = [
     },
     table: [],
   },
+  {
+    id: 'loc_silent_court',
+    name: 'The Silent Court',
+    subtitle: 'Roofless colonnade, no record of use',
+    description:
+      'Four low walls and a run of broken columns around bare open ground. Nothing here is buried deep, and most of what matters is in plain sight — if you actually stop and look at it.',
+    bounds: { w: 1, h: 1 },
+    targetCount: [0, 0],
+    depthBias: 1,
+    hardness: 0.5,
+    ambience: 'ruins',
+    siteId: 'site_silent_court',
+    ground: {
+      base: '#242820',
+      mid: '#343a2c',
+      light: '#494f3a',
+      detail: '#5c6248',
+      haze: '#141712',
+      sky: '#5c6248',
+      scatter: 'rubble',
+    },
+    table: [],
+  },
 ];
 
 const LOCATION_INDEX = new Map(LOCATIONS.map((l) => [l.id, l]));
