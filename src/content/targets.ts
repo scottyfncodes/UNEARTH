@@ -891,6 +891,49 @@ export const TARGETS: TargetDef[] = [
     discoveryText: 'A chalk mark on old timber, mostly gone but clearly deliberate.',
     silhouette: 'carving',
   },
+
+  // ── Home: found by looking, not digging — the trail's first and last stop.
+  {
+    id: 'tgt_home_note',
+    name: 'Torn Field Note',
+    category: 'personal',
+    material: 'organic',
+    materialName: 'Paper',
+    rarity: 'uncommon',
+    era: 'Recent',
+    depth: [0, 0],
+    size: 0.3,
+    value: 0,
+    significance: 'notable',
+    fragility: 0.4,
+    excavationDifficulty: 0,
+    description:
+      "Half a page, torn clean across the middle, in his handwriting: three ordinary-looking sites around town, and one line underlined twice — \"something underneath all three.\" He never mentioned any of this over dinner.",
+    discoveryText: "A page from his own notebook — the half he didn't take with him.",
+    examineText: 'The tear is fresh. Whatever was on the other half, he wanted it separate from this half.',
+    silhouette: 'fragment',
+  },
+  {
+    id: 'tgt_home_mystery_artifact',
+    name: 'Something Underneath',
+    category: 'artifact',
+    material: 'unknown',
+    materialName: 'Unknown',
+    rarity: 'legendary',
+    era: 'Unknown',
+    depth: [0, 0],
+    size: 0.4,
+    value: 250,
+    significance: 'unknown',
+    fragility: 0.6,
+    excavationDifficulty: 0,
+    unidentifiedName: 'Object, Origin Unclear',
+    description:
+      'Small, heavy for its size, marked with the same three-pointed sun you have now seen carved into stone hundreds of miles from this yard. Nobody buried this here. It was just already in your mouth.',
+    discoveryText: 'Somewhere between the ruins and home, this ended up with you. You do not remember picking it up. You are a cat; you rarely do.',
+    examineText: "He will ask where you got this. You will not have an answer he can use.",
+    silhouette: 'oddity',
+  },
 ];
 
 const TARGET_INDEX = new Map(TARGETS.map((t) => [t.id, t]));

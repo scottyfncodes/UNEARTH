@@ -9,6 +9,7 @@ import {
   resolveCollisions,
   stepPlayer,
   sweepCoilPosition,
+  thirdPersonCameraPose,
   type PlayerState,
 } from '@/systems/explore';
 import type { HazardZone, SiteInteractable, SiteProp } from '@/content/sites/types';
@@ -239,6 +240,77 @@ describe('isInteractableAvailable', () => {
 
     const hidden: SiteInteractable = { ...OBSERVE, id: 'h', hideOnFlag: 'done' };
     expect(isInteractableAvailable(hidden, { siteProgress: ['done'], discovered: [] })).toBe(false);
+  });
+
+  it('respects requiresAdventuresComplete', () => {
+    const gated: SiteInteractable = {
+      ...OBSERVE,
+      id: 'ending',
+      requiresAdventuresComplete: ['adv_a', 'adv_b'],
+    };
+    expect(isInteractableAvailable(gated, { siteProgress: [], discovered: [] })).toBe(false);
+    expect(isInteractableAvailable(gated, { siteProgress: [], discovered: [], adventuresComplete: ['adv_a'] })).toBe(
+      false,
+    );
+    expect(
+      isInteractableAvailable(gated, {
+        siteProgress: [],
+        discovered: [],
+        adventuresComplete: ['adv_a', 'adv_b'],
+      }),
+    ).toBe(true);
+  });
+});
+
+describe('thirdPersonCameraPose', () => {
+  it('sits behind and above CK when facing -Z at zero pitch', () => {
+    const pose = thirdPersonCameraPose(0, 0, 0, 0, {
+      distance: 2,
+      height: 1,
+      lookHeight: 0.4,
+      pitchMin: -0.5,
+      pitchMax: 0.5,
+    });
+    // Facing -Z (yaw 0), "behind" is +Z.
+    expect(pose.z).toBeCloseTo(2, 5);
+    expect(pose.x).toBeCloseTo(0, 5);
+    expect(pose.y).toBeCloseTo(1, 5);
+    expect(pose.lookX).toBe(0);
+    expect(pose.lookY).toBe(0.4);
+    expect(pose.lookZ).toBe(0);
+  });
+
+  it('clamps pitch to the given orbit arc', () => {
+    const overPitched = thirdPersonCameraPose(0, 0, 0, 5, {
+      distance: 2,
+      height: 1,
+      lookHeight: 0.4,
+      pitchMin: -0.5,
+      pitchMax: 0.5,
+    });
+    const clampedAtMax = thirdPersonCameraPose(0, 0, 0, 0.5, {
+      distance: 2,
+      height: 1,
+      lookHeight: 0.4,
+      pitchMin: -0.5,
+      pitchMax: 0.5,
+    });
+    expect(overPitched.y).toBeCloseTo(clampedAtMax.y, 5);
+  });
+
+  it('follows CK\'s position and yaw', () => {
+    const pose = thirdPersonCameraPose(10, -4, Math.PI / 2, 0, {
+      distance: 2,
+      height: 1,
+      lookHeight: 0.4,
+      pitchMin: -0.5,
+      pitchMax: 0.5,
+    });
+    expect(pose.lookX).toBe(10);
+    expect(pose.lookZ).toBe(-4);
+    // Facing +X (yaw PI/2), "behind" is -X.
+    expect(pose.x).toBeCloseTo(8, 5);
+    expect(pose.z).toBeCloseTo(-4, 5);
   });
 });
 

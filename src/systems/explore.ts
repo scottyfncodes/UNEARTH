@@ -206,12 +206,22 @@ export function stepPlayer(state: PlayerState, input: StepInput): StepResult {
 export interface InteractionState {
   siteProgress: readonly string[];
   discovered: readonly string[];
+  /**
+   * Ids of authored adventures currently marked 'complete'. Optional because
+   * most call sites (and every existing test) don't care about it — only an
+   * interactable with `requiresAdventuresComplete` looks at this.
+   */
+  adventuresComplete?: readonly string[];
 }
 
 /** Whether an interactable currently offers anything — gating + "already used". */
 export function isInteractableAvailable(it: SiteInteractable, state: InteractionState): boolean {
   if (it.requiresFlag && !state.siteProgress.includes(it.requiresFlag)) return false;
   if (it.hideOnFlag && state.siteProgress.includes(it.hideOnFlag)) return false;
+  if (it.requiresAdventuresComplete) {
+    const complete = state.adventuresComplete ?? [];
+    if (!it.requiresAdventuresComplete.every((id) => complete.includes(id))) return false;
+  }
   if ((it.kind === 'observe' || it.kind === 'pickup') && it.targetId && state.discovered.includes(it.targetId)) {
     return false;
   }
@@ -245,6 +255,55 @@ export function sweepCoilPosition(
   return {
     x: x + forwardX * opts.forward + rightX * lateral,
     z: z + forwardZ * opts.forward + rightZ * lateral,
+  };
+}
+
+export interface ThirdPersonCameraOptions {
+  /** Metres behind CK at zero arc. */
+  distance: number;
+  /** Base camera height above the ground, metres. */
+  height: number;
+  /** Look-at target height above the ground, roughly CK's head. */
+  lookHeight: number;
+  /** Clamped range for the vertical orbit arc, radians. */
+  pitchMin: number;
+  pitchMax: number;
+}
+
+export interface ThirdPersonCameraPose {
+  x: number;
+  y: number;
+  z: number;
+  lookX: number;
+  lookY: number;
+  lookZ: number;
+}
+
+/**
+ * Where a third-person chase camera sits, given CK's position and the same
+ * yaw/pitch a first-person eye camera would have used. Reusing yaw/pitch
+ * (rather than a free orbit) means every interaction/collision system that
+ * already reasons about "where the player is facing" keeps working unchanged
+ * — the camera just trails behind that facing instead of sitting at it.
+ */
+export function thirdPersonCameraPose(
+  x: number,
+  z: number,
+  yaw: number,
+  pitch: number,
+  opts: ThirdPersonCameraOptions,
+): ThirdPersonCameraPose {
+  const { forwardX, forwardZ } = facingVectors(yaw);
+  const armPitch = Math.max(opts.pitchMin, Math.min(opts.pitchMax, pitch));
+  const back = Math.cos(armPitch) * opts.distance;
+  const up = Math.sin(armPitch) * opts.distance;
+  return {
+    x: x - forwardX * back,
+    y: opts.height + up,
+    z: z - forwardZ * back,
+    lookX: x,
+    lookY: opts.lookHeight,
+    lookZ: z,
   };
 }
 

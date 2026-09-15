@@ -70,6 +70,8 @@ export interface SiteInteractable {
   requiresFlag?: string;
   /** Interactable disappears once this site-progress flag is set. */
   hideOnFlag?: string;
+  /** Interactable only appears/works once every one of these adventures is complete. */
+  requiresAdventuresComplete?: string[];
   /** On successful use, this flag is added to save.siteProgress. */
   setsFlagOnUse?: string;
   /** Short diegetic line shown over the world on use (not a discovery). */

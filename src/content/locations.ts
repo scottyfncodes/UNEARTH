@@ -6,6 +6,29 @@ import type { LocationDef } from '@/core/types';
  */
 export const LOCATIONS: LocationDef[] = [
   {
+    id: 'loc_home',
+    name: "CK's Home",
+    subtitle: 'Fieldstone cottage, edge of town',
+    description:
+      "Where you live, when he's here. His bowl, his notebook, the gate he leaves through and comes back through — except this time he hasn't. Nothing here needs digging. Some things just need looking at.",
+    bounds: { w: 1, h: 1 },
+    targetCount: [0, 0],
+    depthBias: 1,
+    hardness: 0.5,
+    ambience: 'park',
+    siteId: 'site_home',
+    ground: {
+      base: '#3f5c34',
+      mid: '#4d6c3f',
+      light: '#5c7d46',
+      detail: '#6d8a54',
+      haze: '#26331f',
+      sky: '#8fb0c9',
+      scatter: 'grass',
+    },
+    table: [],
+  },
+  {
     id: 'loc_old_park',
     name: 'Old Park',
     subtitle: 'Municipal green, est. 1904',

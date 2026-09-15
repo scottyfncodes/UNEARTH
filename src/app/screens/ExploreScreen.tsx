@@ -24,11 +24,13 @@ import {
   isInteractableAvailable,
   nearestInteractable,
   sweepCoilPosition,
+  thirdPersonCameraPose,
   type Collider,
   type PlayerState,
   stepPlayer,
 } from '@/systems/explore';
-import { buildDetectorProp, buildSiteScene } from '@/engine/scene3d/build';
+import { buildSiteScene } from '@/engine/scene3d/build';
+import { buildCK } from '@/engine/scene3d/ck';
 import { buildFieldScene, fieldToWorld, worldToField } from '@/engine/scene3d/buildField';
 import { audio } from '@/engine/audio';
 import { haptics } from '@/engine/haptics';
@@ -38,14 +40,22 @@ import { publishDetectorFrame, publishExploreFrame } from '@/core/debug';
 import { useGameState } from '../useGame';
 import { Btn } from '../components/ui';
 
-// One pace, one detector, everywhere — a field and an authored site should
+// One pace, one collar, everywhere — a field and an authored site should
 // never feel like different games wearing the same UI.
 const WALK_SPEED = 2.15; // m/s
-const EYE_HEIGHT = 1.66;
 const SWEEP_RATE = 2.35; // rad/s
 const SWEEP_WIDTH = 0.46; // metres either side at full amplitude
 const COIL_FORWARD = 0.62; // metres ahead of the player
 const MARK_LIFETIME = 6; // seconds a pinpoint mark stays diggable after release
+
+// Third-person chase camera, orbiting behind and above CK. Reuses the same
+// yaw/pitch the old first-person eye camera used — look input still turns
+// where CK faces, it just no longer puts the lens at CK's eye.
+const CAM_DISTANCE = 2.5; // metres behind CK
+const CAM_HEIGHT = 1.15; // base height above the ground
+const CAM_PITCH_MIN = -0.45; // looking down at CK from above
+const CAM_PITCH_MAX = 0.55; // dipping low, behind and below eye height
+const CAM_LOOK_HEIGHT = 0.45; // roughly CK's head height, the look-at target
 
 interface Dominant {
   dig: DetectorDig;
@@ -119,12 +129,11 @@ function ExploreScreenImpl() {
     // so it never gets near-clipped away, even though fog hides real geometry
     // long before that distance.
     const camera = new THREE.PerspectiveCamera(72, 1, 0.05, 400);
-    camera.rotation.order = 'YXZ';
 
-    // The detector is carried everywhere — same model, same audio, whether
-    // you're sweeping open ground or standing in an authored ruin.
-    const detectorProp = buildDetectorProp();
-    camera.add(detectorProp.root);
+    // CK is carried everywhere — same rig, same collar, whether you're
+    // crossing open ground or standing in an authored ruin. The camera trails
+    // behind him; see thirdPersonCameraPose for how yaw/pitch place it.
+    const ck = buildCK();
 
     const detachMove = moveRef.current.attach(moveZone);
     const detachLook = lookRef.current.attach(lookZone);
@@ -141,13 +150,20 @@ function ExploreScreenImpl() {
 
       const built = buildSiteScene(site);
       built.scene.add(camera);
+      built.scene.add(ck.root);
       disposeScene = built.dispose;
       const colliders: Collider[] = buildColliders(site.props);
       const player: PlayerState = { x: site.spawn.x, z: site.spawn.z, yaw: site.spawnYaw, pitch: 0 };
 
       const refreshVisibility = () => {
         const s = game.get().save;
-        const state = { siteProgress: s.siteProgress, discovered: s.discoveries.map((d) => d.targetId) };
+        const state = {
+          siteProgress: s.siteProgress,
+          discovered: s.discoveries.map((d) => d.targetId),
+          adventuresComplete: Object.entries(s.adventures)
+            .filter(([, status]) => status === 'complete')
+            .map(([id]) => id),
+        };
         for (const it of site.interactables) {
           const mesh = built.interactableMeshes.get(it.id);
           if (mesh) mesh.visible = isInteractableAvailable(it, state);
@@ -208,7 +224,6 @@ function ExploreScreenImpl() {
       audio.ambience(site.ambience);
 
       let lastBeep = 0;
-      let bobPhase = 0;
       let lastHazardWarnAt = -10;
       let lastPromptLabel: string | null = null;
 
@@ -249,15 +264,10 @@ function ExploreScreenImpl() {
           haptics.danger();
         }
 
-        bobPhase += dt * (move.magnitude > 0.05 ? 7.2 : 0);
-        const bob = move.magnitude > 0.05 ? Math.sin(bobPhase) * 0.028 : 0;
-
-        camera.position.set(player.x, EYE_HEIGHT + bob, player.z);
-        camera.rotation.y = player.yaw;
-        camera.rotation.x = player.pitch;
-        detectorProp.coilSwing.rotation.y = Math.sin(bobPhase * 0.5) * 0.08;
-
-        const state = { siteProgress: currentSave.siteProgress, discovered };
+        const adventuresComplete = Object.entries(currentSave.adventures)
+          .filter(([, status]) => status === 'complete')
+          .map(([id]) => id);
+        const state = { siteProgress: currentSave.siteProgress, discovered, adventuresComplete };
         const target = nearestInteractable(player.x, player.z, player.yaw, site.interactables, state);
 
         const detector = currentDetector();
@@ -293,6 +303,20 @@ function ExploreScreenImpl() {
         const canDig =
           !!dominant && dominant.strength > 0.3 && dominant.distCm <= digTolerance(dominant.def, detector) * 1.1;
 
+        ck.root.position.set(player.x, 0, player.z);
+        ck.root.rotation.y = player.yaw;
+        ck.update(dt, { moving: move.magnitude > 0.05, effort: move.magnitude, signal: dominant?.strength ?? 0 });
+
+        const camPose = thirdPersonCameraPose(player.x, player.z, player.yaw, player.pitch, {
+          distance: CAM_DISTANCE,
+          height: CAM_HEIGHT,
+          lookHeight: CAM_LOOK_HEIGHT,
+          pitchMin: CAM_PITCH_MIN,
+          pitchMax: CAM_PITCH_MAX,
+        });
+        camera.position.set(camPose.x, camPose.y, camPose.z);
+        camera.lookAt(camPose.lookX, camPose.lookY, camPose.lookZ);
+
         let promptLabel: string | null = null;
         if (target) {
           promptLabel = target.prompt;
@@ -317,6 +341,7 @@ function ExploreScreenImpl() {
     } else if (location && field) {
       const built = buildFieldScene(location, field.seed);
       built.scene.add(camera);
+      built.scene.add(ck.root);
       disposeScene = built.dispose;
       const player: PlayerState = {
         x: fieldToWorld(field.playerX, built.halfWidth),
@@ -399,7 +424,6 @@ function ExploreScreenImpl() {
       audio.ambience(location.ambience);
 
       let lastBeep = 0;
-      let bobPhase = 0;
       let lastSave = 0;
       let lastPromptLabel: string | null = null;
       let hudAccumulator = 0;
@@ -479,13 +503,20 @@ function ExploreScreenImpl() {
         }
         dominantUid = sample.dominant?.target.uid ?? null;
 
-        // ── camera + carried detector ────────────────────────────────
-        bobPhase += dt * (move.magnitude > 0.05 ? 7.2 : 0);
-        const bob = move.magnitude > 0.05 ? Math.sin(bobPhase) * 0.028 : 0;
-        camera.position.set(player.x, EYE_HEIGHT + bob, player.z);
-        camera.rotation.y = player.yaw;
-        camera.rotation.x = player.pitch;
-        detectorProp.coilSwing.rotation.y = Math.sin(sweepPhase) * 0.5 * sweepAmp;
+        // ── CK + chase camera ────────────────────────────────────────
+        ck.root.position.set(player.x, 0, player.z);
+        ck.root.rotation.y = player.yaw;
+        ck.update(dt, { moving: move.magnitude > 0.05 && !pinpointing, effort: move.magnitude, signal });
+
+        const camPose = thirdPersonCameraPose(player.x, player.z, player.yaw, player.pitch, {
+          distance: CAM_DISTANCE,
+          height: CAM_HEIGHT,
+          lookHeight: CAM_LOOK_HEIGHT,
+          pitchMin: CAM_PITCH_MIN,
+          pitchMax: CAM_PITCH_MAX,
+        });
+        camera.position.set(camPose.x, camPose.y, camPose.z);
+        camera.lookAt(camPose.lookX, camPose.lookY, camPose.lookZ);
 
         // ── scenery clues: the OBSERVE half of the field ────────────────
         const discoveredIds = game.get().save.discoveries.map((d) => d.targetId);
@@ -650,7 +681,7 @@ function ExploreScreenImpl() {
             <div className="readout" data-ui="true">
               <div className="label">Ground cleared</div>
               <p className="card__sub" style={{ margin: '4px 0 10px' }}>
-                Nothing left down there that this coil can hear.
+                Nothing left down there that the collar can hear.
               </p>
               <Btn
                 small
@@ -754,9 +785,9 @@ function ExploreScreenImpl() {
 }
 
 function teachingHint(signal: number, pinpointing: boolean): string | null {
-  if (signal < 0.18) return 'Walk. Listen for the beeps to quicken.';
+  if (signal < 0.18) return "Walk. Watch CK's ears — the collar talks through him.";
   if (signal < 0.45) return "Something's down there. Keep going.";
-  if (!pinpointing) return 'Hold PINPOINT to stop the sweep and narrow it down.';
+  if (!pinpointing) return 'Hold PINPOINT to stop and narrow it down.';
   return 'Strongest point wins. DIG HERE.';
 }
 
