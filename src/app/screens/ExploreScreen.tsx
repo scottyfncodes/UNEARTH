@@ -17,7 +17,7 @@ import {
   savePlayerPosition,
 } from '@/core/gameState';
 import type { PlacedTarget, SceneryClue, TargetDef } from '@/core/types';
-import { clamp01, lerp } from '@/core/rng';
+import { clamp, clamp01, lerp } from '@/core/rng';
 import { beepInterval, digTolerance, readout, sampleField, targetSignal, toneOf } from '@/systems/detection';
 import {
   buildColliders,
@@ -64,6 +64,35 @@ interface FieldActions {
   dig(): void;
 }
 
+/** Max knob travel inside a touchpad ring, in pixels — matches the CSS pad size. */
+const TOUCHPAD_KNOB_MAX = 30;
+
+/**
+ * Echoes the live move-stick vector and a decaying "look nudge" onto the two
+ * visible touchpad knobs. Pure DOM writes driven straight from the render
+ * loop — no React state, so this costs nothing at 60fps.
+ */
+function updateTouchpadVisuals(
+  els: { movePad: HTMLDivElement | null; moveKnob: HTMLDivElement | null; lookPad: HTMLDivElement | null; lookKnob: HTMLDivElement | null },
+  moveActive: boolean,
+  moveX: number,
+  moveY: number,
+  lookActive: boolean,
+  lookX: number,
+  lookY: number,
+): void {
+  if (els.movePad && els.moveKnob) {
+    els.movePad.classList.toggle('touchpad--active', moveActive);
+    els.moveKnob.style.transform = `translate(${moveX * TOUCHPAD_KNOB_MAX}px, ${moveY * TOUCHPAD_KNOB_MAX}px)`;
+  }
+  if (els.lookPad && els.lookKnob) {
+    els.lookPad.classList.toggle('touchpad--active', lookActive);
+    const nx = clamp(lookX, -TOUCHPAD_KNOB_MAX, TOUCHPAD_KNOB_MAX);
+    const ny = clamp(lookY, -TOUCHPAD_KNOB_MAX, TOUCHPAD_KNOB_MAX);
+    els.lookKnob.style.transform = `translate(${nx}px, ${ny}px)`;
+  }
+}
+
 interface Hud {
   /** The single contextual button: an interactable (site) or a scenery clue (field). */
   promptLabel: string | null;
@@ -87,6 +116,10 @@ function ExploreScreenImpl() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const moveZoneRef = useRef<HTMLDivElement>(null);
   const lookZoneRef = useRef<HTMLDivElement>(null);
+  const movePadRef = useRef<HTMLDivElement>(null);
+  const moveKnobRef = useRef<HTMLDivElement>(null);
+  const lookPadRef = useRef<HTMLDivElement>(null);
+  const lookKnobRef = useRef<HTMLDivElement>(null);
   const moveRef = useRef(new MoveController());
   const lookRef = useRef(new LookController());
   const promptRef = useRef<Prompt | null>(null);
@@ -128,6 +161,12 @@ function ExploreScreenImpl() {
 
     const detachMove = moveRef.current.attach(moveZone);
     const detachLook = lookRef.current.attach(lookZone);
+    const touchpadEls = {
+      movePad: movePadRef.current,
+      moveKnob: moveKnobRef.current,
+      lookPad: lookPadRef.current,
+      lookKnob: lookKnobRef.current,
+    };
     audio.unlock();
 
     let lastW = 0;
@@ -211,6 +250,8 @@ function ExploreScreenImpl() {
       let bobPhase = 0;
       let lastHazardWarnAt = -10;
       let lastPromptLabel: string | null = null;
+      let lookNudgeX = 0;
+      let lookNudgeY = 0;
 
       loop = startLoop((dt, elapsed) => {
         const rect = host.getBoundingClientRect();
@@ -256,6 +297,18 @@ function ExploreScreenImpl() {
         camera.rotation.y = player.yaw;
         camera.rotation.x = player.pitch;
         detectorProp.coilSwing.rotation.y = Math.sin(bobPhase * 0.5) * 0.08;
+
+        lookNudgeX = lerp(lookNudgeX + look.yaw * 240, 0, clamp01(dt * 6));
+        lookNudgeY = lerp(lookNudgeY - look.pitch * 240, 0, clamp01(dt * 6));
+        updateTouchpadVisuals(
+          touchpadEls,
+          move.magnitude > 0.03,
+          move.vector.x,
+          move.vector.y,
+          lookRef.current.active,
+          lookNudgeX,
+          lookNudgeY,
+        );
 
         const state = { siteProgress: currentSave.siteProgress, discovered };
         const target = nearestInteractable(player.x, player.z, player.yaw, site.interactables, state);
@@ -403,6 +456,8 @@ function ExploreScreenImpl() {
       let lastSave = 0;
       let lastPromptLabel: string | null = null;
       let hudAccumulator = 0;
+      let lookNudgeX = 0;
+      let lookNudgeY = 0;
 
       loop = startLoop((dt, elapsed) => {
         const rect = host.getBoundingClientRect();
@@ -486,6 +541,18 @@ function ExploreScreenImpl() {
         camera.rotation.y = player.yaw;
         camera.rotation.x = player.pitch;
         detectorProp.coilSwing.rotation.y = Math.sin(sweepPhase) * 0.5 * sweepAmp;
+
+        lookNudgeX = lerp(lookNudgeX + look.yaw * 240, 0, clamp01(dt * 6));
+        lookNudgeY = lerp(lookNudgeY - look.pitch * 240, 0, clamp01(dt * 6));
+        updateTouchpadVisuals(
+          touchpadEls,
+          move.magnitude > 0.03,
+          move.vector.x,
+          move.vector.y,
+          lookRef.current.active,
+          lookNudgeX,
+          lookNudgeY,
+        );
 
         // ── scenery clues: the OBSERVE half of the field ────────────────
         const discoveredIds = game.get().save.discoveries.map((d) => d.targetId);
@@ -606,6 +673,19 @@ function ExploreScreenImpl() {
       <canvas ref={canvasRef} className="world" data-testid="explore-canvas" />
       <div ref={moveZoneRef} style={{ position: 'absolute', inset: 0, width: '44%', touchAction: 'none' }} />
       <div ref={lookZoneRef} style={{ position: 'absolute', inset: 0, left: '44%', touchAction: 'none' }} />
+
+      <div ref={movePadRef} className="touchpad touchpad--left" aria-hidden="true">
+        <div className="touchpad__glyph">
+          <MoveGlyph />
+        </div>
+        <div ref={moveKnobRef} className="touchpad__knob" />
+      </div>
+      <div ref={lookPadRef} className="touchpad touchpad--right" aria-hidden="true">
+        <div className="touchpad__glyph">
+          <LookGlyph />
+        </div>
+        <div ref={lookKnobRef} className="touchpad__knob" />
+      </div>
 
       <div className="world-ui">
         <div className="world-top">
@@ -750,6 +830,28 @@ function ExploreScreenImpl() {
         ) : null}
       </div>
     </div>
+  );
+}
+
+/** Four outward chevrons — a compact "you can move" glyph. */
+function MoveGlyph() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path d="M12 2 L15.2 7.2 L8.8 7.2 Z" />
+      <path d="M12 22 L15.2 16.8 L8.8 16.8 Z" />
+      <path d="M2 12 L7.2 8.8 L7.2 15.2 Z" />
+      <path d="M22 12 L16.8 8.8 L16.8 15.2 Z" />
+    </svg>
+  );
+}
+
+/** A simple eye — "you can look around" glyph. */
+function LookGlyph() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
+      <path d="M2 12C4.5 7 8 4.5 12 4.5S19.5 7 22 12C19.5 17 16 19.5 12 19.5S4.5 17 2 12Z" />
+      <circle cx="12" cy="12" r="3" fill="currentColor" stroke="none" />
+    </svg>
   );
 }
 
