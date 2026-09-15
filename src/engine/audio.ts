@@ -59,6 +59,11 @@ class AudioEngine {
     if (this.ctx.state === 'suspended') void this.ctx.resume();
   }
 
+  /** Re-resumes an already-unlocked context — e.g. after iOS suspends it on backgrounding. */
+  resume(): void {
+    if (this.ctx && this.ctx.state === 'suspended') void this.ctx.resume();
+  }
+
   private makeNoise(seconds: number): AudioBuffer {
     const ctx = this.ctx!;
     const len = Math.floor(ctx.sampleRate * seconds);

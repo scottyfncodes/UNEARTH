@@ -40,6 +40,10 @@ export function Btn({
         .filter(Boolean)
         .join(' ')}
       onClick={() => {
+        // Re-attempt unlock/resume on every tap, not just the first: iOS
+        // suspends the AudioContext on backgrounding, and this is the
+        // cheapest guaranteed-real user gesture to recover it from.
+        audio.unlock();
         if (sound !== 'none') audio.ui(sound);
         haptics.tap();
         onClick?.();

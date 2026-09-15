@@ -34,9 +34,14 @@ export function App() {
     return () => window.removeEventListener('pointerdown', unlock);
   }, []);
 
-  // Never lose progress to a backgrounded tab.
+  // Never lose progress to a backgrounded tab, and pick audio back up when it
+  // returns — iOS suspends the AudioContext on backgrounding, and a visible
+  // tab is itself close enough to a user gesture to ask it to resume.
   useEffect(() => {
-    const flush = () => persistNow();
+    const flush = () => {
+      persistNow();
+      if (!document.hidden) audio.resume();
+    };
     window.addEventListener('pagehide', flush);
     document.addEventListener('visibilitychange', flush);
     return () => {
