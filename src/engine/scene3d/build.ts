@@ -8,7 +8,7 @@ import type { PropKind, SiteDef, SiteInteractable, SiteProp } from '@/content/si
 import { PROP_FOOTPRINT } from '@/systems/explore';
 import { findSprite, footprintsTexture, hazardDecalTexture, siteGroundTexture, skyGradientTexture, stoneTexture } from './textures';
 
-const PROP_HEIGHT: Record<PropKind, number> = {
+export const PROP_HEIGHT: Record<PropKind, number> = {
   wall: 2.6,
   column: 3,
   columnBroken: 1.4,
@@ -87,7 +87,8 @@ export function buildSiteScene(site: SiteDef): BuiltSite {
   };
 }
 
-function buildProp(scene: THREE.Scene, prop: SiteProp, stoneMaterial: THREE.Material): void {
+/** Exported so buildField.ts can scatter the same low-poly props as decoration. */
+export function buildProp(scene: THREE.Scene, prop: SiteProp, stoneMaterial: THREE.Material): void {
   const footprint = PROP_FOOTPRINT[prop.kind];
   const height = PROP_HEIGHT[prop.kind];
   const scale = prop.scale ?? [1, 1, 1];
@@ -174,7 +175,8 @@ function buildProp(scene: THREE.Scene, prop: SiteProp, stoneMaterial: THREE.Mate
   scene.add(group);
 }
 
-function billboardMesh(map: THREE.Texture, size: number, transparent = true): THREE.Mesh {
+/** Exported so buildField.ts can render scenery-clue sprites the same way. */
+export function billboardMesh(map: THREE.Texture, size: number, transparent = true): THREE.Mesh {
   return new THREE.Mesh(
     new THREE.PlaneGeometry(size, size),
     new THREE.MeshStandardMaterial({ map, transparent, alphaTest: 0.12, roughness: 0.8, side: THREE.DoubleSide }),
@@ -240,7 +242,8 @@ function buildInteractable(it: SiteInteractable): THREE.Object3D | null {
   return group;
 }
 
-function disposeObject(root: THREE.Object3D): void {
+/** Exported so buildField.ts (and the camera-anchored detector prop) can reuse the same cleanup. */
+export function disposeObject(root: THREE.Object3D): void {
   root.traverse((obj) => {
     const mesh = obj as THREE.Mesh;
     if (mesh.geometry) mesh.geometry.dispose();
@@ -254,4 +257,56 @@ function disposeMaterial(mat: THREE.Material): void {
   const withMap = mat as THREE.MeshStandardMaterial;
   withMap.map?.dispose();
   mat.dispose();
+}
+
+/**
+ * A first-person detector, held out ahead and to one side. `coilSwing` is a
+ * separate pivot the caller animates (rotation.y) to visually sweep the coil
+ * side to side — the same physical motion the signal model already assumes.
+ */
+export interface DetectorProp {
+  root: THREE.Group;
+  coilSwing: THREE.Group;
+}
+
+export function buildDetectorProp(): DetectorProp {
+  const root = new THREE.Group();
+  const metal = new THREE.MeshStandardMaterial({ color: 0x3a3a3e, roughness: 0.5, metalness: 0.4 });
+  const grip = new THREE.MeshStandardMaterial({ color: 0x2a2622, roughness: 0.8, metalness: 0.1 });
+  const coilMetal = new THREE.MeshStandardMaterial({ color: 0x232220, roughness: 0.55, metalness: 0.35 });
+  const coilFace = new THREE.MeshStandardMaterial({ color: 0x151412, roughness: 0.9, side: THREE.DoubleSide });
+
+  // Upper shaft + grip, fixed relative to the camera (the forearm holding it).
+  const upperShaft = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.022, 0.5, 8), metal);
+  upperShaft.position.set(0.26, -0.28, -0.42);
+  upperShaft.rotation.set(Math.PI * 0.32, 0, 0.08);
+  root.add(upperShaft);
+
+  const gripMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.028, 0.14, 8), grip);
+  gripMesh.position.set(0.24, -0.06, -0.28);
+  gripMesh.rotation.set(Math.PI * 0.32, 0, 0.08);
+  root.add(gripMesh);
+
+  // Everything below the pivot sweeps side to side.
+  const coilSwing = new THREE.Group();
+  coilSwing.position.set(0.3, -0.48, -0.58);
+  root.add(coilSwing);
+
+  const lowerShaft = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.02, 0.55, 8), metal);
+  lowerShaft.position.set(-0.06, -0.24, -0.28);
+  lowerShaft.rotation.set(Math.PI * 0.4, 0, 0);
+  coilSwing.add(lowerShaft);
+
+  const coil = new THREE.Mesh(new THREE.TorusGeometry(0.15, 0.024, 8, 20), coilMetal);
+  coil.position.set(-0.13, -0.42, -0.62);
+  coil.rotation.set(Math.PI / 2 + 0.18, 0, 0);
+  coilSwing.add(coil);
+
+  const coilFill = new THREE.Mesh(new THREE.CircleGeometry(0.14, 20), coilFace);
+  coilFill.position.copy(coil.position);
+  coilFill.rotation.copy(coil.rotation);
+  coilSwing.add(coilFill);
+
+  root.name = 'detectorProp';
+  return { root, coilSwing };
 }

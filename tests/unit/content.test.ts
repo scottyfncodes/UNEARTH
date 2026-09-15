@@ -161,6 +161,28 @@ describe('locations', () => {
   });
 });
 
+describe('scenery clues', () => {
+  it('every location.sceneryClues entry references a real target inside the plot bounds', () => {
+    for (const loc of LOCATIONS) {
+      for (const clue of loc.sceneryClues ?? []) {
+        expect(getTarget(clue.targetId), `${loc.id}/${clue.id} -> ${clue.targetId}`).toBeDefined();
+        expect(clue.x, `${loc.id}/${clue.id} x`).toBeGreaterThanOrEqual(0);
+        expect(clue.x, `${loc.id}/${clue.id} x`).toBeLessThanOrEqual(loc.bounds.w);
+        expect(clue.y, `${loc.id}/${clue.id} y`).toBeGreaterThanOrEqual(0);
+        expect(clue.y, `${loc.id}/${clue.id} y`).toBeLessThanOrEqual(loc.bounds.h);
+        expect(clue.range).toBeGreaterThan(0);
+      }
+    }
+  });
+
+  it('scenery clue ids are unique within a location', () => {
+    for (const loc of LOCATIONS) {
+      const ids = (loc.sceneryClues ?? []).map((c) => c.id);
+      expect(new Set(ids).size).toBe(ids.length);
+    }
+  });
+});
+
 describe('first-person sites', () => {
   it('every location.siteId points at a real site, and vice versa', () => {
     for (const loc of LOCATIONS) {

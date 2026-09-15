@@ -126,6 +126,26 @@ export interface LocationDef {
   adventureId?: string;
   /** A first-person 3D site hosted at this location, if any (see content/sites). */
   siteId?: string;
+  /**
+   * Fixed, always-visible surface details found by looking rather than
+   * digging — the OBSERVE half of the field alongside the detector's SEARCH.
+   * Unlike a dug-up find these need no gating: walk up, look, done.
+   */
+  sceneryClues?: SceneryClue[];
+}
+
+/** A surface-level, look-don't-dig find fixed at one spot in a detecting field. */
+export interface SceneryClue {
+  id: string;
+  /** Contextual button label, e.g. "Look closer". */
+  prompt: string;
+  /** Position within the location's bounds, in centimetres — PlacedTarget's space. */
+  x: number;
+  y: number;
+  /** How close the player must stand, in metres. */
+  range: number;
+  /** The TargetDef this grants on use — its own `silhouette` draws the in-world sprite. */
+  targetId: string;
 }
 
 export interface GroundPalette {

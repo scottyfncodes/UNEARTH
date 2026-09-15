@@ -1,7 +1,7 @@
 import { LOCATIONS } from '@/content/locations';
 import { getChain } from '@/content/clues';
 import { chainProgress } from '@/systems/mystery';
-import { enterAdventure, enterLocation, enterSite, game, go } from '@/core/gameState';
+import { enterAdventure, enterLocation, game, go } from '@/core/gameState';
 import { useGameState } from '../useGame';
 import { Btn, TopBar } from '../components/ui';
 import { Nav } from '../components/Nav';
@@ -49,13 +49,8 @@ export function MapScreen() {
               data-ui="true"
               data-testid={`location-${loc.id}`}
               onClick={() => {
-                if (isAdventure) {
-                  enterAdventure(loc.adventureId!);
-                } else if (isSite) {
-                  enterSite(loc.siteId!);
-                } else {
-                  enterLocation(loc.id);
-                }
+                if (isAdventure) enterAdventure(loc.adventureId!);
+                else enterLocation(loc.id);
               }}
             >
               <div className="row row--between">

@@ -19,7 +19,7 @@ test.describe('mobile shell', () => {
 
     await checkNoOverflow('title');
     await page.getByRole('button', { name: /begin/i }).click();
-    await page.getByTestId('world-canvas').waitFor();
+    await page.getByTestId('explore-canvas').waitFor();
     await checkNoOverflow('detect');
 
     // Every visible control should be big enough to hit with a thumb.
@@ -43,7 +43,7 @@ test.describe('mobile shell', () => {
 
   test('the canvas fills the screen and redraws after a resize', async ({ page }) => {
     await startNewGame(page);
-    const canvas = page.getByTestId('world-canvas');
+    const canvas = page.getByTestId('explore-canvas');
     const before = await canvas.boundingBox();
     expect(before!.width).toBeCloseTo(390, 0);
     expect(before!.height).toBeGreaterThan(700);
@@ -54,7 +54,7 @@ test.describe('mobile shell', () => {
     const after = await canvas.boundingBox();
     expect(after!.width).toBeCloseTo(844, 0);
     const painted = await page.evaluate(() => {
-      const el = document.querySelector('[data-testid="world-canvas"]') as HTMLCanvasElement | null;
+      const el = document.querySelector('[data-testid="explore-canvas"]') as HTMLCanvasElement | null;
       if (!el) return 0;
       // Canvas backing store should have been resized to the new box.
       return el.width;

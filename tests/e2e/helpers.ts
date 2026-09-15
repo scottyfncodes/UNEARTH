@@ -31,7 +31,9 @@ export async function readDetectorFrame(page: Page) {
       y: number;
       coilX: number;
       coilY: number;
+      facing: number;
       signal: number;
+      pinpointing: boolean;
       dominant: string | null;
     } | null;
   });
@@ -86,19 +88,15 @@ export async function walkToSite(page: Page, x: number, z: number, tolerance = 2
   return distance;
 }
 
-export async function undugTargets(page: Page): Promise<FieldTarget[]> {
-  const save = (await readSave(page)) as { field?: { targets?: FieldTarget[] } } | null;
-  return (save?.field?.targets ?? []).filter((t) => !t.dug);
-}
-
 /**
- * Walks the player to a world position using the real keyboard controls —
- * the same input path a player's thumb drives. Returns the final distance.
+ * The same turn-then-forward approach as walkToSite, but for a detecting
+ * field: it reads centimetres from the DetectorFrame (which shares the field's
+ * own coordinate space) instead of metres from the ExploreFrame, so it works
+ * against the real target/loot-table positions without a metres conversion.
  */
-export async function walkTo(page: Page, x: number, y: number, tolerance = 18): Promise<number> {
-  const deadline = Date.now() + 30_000;
+export async function walkFieldTo(page: Page, x: number, y: number, tolerance = 220): Promise<number> {
+  const deadline = Date.now() + 70_000;
   let distance = Infinity;
-
   while (Date.now() < deadline) {
     const frame = await readDetectorFrame(page);
     if (!frame) break;
@@ -107,19 +105,22 @@ export async function walkTo(page: Page, x: number, y: number, tolerance = 18): 
     distance = Math.hypot(dx, dy);
     if (distance <= tolerance) break;
 
-    // Press the dominant axis for a short burst, then re-evaluate.
-    const horizontal = Math.abs(dx) > Math.abs(dy);
-    const key = horizontal ? (dx > 0 ? 'ArrowRight' : 'ArrowLeft') : dy > 0 ? 'ArrowDown' : 'ArrowUp';
-    const travel = Math.min(horizontal ? Math.abs(dx) : Math.abs(dy), 120);
-    const holdMs = Math.max(40, (travel / 108) * 1000);
-
-    await page.keyboard.down(key);
-    await page.waitForTimeout(holdMs);
-    await page.keyboard.up(key);
-    await page.waitForTimeout(60);
+    const desiredYaw = Math.atan2(dx, -dy);
+    let yawDiff = desiredYaw - frame.facing;
+    yawDiff = ((yawDiff + Math.PI) % (Math.PI * 2)) - Math.PI;
+    if (Math.abs(yawDiff) > 0.5) {
+      await walkBurst(page, yawDiff > 0 ? 'e' : 'q', Math.max(400, Math.min(600, (Math.abs(yawDiff) / 1.9) * 1000)));
+      continue;
+    }
+    const metres = distance / 100;
+    await walkBurst(page, 'w', Math.max(400, Math.min(1200, (Math.min(metres, 4) / 2.15) * 1000)));
   }
-
   return distance;
+}
+
+export async function undugTargets(page: Page): Promise<FieldTarget[]> {
+  const save = (await readSave(page)) as { field?: { targets?: FieldTarget[] } } | null;
+  return (save?.field?.targets ?? []).filter((t) => !t.dug);
 }
 
 /** Presses and holds the PINPOINT control with a real pointer press. */
@@ -135,41 +136,6 @@ export async function holdPinpoint(page: Page, down: boolean): Promise<void> {
   }
 }
 
-/** Walks one axis to a target world coordinate using the keyboard controls. */
-export async function walkAxis(
-  page: Page,
-  axis: 'x' | 'y',
-  value: number,
-  tolerance = 8,
-  speed = 108,
-): Promise<number> {
-  let delta = Infinity;
-  for (let attempt = 0; attempt < 50; attempt++) {
-    const frame = await readDetectorFrame(page);
-    if (!frame) break;
-    const current = axis === 'x' ? frame.x : frame.y;
-    delta = value - current;
-    if (Math.abs(delta) <= tolerance) break;
-    const key =
-      axis === 'x'
-        ? delta > 0
-          ? 'ArrowRight'
-          : 'ArrowLeft'
-        : delta > 0
-          ? 'ArrowDown'
-          : 'ArrowUp';
-    const hold = Math.max(24, Math.min(700, (Math.abs(delta) / speed) * 1000));
-    await page.keyboard.down(key);
-    await page.waitForTimeout(hold);
-    await page.keyboard.up(key);
-    await page.waitForTimeout(30);
-  }
-  return delta;
-}
-
-/** How far ahead of the player the coil sits while pinpointing. */
-const PINPOINT_COIL_FORWARD = 62 * 0.8;
-
 export interface PinpointResult {
   /** Best signal seen while closing in. */
   peak: number;
@@ -178,21 +144,18 @@ export interface PinpointResult {
 }
 
 /**
- * Locates a buried target the way a player does: approach from below, stop the
- * sweep with PINPOINT, then creep forward until the signal peaks. The coil is
- * ahead of the player, so this closes the last stretch in small steps and
- * stops at the strongest reading. Leaves PINPOINT released (which marks the
- * spot) so the caller can press DIG.
+ * Locates a buried target the way a player does in first person: walk it
+ * roughly into range (turn-then-forward, same as walkFieldTo), then hold
+ * PINPOINT and creep forward in small steps, watching the coil-to-target
+ * offset and stopping at the local minimum — the moment a player would ease
+ * off the trigger because the signal just started falling again. Leaves
+ * PINPOINT released (which marks the spot) so the caller can press DIG.
  */
-export async function centreCoilOn(page: Page, target: FieldTarget): Promise<PinpointResult> {
-  // Approach from directly below so the coil ends up pointing at the target.
-  await walkAxis(page, 'y', target.y + 240, 40);
-  await walkAxis(page, 'x', target.x, 6);
-  await walkAxis(page, 'y', target.y + PINPOINT_COIL_FORWARD + 42, 8);
+export async function approachAndPinpoint(page: Page, target: FieldTarget): Promise<PinpointResult> {
+  await walkFieldTo(page, target.x, target.y, 260);
 
   await holdPinpoint(page, true);
-  // Let the sweep settle to centre before reading the coil position.
-  await page.waitForTimeout(320);
+  await page.waitForTimeout(300);
 
   let peak = 0;
   let best = Infinity;
@@ -201,14 +164,12 @@ export async function centreCoilOn(page: Page, target: FieldTarget): Promise<Pin
     if (!frame) break;
     peak = Math.max(peak, frame.signal);
     const offset = Math.hypot(frame.coilX - target.x, frame.coilY - target.y);
-    // Creeping forward stops the moment the coil starts moving away again:
-    // that minimum is the strongest point, which is what a player listens for.
-    if (offset < 12 || offset > best + 3) break;
+    if (offset < 15 || offset > best + 6) break;
     best = Math.min(best, offset);
-    await page.keyboard.down('ArrowUp');
-    await page.waitForTimeout(45);
-    await page.keyboard.up('ArrowUp');
-    await page.waitForTimeout(25);
+    await page.keyboard.down('w');
+    await page.waitForTimeout(180);
+    await page.keyboard.up('w');
+    await page.waitForTimeout(60);
   }
 
   const frame = await readDetectorFrame(page);
@@ -247,5 +208,5 @@ export async function startNewGame(page: Page): Promise<void> {
   await page.evaluate(() => localStorage.clear());
   await page.reload();
   await page.getByRole('button', { name: /begin/i }).click();
-  await page.getByTestId('world-canvas').waitFor();
+  await page.getByTestId('explore-canvas').waitFor();
 }

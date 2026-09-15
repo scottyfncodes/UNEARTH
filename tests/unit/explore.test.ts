@@ -2,11 +2,13 @@ import { describe, expect, it } from 'vitest';
 import {
   buildColliders,
   clampToBounds,
+  clampToRectBounds,
   facingVectors,
   isInteractableAvailable,
   nearestInteractable,
   resolveCollisions,
   stepPlayer,
+  sweepCoilPosition,
   type PlayerState,
 } from '@/systems/explore';
 import type { HazardZone, SiteInteractable, SiteProp } from '@/content/sites/types';
@@ -56,6 +58,46 @@ describe('clampToBounds', () => {
     const { x, z } = clampToBounds(100, -100, 10);
     expect(x).toBeLessThanOrEqual(10);
     expect(z).toBeGreaterThanOrEqual(-10);
+  });
+});
+
+describe('clampToRectBounds', () => {
+  it('clamps each axis independently to its own half-extent', () => {
+    const { x, z } = clampToRectBounds(100, -100, 5, 20);
+    expect(x).toBeLessThanOrEqual(5);
+    expect(z).toBeGreaterThanOrEqual(-20);
+  });
+
+  it('leaves an interior point untouched', () => {
+    expect(clampToRectBounds(1, -2, 10, 10)).toEqual({ x: 1, z: -2 });
+  });
+});
+
+describe('sweepCoilPosition', () => {
+  it('rests straight ahead at sweep phase 0', () => {
+    const { x, z } = sweepCoilPosition(0, 0, 0, 0, { forward: 0.6, width: 0.4, amp: 1 });
+    expect(x).toBeCloseTo(0, 5);
+    expect(z).toBeCloseTo(-0.6, 5);
+  });
+
+  it('swings laterally as the sweep phase advances', () => {
+    const a = sweepCoilPosition(0, 0, 0, Math.PI / 2, { forward: 0.6, width: 0.4, amp: 1 });
+    expect(a.x).toBeCloseTo(0.4, 5);
+    const b = sweepCoilPosition(0, 0, 0, -Math.PI / 2, { forward: 0.6, width: 0.4, amp: 1 });
+    expect(b.x).toBeCloseTo(-0.4, 5);
+  });
+
+  it('narrows toward dead-centre as amplitude drops (pinpointing)', () => {
+    const wide = sweepCoilPosition(0, 0, 0, Math.PI / 2, { forward: 0.6, width: 0.4, amp: 1 });
+    const narrow = sweepCoilPosition(0, 0, 0, Math.PI / 2, { forward: 0.6, width: 0.4, amp: 0.1 });
+    expect(Math.abs(narrow.x)).toBeLessThan(Math.abs(wide.x));
+  });
+
+  it('follows the player position and yaw, not just the local offset', () => {
+    const { x, z } = sweepCoilPosition(10, 10, Math.PI, 0, { forward: 1, width: 0, amp: 1 });
+    // Facing +Z (yaw = PI) puts the coil one metre further along +Z.
+    expect(x).toBeCloseTo(10, 5);
+    expect(z).toBeCloseTo(11, 5);
   });
 });
 

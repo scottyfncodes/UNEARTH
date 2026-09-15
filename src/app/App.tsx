@@ -5,7 +5,6 @@ import { haptics } from '@/engine/haptics';
 import { useGameState } from './useGame';
 import { TitleScreen } from './screens/TitleScreen';
 import { MapScreen } from './screens/MapScreen';
-import { DetectScreen } from './screens/DetectScreen';
 import { ExcavateScreen } from './screens/ExcavateScreen';
 import { DiscoveryScreen } from './screens/DiscoveryScreen';
 import { JournalScreen } from './screens/JournalScreen';
@@ -51,8 +50,6 @@ export function App() {
       return <TitleScreen />;
     case 'map':
       return <MapScreen />;
-    case 'detect':
-      return <DetectScreen />;
     case 'excavate':
       return <ExcavateScreen />;
     case 'discovery':
@@ -68,7 +65,7 @@ export function App() {
     case 'explore3d':
       return (
         <Suspense fallback={<div className="screen screen--world" />}>
-          <ExploreScreen key={activeSite ?? 'none'} />
+          <ExploreScreen key={activeSite ?? save.field?.locationId ?? 'none'} />
         </Suspense>
       );
     default:

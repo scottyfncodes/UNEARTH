@@ -25,7 +25,6 @@ import { randomSeed } from './rng';
 export type Route =
   | 'title'
   | 'map'
-  | 'detect'
   | 'excavate'
   | 'discovery'
   | 'journal'
@@ -189,13 +188,23 @@ export function isLocationUnlocked(locationId: string): boolean {
 }
 
 /**
- * Enter a location. Reuses the saved field when it belongs to this location so
- * a refresh drops the player back into the same ground; otherwise seeds a new
- * one. `forceNew` is the "search fresh ground" action.
+ * Enter a location — the single door into every first-person space, whether
+ * it is an authored site (a fixed SiteDef, e.g. The Silent Court) or a
+ * procedural detecting field (a LocationDef with a loot table). Both land on
+ * the 'explore3d' route; there is no separate top-down view for either.
+ *
+ * For a field, reuses the saved FieldState when it belongs to this location
+ * so a refresh drops the player back into the same ground; otherwise seeds a
+ * new one. `forceNew` is the "search fresh ground" action.
  */
 export function enterLocation(locationId: string, forceNew = false): FieldState | null {
   const loc = getLocation(locationId);
   if (!loc || !isLocationUnlocked(locationId)) return null;
+
+  if (loc.siteId) {
+    enterSite(loc.siteId);
+    return null;
+  }
 
   const save = game.get().save;
   const existing = save.field;
@@ -212,8 +221,8 @@ export function enterLocation(locationId: string, forceNew = false): FieldState 
         includeTutorial: !save.flags.tutorialFound && loc.table.length > 0,
       });
 
-  setSave((s) => ({ ...s, field }));
-  go('detect');
+  game.update((s) => ({ ...s, save: { ...s.save, field }, activeSite: null, route: 'explore3d', notice: null }));
+  schedulePersist();
   return field;
 }
 
@@ -265,7 +274,7 @@ export function markTargetDug(uid: string): void {
 }
 
 export function abandonDig(): void {
-  game.update((s) => ({ ...s, dig: null, route: 'detect' }));
+  game.update((s) => ({ ...s, dig: null, route: 'explore3d' }));
 }
 
 export function completeExtraction(input: ExtractionInput): DiscoveryOutcome {
@@ -275,7 +284,7 @@ export function completeExtraction(input: ExtractionInput): DiscoveryOutcome {
   return outcome;
 }
 
-export function dismissDiscovery(next: Route = 'detect'): void {
+export function dismissDiscovery(next: Route = 'explore3d'): void {
   game.update((s) => ({ ...s, pending: null, route: next }));
 }
 

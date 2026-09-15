@@ -18,6 +18,7 @@ const SHOTS = 'test-results/screens';
 
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => {
+    if (localStorage.getItem('unearth.save.v1')) return;
     localStorage.setItem(
       'unearth.save.v1',
       JSON.stringify({

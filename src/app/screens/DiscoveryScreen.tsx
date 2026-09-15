@@ -18,7 +18,7 @@ export function DiscoveryScreen() {
   }, [pending]);
 
   if (!pending) {
-    dismissDiscovery('detect');
+    dismissDiscovery();
     return null;
   }
 
@@ -146,9 +146,7 @@ export function DiscoveryScreen() {
             variant="primary"
             wide
             data-testid="keep-searching"
-            onClick={() =>
-              dismissDiscovery(activeSite ? 'explore3d' : canResumeField ? 'detect' : 'map')
-            }
+            onClick={() => dismissDiscovery(activeSite || canResumeField ? 'explore3d' : 'map')}
           >
             {activeSite ? 'Keep exploring' : canResumeField ? 'Keep searching' : 'Back to the map'}
           </Btn>

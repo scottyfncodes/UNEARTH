@@ -1,9 +1,13 @@
 import { test } from '@playwright/test';
-import { centreCoilOn, scrubPit, startNewGame, undugTargets } from './helpers';
+import { approachAndPinpoint, scrubPit } from './helpers';
 
 /**
  * Not an assertion suite — this walks the game and saves a screenshot of every
- * screen at phone size so the visuals can be reviewed.
+ * screen at phone size so the visuals can be reviewed. The detecting field is
+ * seeded (same trick core-loop.spec.ts uses) rather than played from a real
+ * fresh save: a random tutorial-target position can land far behind the
+ * player, and this environment's synthetic turning is slow enough that a
+ * worst-case placement can burn the whole test budget on a screenshot tour.
  */
 const SHOTS = 'test-results/screens';
 
@@ -13,13 +17,50 @@ test('capture every screen', async ({ page }) => {
   await page.reload();
   await page.screenshot({ path: `${SHOTS}/01-title.png` });
 
-  await startNewGame(page);
+  const target = {
+    uid: 't1',
+    targetId: 'tgt_tut_penny',
+    x: 700,
+    y: 300,
+    depth: 8,
+    baseCondition: 92,
+    dug: false,
+    tutorial: true,
+  };
+  // Leaving the title screen's page (even just to reload) fires 'pagehide',
+  // which persists a fresh save before this next reload's init script runs —
+  // so the seed below is unconditional (not "only if nothing saved yet") or
+  // that auto-write would always win the race and this seed would never land.
+  await page.addInitScript((save) => {
+    localStorage.setItem('unearth.save.v1', JSON.stringify(save));
+  }, {
+      version: 1,
+      createdAt: 1,
+      updatedAt: 1,
+      discoveries: [],
+      clues: [],
+      chainsComplete: [],
+      unlockedLocations: ['loc_old_park', 'loc_old_railway'],
+      detectorId: 'det_starter',
+      ownedEquipment: ['det_starter', 'tool_scoop', 'tool_brush'],
+      money: 0,
+      stats: { sweeps: 0, signalsFound: 0, holesDug: 0, emptyHoles: 0, finds: 0, bestCondition: 0 },
+      field: { locationId: 'loc_old_park', seed: 1, targets: [target], playerX: 700, playerY: 1200, holes: [], startedAt: 1 },
+      adventures: {},
+      settings: { sound: false, haptics: false },
+      flags: { seenIntro: true, tutorialFound: false },
+      examined: [],
+      assembled: [],
+      siteProgress: [],
+    },
+  );
+  await page.reload();
+  await page.getByTestId('location-loc_old_park').click();
+  await page.getByTestId('explore-canvas').waitFor();
   await page.waitForTimeout(600);
   await page.screenshot({ path: `${SHOTS}/02-detect-start.png` });
 
-  const targets = await undugTargets(page);
-  const tutorial = targets.find((t) => t.tutorial)!;
-  await centreCoilOn(page, tutorial);
+  await approachAndPinpoint(page, target);
   await page.screenshot({ path: `${SHOTS}/03-detect-on-target.png` });
 
   await page.getByTestId('dig').click();

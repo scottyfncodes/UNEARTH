@@ -829,6 +829,68 @@ export const TARGETS: TargetDef[] = [
     silhouette: 'serpentIdol',
     authored: true,
   },
+
+  // ── Scenery clues: fixed surface details in the three detecting fields,
+  // found by looking rather than sweeping. Deliberately unconnected to any
+  // clue chain — the point is that not everything you notice has to matter
+  // to the mystery for noticing to be worth doing.
+  {
+    id: 'tgt_park_marker',
+    name: 'Weathered Dedication Stone',
+    category: 'relic',
+    material: 'stone',
+    materialName: 'Worn granite',
+    rarity: 'uncommon',
+    era: 'Unknown',
+    depth: [0, 0],
+    size: 0.4,
+    value: 3,
+    significance: 'minor',
+    fragility: 0,
+    excavationDifficulty: 0,
+    description:
+      'Set flush into the ground near an old path, low enough that most people walk straight over it. Whatever it once commemorated has worn past reading.',
+    discoveryText: 'A dedication stone, face down in the grass more often than not.',
+    silhouette: 'carving',
+  },
+  {
+    id: 'tgt_railway_plate',
+    name: 'Signal Plate',
+    category: 'relic',
+    material: 'stone',
+    materialName: 'Enamelled steel',
+    rarity: 'uncommon',
+    era: 'Unknown',
+    depth: [0, 0],
+    size: 0.4,
+    value: 3,
+    significance: 'minor',
+    fragility: 0,
+    excavationDifficulty: 0,
+    description:
+      'Bolted to a post that has otherwise rotted away, the plate outlasted whatever it was warning about. The paint is gone; the shape of the letters almost isn’t.',
+    discoveryText: 'A signal plate, still bolted to a post with nothing left to hold up.',
+    silhouette: 'carving',
+  },
+  {
+    id: 'tgt_mine_warning',
+    name: 'Chalked Warning Mark',
+    category: 'relic',
+    material: 'stone',
+    materialName: 'Chalk on timber',
+    rarity: 'uncommon',
+    era: 'Unknown',
+    depth: [0, 0],
+    size: 0.4,
+    value: 3,
+    significance: 'minor',
+    fragility: 0,
+    excavationDifficulty: 0,
+    description:
+      'A mark chalked onto a tunnel support, half worn away by damp air. Somebody wanted the next person through here to know something. It no longer says what.',
+    discoveryText: 'A chalk mark on old timber, mostly gone but clearly deliberate.',
+    silhouette: 'carving',
+  },
 ];
 
 const TARGET_INDEX = new Map(TARGETS.map((t) => [t.id, t]));

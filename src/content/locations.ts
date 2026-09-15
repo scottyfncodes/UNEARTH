@@ -49,6 +49,9 @@ export const LOCATIONS: LocationDef[] = [
       { targetId: 'tgt_shard_b', weight: 2.2 },
       { targetId: 'tgt_shard_c', weight: 1.6 },
     ],
+    sceneryClues: [
+      { id: 'clue_park_marker', prompt: 'Look closer', x: 260, y: 980, range: 3, targetId: 'tgt_park_marker' },
+    ],
   },
   {
     id: 'loc_old_railway',
@@ -96,6 +99,9 @@ export const LOCATIONS: LocationDef[] = [
       { targetId: 'tgt_shard_b', weight: 1.8 },
       { targetId: 'tgt_shard_c', weight: 2.4 },
     ],
+    sceneryClues: [
+      { id: 'clue_railway_plate', prompt: 'Look closer', x: 1180, y: 380, range: 3, targetId: 'tgt_railway_plate' },
+    ],
   },
   {
     id: 'loc_abandoned_mine',
@@ -138,6 +144,9 @@ export const LOCATIONS: LocationDef[] = [
       { targetId: 'tgt_stone_fragment', weight: 2.2 },
       { targetId: 'tgt_mechanism_part', weight: 2 },
       { targetId: 'tgt_unknown_artifact', weight: 1.4 },
+    ],
+    sceneryClues: [
+      { id: 'clue_mine_warning', prompt: 'Look closer', x: 420, y: 1180, range: 3, targetId: 'tgt_mine_warning' },
     ],
   },
   {

@@ -100,6 +100,23 @@ export function clampToBounds(x: number, z: number, halfExtent: number): { x: nu
   return { x: Math.max(-m, Math.min(m, x)), z: Math.max(-m, Math.min(m, z)) };
 }
 
+/** Keeps the player inside a rectangular walkable bound — a detecting field's plot. */
+export function clampToRectBounds(
+  x: number,
+  z: number,
+  halfWidth: number,
+  halfHeight: number,
+): { x: number; z: number } {
+  const mx = Math.max(0, halfWidth - PLAYER_RADIUS);
+  const mz = Math.max(0, halfHeight - PLAYER_RADIUS);
+  return { x: Math.max(-mx, Math.min(mx, x)), z: Math.max(-mz, Math.min(mz, z)) };
+}
+
+export interface RectBounds {
+  halfWidth: number;
+  halfHeight: number;
+}
+
 export interface PlayerState {
   x: number;
   z: number;
@@ -118,7 +135,8 @@ export interface StepInput {
   /** Metres per second at full stick deflection. */
   speed: number;
   colliders: readonly Collider[];
-  bounds: number;
+  /** A number is a square half-extent (authored sites); RectBounds is a plot's width/height (fields). */
+  bounds: number | RectBounds;
   hazards: readonly HazardZone[];
   siteProgress: readonly string[];
 }
@@ -154,7 +172,10 @@ export function stepPlayer(state: PlayerState, input: StepInput): StepResult {
   }
 
   const resolved = resolveCollisions(nx, nz, input.colliders);
-  const clamped = clampToBounds(resolved.x, resolved.z, input.bounds);
+  const clamped =
+    typeof input.bounds === 'number'
+      ? clampToBounds(resolved.x, resolved.z, input.bounds)
+      : clampToRectBounds(resolved.x, resolved.z, input.bounds.halfWidth, input.bounds.halfHeight);
   nx = clamped.x;
   nz = clamped.z;
 
@@ -195,6 +216,36 @@ export function isInteractableAvailable(it: SiteInteractable, state: Interaction
     return false;
   }
   return true;
+}
+
+export interface CoilSweepOptions {
+  /** Metres ahead of the player the coil rests. */
+  forward: number;
+  /** Metres either side of centre at full amplitude. */
+  width: number;
+  /** 0..1 — how wide the current sweep is (narrows while pinpointing). */
+  amp: number;
+}
+
+/**
+ * World position of the detector coil: held out in front of the player and
+ * swept side to side. Shared by every first-person detecting view (a
+ * procedural field or an authored site's one buried find) so the physical
+ * feel of sweeping is identical everywhere the detector comes out.
+ */
+export function sweepCoilPosition(
+  x: number,
+  z: number,
+  yaw: number,
+  sweepPhase: number,
+  opts: CoilSweepOptions,
+): { x: number; z: number } {
+  const { forwardX, forwardZ, rightX, rightZ } = facingVectors(yaw);
+  const lateral = Math.sin(sweepPhase) * opts.width * opts.amp;
+  return {
+    x: x + forwardX * opts.forward + rightX * lateral,
+    z: z + forwardZ * opts.forward + rightZ * lateral,
+  };
 }
 
 /**
