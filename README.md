@@ -389,8 +389,24 @@ connect → unlock → follow-the-clue loop, entirely in third person, across:
   (a bent iron tool, wedged and abandoned, is proof enough) and gave up. CK
   finishes it with a single push no person could have made. The payoff is a
   sealed bronze marker, not a treasure — the kind you leave when you intend
-  to come back — naming a place the archaeologist went looking next, one
-  this game doesn't visit.
+  to come back — naming a place the archaeologist went looking next.
+- **The Tell** — unlocked by that marker, a wind-cut mound built entirely
+  around noticing, not manipulating. A broken sighting cairn sits between two
+  standing stones, due west and due east of it, cut with the coiled serpent
+  and the three-pointed sun — two symbols the player has already met, in the
+  Silent Court and on a railway badge that has nothing to do with either. A
+  third stone, carved with the tablet's woven knot, sits well off that line;
+  a half-buried field note records the archaeologist testing whether it had
+  been moved, finding it hadn't, and crossing out his own first guess rather
+  than force an answer. The alignment itself only actually resolves from a
+  tumbled stone beside the cairn — climbable for a cat, not for a person —
+  and walking the same line further out turns up a fourth stone carved with
+  a mark that matches nothing else in the game yet. No hazard, no detector
+  dig: this site is entirely first-person observation and one use of CK's
+  traversal for a vantage point rather than a squeeze or a crawl. Finding all
+  four stones completes a chain that ties the serpent, the sun and the knot
+  together for the first time — three threads that looked separate turn out
+  to be one — without ever explaining what that pattern actually means.
 - **Two authored adventures**, reached through the map like anywhere else:
   **The Sealed Chamber** (a door puzzle, a precision artifact extraction under
   rising tension with an ordered clamp release, and a reactive escape) and
@@ -400,14 +416,17 @@ connect → unlock → follow-the-clue loop, entirely in third person, across:
   what finally unlocks the ending back at Home.
 
 Two independent mystery threads run through the detecting fields, each with
-its own recurring symbol, and cross at the end: the three-pointed sun
-(paperwork → the mine → the sealed chamber) and the woven knot (three
-ordinary-looking shards, found in the two starting fields, that turn out to be
-one object — assemble it and it points somewhere new). The Journal's Links tab
-surfaces a connection the moment two held clues share a symbol, whether or not
-they belong to the same formal chain and whether they were dug up or simply
-noticed; its Assemble tab tracks progress on every fragment set and performs
-the assembly.
+its own recurring symbol: the three-pointed sun (paperwork → the mine → the
+sealed chamber) and the woven knot (three ordinary-looking shards, found in
+the two starting fields, that turn out to be one object — assemble it and it
+points somewhere new). A third symbol, the coiled serpent, grows out of the
+Silent Court itself. All three were built to look separate — the woven knot's
+own chain says as much the first time it completes — until the Tell puts all
+three symbols on one hillside and admits they never were. The Journal's Links
+tab surfaces a connection the moment two held clues share a symbol, whether or
+not they belong to the same formal chain and whether they were dug up or
+simply noticed; its Assemble tab tracks progress on every fragment set and
+performs the assembly.
 
 Deliberately not built: a third authored adventure, any economy beyond funds
 for kit, and any progression system other than equipment, knowledge and
@@ -415,6 +434,8 @@ unlocked ground. The Silent Court's boot prints and dropped crate are only
 partly resolved — the vault's buried tin confirms someone has been quietly
 working this court, and the reassembled vessel confirms the archaeologist
 knew exactly what he was hiding it from, but not who that is. The Undercroft
-answers that with a direction, not a name: a marker naming somewhere he went
-looking next, that this game doesn't follow him to. Both stay loose threads
-on purpose, for whatever picks them up next.
+answers that with a direction, not a name, and the Tell turns that single
+direction into a pattern: three familiar symbols on ground that has nothing
+else in common, plus a fourth mark nothing else in the game matches yet. What
+the pattern actually connects, and where the fourth mark's own trail leads,
+stay loose threads on purpose, for whatever picks them up next.

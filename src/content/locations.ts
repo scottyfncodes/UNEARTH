@@ -270,6 +270,31 @@ export const LOCATIONS: LocationDef[] = [
     },
     table: [],
   },
+  {
+    id: 'loc_tell',
+    name: 'The Tell',
+    subtitle: 'Wind-cut mound, layers exposed',
+    description:
+      'A hillside carved down by weather rather than anyone digging on purpose. Something about it made him mark where it was and keep coming back.',
+    bounds: { w: 1, h: 1 },
+    targetCount: [0, 0],
+    depthBias: 1,
+    hardness: 0.5,
+    ambience: 'ruins',
+    lockedBy: 'chain_undercroft_trail',
+    lockedHint: 'The marker in the Undercroft named a place. This might be it.',
+    siteId: 'site_tell',
+    ground: {
+      base: '#3a3624',
+      mid: '#4a4530',
+      light: '#5f5940',
+      detail: '#726b4d',
+      haze: '#211f15',
+      sky: '#5f5940',
+      scatter: 'rubble',
+    },
+    table: [],
+  },
 ];
 
 const LOCATION_INDEX = new Map(LOCATIONS.map((l) => [l.id, l]));

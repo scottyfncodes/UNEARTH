@@ -237,6 +237,23 @@ export const SILHOUETTES: Record<string, Silhouette> = {
     finish: 'stone',
     detail: 'coilmark',
   },
+  // ── The Tell: the same carved-slab shape, one per recurring symbol found
+  // there, plus a fourth left deliberately undecorated — no detail yet
+  // matches it.
+  carving_sun: {
+    shapes: [{ kind: 'rect', x: 0, y: 0, w: 1.5, h: 1.05 }],
+    finish: 'stone',
+    detail: 'sunmark',
+  },
+  carving_knot: {
+    shapes: [{ kind: 'rect', x: 0, y: 0, w: 1.5, h: 1.05 }],
+    finish: 'stone',
+    detail: 'knotmark',
+  },
+  carving_unknown: {
+    shapes: [{ kind: 'rect', x: 0, y: 0, w: 1.5, h: 1.05 }],
+    finish: 'stone',
+  },
   potteryShard: {
     shapes: [
       { kind: 'poly', pts: [[-0.7, -0.6], [0.4, -0.8], [0.75, 0.15], [0.1, 0.75], [-0.6, 0.35]] },

@@ -151,6 +151,42 @@ export const CLUES: ClueDef[] = [
     text:
       "A bronze site-marker, deliberately placed and wax-sealed — the kind you leave when you mean to come back, not the kind you take. Whatever he was protecting the vessel from, he didn't find it in this court. He found where to look for it.",
   },
+
+  // ── The Tell (content/sites/tell.ts): three symbols the player has met
+  // before, on ground none of those places has any business touching, plus a
+  // fourth that matches nothing yet.
+  {
+    id: 'clue_tell_serpent',
+    chainId: 'chain_tell_pattern',
+    symbol: 'Twin Serpent Coil',
+    title: 'The coil, a hillside away',
+    text:
+      "The same coiled serpent from the Silent Court's own walls, cut into a standing stone here — miles from that court, with nothing else in common.",
+  },
+  {
+    id: 'clue_tell_sun',
+    chainId: 'chain_tell_pattern',
+    symbol: 'Three-pointed sun',
+    title: 'The sun, off its usual ground',
+    text:
+      'The three-pointed sun again — the same mark from a railway badge and a cast token, on a hillside with no railway and no mine anywhere near it.',
+  },
+  {
+    id: 'clue_tell_knot',
+    chainId: 'chain_tell_pattern',
+    symbol: 'Woven Knot',
+    title: 'The knot, standing apart',
+    text:
+      'The same woven knot as the tablet and the courtyard, cut into a stone that stands well off to the side of the other two here — on its own, for reasons the ground alone will not explain.',
+  },
+  {
+    id: 'clue_tell_unknown',
+    chainId: 'chain_tell_pattern',
+    symbol: 'The Broken Circle',
+    title: 'A mark that matches nothing',
+    text:
+      'A fourth standing stone, further out along the same line as the first two. Its carving is a ring, broken at one point — not the coil, not the sun, not the knot. Nothing else you have found looks like it.',
+  },
 ];
 
 export const CHAINS: MysteryChain[] = [
@@ -239,6 +275,16 @@ export const CHAINS: MysteryChain[] = [
     completeTitle: 'HE MARKED WHERE HE WAS GOING',
     completeText:
       "A stamped marker, not a treasure — the kind left by someone planning to return, not someone taking what they found. He solved the waystone, took nothing for himself, and left a direction instead. Wherever the tell his marker names actually is, that's where he went next. He hasn't come back from there either.",
+    unlocksLocation: 'loc_tell',
+  },
+  {
+    id: 'chain_tell_pattern',
+    name: 'One Hand, Many Places',
+    clueIds: ['clue_tell_serpent', 'clue_tell_sun', 'clue_tell_knot', 'clue_tell_unknown'],
+    hint: 'Three marks on this hillside, and you have seen two of them before this hillside ever existed to you.',
+    completeTitle: 'NOT TWO MYSTERIES. ONE.',
+    completeText:
+      "The coiled serpent. The three-pointed sun. The woven knot. Once, those looked like two separate mysteries that happened to cross the same ground — a railway that was never built, and a tablet somebody buried on purpose. They are not separate. The same three marks turn up in a ruined court, in a hidden mechanism, on a badge for a line that doesn't exist, in a chamber sealed for no recorded reason — and now here, cut into a hillside that has nothing to do with any of them. Somebody traced this whole network before you did. And on this hillside, a fourth mark stands beside the other three, one you have never dug up, walked past, or found anywhere else. Whatever this actually is, it's bigger than any single site you've found. You have no idea yet what it means.",
   },
 ];
 

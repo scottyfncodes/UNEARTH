@@ -250,6 +250,7 @@ describe('first-person sites', () => {
       const setFlags = new Set([
         ...site.interactables.filter((i) => i.setsFlagOnUse).map((i) => i.setsFlagOnUse!),
         ...site.hazards.filter((h) => h.setsFlagOnTrigger).map((h) => h.setsFlagOnTrigger!),
+        ...(site.catRoutes ?? []).map((r) => r.grantsFlag),
       ]);
       const referenced = [
         ...site.interactables.map((i) => i.requiresFlag).filter((f): f is string => !!f),
@@ -263,8 +264,12 @@ describe('first-person sites', () => {
   it('a gated interactable (requiresFlag) is reachable: something else grants that flag unconditionally', () => {
     for (const site of SITES) {
       const gaters = site.interactables.filter((i) => i.setsFlagOnUse);
+      // A cat route's own flag is always reachable — walking into the zone is
+      // the only condition — so it counts as an unconditional grant too.
+      const routeFlags = new Set((site.catRoutes ?? []).map((r) => r.grantsFlag));
       for (const it of site.interactables) {
         if (!it.requiresFlag) continue;
+        if (routeFlags.has(it.requiresFlag)) continue;
         const granter = gaters.find((g) => g.setsFlagOnUse === it.requiresFlag);
         expect(granter, `${site.id}/${it.id} requires ${it.requiresFlag}`).toBeDefined();
         // The granter itself must not be gated behind something no other
