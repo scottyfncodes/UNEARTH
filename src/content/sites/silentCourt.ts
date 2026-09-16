@@ -227,6 +227,11 @@ export const SILENT_COURT: SiteDef = {
   hazards: [
     {
       id: 'cistern',
+      // Sneaky by design: no notice warns you about this one, and none
+      // should — the warning text below is the entire lesson, delivered at
+      // the moment it's needed, and "watch your footing in overgrown
+      // ground" is a rule the player carries into every site after this one.
+      readability: 'sneaky',
       position: { x: -9, y: 0, z: 3 },
       radius: 2.1,
       warning: 'The ground gives here — a collapsed cistern, hidden under old growth. Stay back from the edge.',
@@ -234,9 +239,12 @@ export const SILENT_COURT: SiteDef = {
     {
       id: 'vault_dart_trap',
       kind: 'dart',
-      // Tucked into the corner nearest the entrance, off the direct line to
-      // everything else in the room — easy to avoid once you know it's there,
-      // easy to blunder into if you don't.
+      // Discoverable: notice_trap_sign sits right beside it and describes
+      // exactly this mechanism before it ever fires. Tucked into the corner
+      // nearest the entrance, off the direct line to everything else in the
+      // room — easy to avoid once you know it's there, easy to blunder into
+      // if you skip the sign.
+      readability: 'discoverable',
       position: { x: 11.6, y: 0, z: 3.6 },
       radius: 0.7,
       disarmedByFlag: 'vault_mechanism_shaken',

@@ -124,6 +124,36 @@ export interface PlayerState {
   pitch: number;
 }
 
+/**
+ * Where CK should spawn when (re)entering an authored site: his last known
+ * pose in this site, if the session still remembers one and it's still
+ * usable, otherwise the site's authored entrance. A dig detours through the
+ * 'excavate' and 'discovery' routes, which fully unmounts the explore screen
+ * — without this, every dig would drop CK back at the front door. Session
+ * memory only (see ExploreScreen's siteExplorePoses); this is not save data.
+ *
+ * The validity check is deliberately generous rather than exact: it guards
+ * against a stale pose from a since-shrunk site, a corrupt/NaN value, or any
+ * other reason a remembered pose might no longer make sense, without needing
+ * to know that site's actual collider layout.
+ */
+export function resolveSitePose(
+  stored: PlayerState | undefined,
+  spawn: { x: number; z: number },
+  spawnYaw: number,
+  radius: number,
+): PlayerState {
+  const usable =
+    !!stored &&
+    Number.isFinite(stored.x) &&
+    Number.isFinite(stored.z) &&
+    Number.isFinite(stored.yaw) &&
+    Number.isFinite(stored.pitch) &&
+    Math.abs(stored.x) <= radius &&
+    Math.abs(stored.z) <= radius;
+  return usable ? stored! : { x: spawn.x, z: spawn.z, yaw: spawnYaw, pitch: 0 };
+}
+
 export interface StepInput {
   dt: number;
   /** -1..1, strafe right positive. */

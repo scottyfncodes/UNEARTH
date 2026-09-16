@@ -51,10 +51,14 @@ main bundle is about 110 kB gzipped.
 
 ## How it plays
 
-- **Move** with a thumb stick that appears wherever your left thumb lands;
-  **look** by dragging anywhere on the right side of the screen — the chase
-  camera turns with CK rather than at him. WASD + mouse drag work on a
-  desktop, with Q/E as a keyboard-only turn fallback.
+- **Move** with a thumb stick that appears wherever your left thumb lands —
+  it's analog, so a light push creeps and a full push trots, which matters
+  once there's something in the room worth creeping past; **look** by
+  dragging anywhere on the right side of the screen — the chase camera turns
+  with CK rather than at him. WASD + mouse drag work on a desktop, with Q/E
+  as a keyboard-only turn fallback (the keyboard is all-or-nothing, unlike
+  the stick — it's a fallback for testing and desktop play, not the tuned
+  experience).
 - **SEARCH.** Hold the ground steady and walk — the collar reads in front of
   CK automatically, and CK reacts to it: ears rotate forward and the tail
   quickens as the signal gets stronger. Beeps get faster and brighter as CK
@@ -91,14 +95,15 @@ too.
   walks through. There's no special button: if his own small collision
   radius fits, he fits. `systems/traversal.ts` is what makes that claim
   honest rather than just a comment (see `isCatOnlyGap`).
-- **Booby traps.** A hazard now optionally carries a `kind` (pressure plate,
+- **Booby traps.** A hazard optionally carries a `kind` (pressure plate,
   tripwire, falling stone, dart, collapsing floor, swinging, unstable) that
   only changes the decal you see, so returning players start reading them at
   a glance — the underlying trigger is the same push-back-and-warn mechanic
-  everywhere. Some are readable before they fire (a `notice` placed nearby),
-  some are disarmed by solving a mechanism, and firing one can itself set a
-  flag — a trap sprung, deliberately or not, can be the thing that opens the
-  next room.
+  everywhere. Every hazard is also classified `readable`, `discoverable` or
+  `sneaky` (see "Booby trap readability" below), which sets how big and
+  obvious that decal reads on the ground. Firing one can itself set a flag —
+  a trap sprung, deliberately or not, can be the thing that opens the next
+  room, so recklessness has a real outcome rather than just a dead stop.
 - CK reacts to more than the collar now: his ears and head turn toward
   whatever's actually relevant — a target, a strong signal, a hazard he's
   giving a wide berth — and he visibly creeps and flattens his ears through
@@ -155,15 +160,19 @@ src/
                           bounds, hazards, interaction targeting, the collar's
                           sweep position, thirdPersonCameraPose (the pure math
                           for where the chase camera sits, reusing the same
-                          yaw/pitch a first-person eye camera would), and
+                          yaw/pitch a first-person eye camera would),
                           headTurnToward (the clamped local yaw offset behind
-                          CK's curious/wary head turns)
+                          CK's curious/wary head turns), and resolveSitePose
+                          (falls back to the site's spawn if a remembered
+                          pose is missing, out of bounds, or corrupt)
     traversal.ts         cat-only gap classification (isCatOnlyGap and the
                           two width minimums it compares) and activeCatRoute,
-                          the trigger-zone lookup a CatRouteZone uses — not a
-                          physics system, since there's no separate "human"
-                          collider in this game to mechanically exclude; see
-                          its own header comment
+                          the trigger-zone lookup a CatRouteZone uses (with a
+                          small exit hysteresis so idling on a zone's edge
+                          doesn't flicker the crouch pose) — not a physics
+                          system, since there's no separate "human" collider
+                          in this game to mechanically exclude; see its own
+                          header comment
   engine/         browser-facing, imperative
     loop.ts             rAF loop with clamped delta, pauses when hidden
     input.ts             touch move stick, look drag controller, drag tracker,
@@ -186,7 +195,13 @@ src/
     screens/ExploreScreen.tsx   the one third-person screen for every
                                  location — authored site or open field —
                                  the excavation pit is still its own screen,
-                                 reached the same way from either
+                                 reached the same way from either. Digging
+                                 inside a site detours through 'excavate' and
+                                 'discovery', unmounting this screen; it
+                                 remembers CK's last pose per site (session
+                                 memory only, see siteExplorePoses) so coming
+                                 back drops him where he was, not back at
+                                 the entrance
 ```
 
 Two rules hold the shape:
@@ -229,6 +244,39 @@ will tell you if a reference is broken, a locked location is unreachable, a
 composite's pieces are not actually findable, or a site's flags gate
 something nothing else ever unlocks.
 
+### Booby trap readability
+
+A vault built entirely of hidden triggers just teaches the player to distrust
+open ground, not to read the environment — so every `HazardZone` requires a
+`readability`, one of three categories (full detail in the `HazardReadability`
+doc comment in `content/sites/types.ts`):
+
+- **`'readable'`** — the danger is visible on sight: a plate you can see, a
+  taut wire across a doorway. No supporting clue needed. Prefer this whenever
+  the geometry allows it; it is the most forgiving category and costs the
+  player nothing to respect.
+- **`'discoverable'`** — not obvious at a glance, but a `notice` interactable
+  placed nearby (holes in a wall, disturbed stone, an old scorch mark, a
+  mechanism that visibly connects to something else) rewards a player who
+  actually looks before walking in. The content test suite enforces the
+  connection: a `'discoverable'` hazard with no `notice` within reach fails
+  the build.
+- **`'sneaky'`** — genuinely easy to trigger by accident, with no advance
+  warning at all. Reserve this for a hazard whose own `warning` text explains
+  what just happened clearly enough that the player recognises the *next*
+  one — Silent Court's collapsed cistern is the model: no sign warns you, but
+  "the ground gives here, hidden under old growth" teaches "watch overgrown
+  ground" for every site after it. Never pair `'sneaky'` with a real setback;
+  a push-back and a line of text is the ceiling for this category, matching
+  the game's wider rule against punishing traps.
+
+The category is more than a label: it scales how large and visible the
+ground decal is (see `engine/scene3d/build.ts`), so a returning player starts
+reading `'readable'` danger patches from across a room long before a
+`'sneaky'` one gives anything away. Pick the loosest category the moment
+actually calls for — a trap that could be `'readable'` but is authored
+`'sneaky'` for drama is a bug, not a difficulty choice.
+
 ## Save data
 
 Saved to `localStorage` under `unearth.save.v1`, versioned, and run through
@@ -251,25 +299,31 @@ and listening.
 - `npm test` — unit tests across the signal model, placement, excavation and
   damage, discovery and unlocks, the mechanism, fragment assembly and symbol
   connections, movement/collision/hazard/targeting/chase-camera math (shared
-  by every space), cat-gap classification and cat-route lookup, save
-  robustness, and content integrity (including that every composite's pieces
-  are actually findable, every locked location — chain-gated or
-  assembly-gated — is reachable, every site/scenery-clue reference and flag
-  — including a hazard's `setsFlagOnTrigger` — actually resolves to something
-  real, and every authored `'squeeze'` cat route is honestly narrow enough to
-  earn the name).
+  by every space), cat-gap classification, cat-route lookup and its exit
+  hysteresis, per-site pose persistence (a valid remembered pose is kept, an
+  out-of-bounds or corrupt one falls back to spawn), save robustness, and
+  content integrity (including that every composite's pieces are actually
+  findable, every locked location — chain-gated or assembly-gated — is
+  reachable, every site/scenery-clue reference and flag — including a
+  hazard's `setsFlagOnTrigger` — actually resolves to something real, every
+  authored `'squeeze'` cat route is honestly narrow enough to earn the name,
+  and every `'discoverable'` hazard has a `notice` within reach).
 - `npm run e2e` — plays the whole loop at a 390×844 viewport with touch and
   the real third-person controls: walks a detecting field, sweeps, pinpoints,
   digs, excavates by dragging, extracts, checks the journal, and reloads to
   confirm persistence; finds a fixed scenery clue by looking rather than
   digging; confirms a wrong-place dig stays honestly empty; walks into The
   Silent Court to confirm its 3D scene renders and its contextual prompt goes
-  through the same journal pipeline as a dig; squeezes through the court's
-  cat-only gap into its inner vault, digs up a find, reads a trap warning,
-  solves the weight/plate puzzle to disarm the trap, and collects the vault's
-  reward; and plays both authored adventures end to end (the chamber's door
-  puzzle, mechanism and escape; the courtyard's puzzle-only path), plus the
-  tablet assembly flow.
+  through the same journal pipeline as a dig; drives real pointer drags (not
+  just the keyboard fallback) to prove the move stick is analog and the dead
+  zone holds; squeezes through the court's cat-only gap into its inner
+  vault, digs up a find (confirming CK comes back where he was digging, not
+  reset to the entrance), reads a trap warning, solves the weight/plate
+  puzzle to disarm the trap and collects the vault's reward; separately
+  confirms springing the same trap outright grants the same progress instead
+  of a dead end; and plays both authored adventures end to end (the
+  chamber's door puzzle, mechanism and escape; the courtyard's puzzle-only
+  path), plus the tablet assembly flow.
 
 Only Chromium is available in this environment, so the phone is emulated
 (iPhone-13 viewport, DPR 3, touch, mobile UA) and rendered in software (no
@@ -303,14 +357,16 @@ connect → unlock → follow-the-clue loop, entirely in third person, across:
   Tucked in its south-east corner, a contained cat-traversal/booby-trap
   vertical slice: a gap in an old partition wall the site itself calls too
   narrow for the archaeologist who built the place — CK fits anyway — opens
-  onto a small vault. A buried tin (readable before you ever risk the trap)
+  onto a small vault. A buried tin (found before you ever risk the trap)
   finally resolves the boot-prints/crate thread the main court only gestures
-  at; a dart trap tucked off the direct path is readable from a warning sign
-  before it ever fires; and a plate that wants weight CK doesn't have is
-  solved the same way as anywhere else in this game — find a loose stone and
-  push it into place — which disarms the trap and opens the vault's own
-  reward. The same flag springs whether you solve the plate carefully or
-  just blunder into the trap outright; either way, something opens.
+  at; a `'discoverable'` dart trap tucked off the direct path is explained by
+  a warning sign before it ever fires; and a plate that wants weight CK
+  doesn't have is solved the same way as anywhere else in this game — find a
+  loose stone and push it into place — which disarms the trap and opens the
+  vault's own reward. The same flag springs whether you solve the plate
+  carefully or just blunder into the trap outright; either way, something
+  opens. Digging the tin still detours through the excavation screen, and CK
+  comes back exactly where he left off rather than at the site's entrance.
 - **Two authored adventures**, reached through the map like anywhere else:
   **The Sealed Chamber** (a door puzzle, a precision artifact extraction under
   rising tension with an ordered clamp release, and a reactive escape) and

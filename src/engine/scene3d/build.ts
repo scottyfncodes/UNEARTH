@@ -71,8 +71,14 @@ export function buildSiteScene(site: SiteDef): BuiltSite {
   }
 
   for (const hz of site.hazards) {
+    // Readability trades directly on how visible the tell is: a 'readable'
+    // hazard's decal reads as an obvious danger patch well outside the
+    // actual trigger radius, 'discoverable' gives a smaller margin (the
+    // real warning is the nearby notice), and 'sneaky' stays close to
+    // actual size on purpose — the point is that you don't see it coming.
+    const decalScale = hz.readability === 'readable' ? 2.0 : hz.readability === 'discoverable' ? 1.5 : 1.05;
     const decal = new THREE.Mesh(
-      new THREE.CircleGeometry(hz.radius * 1.05, 24),
+      new THREE.CircleGeometry(hz.radius * decalScale, 24),
       new THREE.MeshBasicMaterial({ map: hazardDecalTexture(256, hz.kind), transparent: true, depthWrite: false }),
     );
     decal.rotation.x = -Math.PI / 2;

@@ -278,6 +278,25 @@ describe('first-person sites', () => {
       }
     }
   });
+
+  it('a "discoverable" hazard has a notice within reach to actually discover it', () => {
+    // The whole point of the category: a player who looks around before
+    // walking in has something nearby to find. Reach is generous (the
+    // notice just has to be in the same neighbourhood, not point-on-point)
+    // because what matters is "was there something to notice", not exact
+    // staging.
+    const DISCOVERY_REACH_M = 4;
+    for (const site of SITES) {
+      const notices = site.interactables.filter((i) => i.kind === 'notice');
+      for (const hz of site.hazards) {
+        if (hz.readability !== 'discoverable') continue;
+        const hasNearbyNotice = notices.some(
+          (n) => Math.hypot(n.position.x - hz.position.x, n.position.z - hz.position.z) <= DISCOVERY_REACH_M,
+        );
+        expect(hasNearbyNotice, `${site.id}/${hz.id} is 'discoverable' but has no notice nearby`).toBe(true);
+      }
+    }
+  });
 });
 
 describe('equipment', () => {

@@ -8,6 +8,7 @@ import {
   isInteractableAvailable,
   nearestInteractable,
   resolveCollisions,
+  resolveSitePose,
   stepPlayer,
   sweepCoilPosition,
   thirdPersonCameraPose,
@@ -173,7 +174,13 @@ describe('stepPlayer', () => {
 
   it('an active hazard pushes the player back out and is reported', () => {
     const p: PlayerState = { x: 0, z: 0, yaw: 0, pitch: 0 };
-    const hazard: HazardZone = { id: 'h', position: { x: 0, y: 0, z: 0 }, radius: 2, warning: 'careful' };
+    const hazard: HazardZone = {
+      id: 'h',
+      readability: 'readable',
+      position: { x: 0, y: 0, z: 0 },
+      radius: 2,
+      warning: 'careful',
+    };
     const result = stepPlayer(p, {
       dt: 0,
       moveX: 0,
@@ -194,6 +201,7 @@ describe('stepPlayer', () => {
     const p: PlayerState = { x: 0, z: 0, yaw: 0, pitch: 0 };
     const hazard: HazardZone = {
       id: 'h',
+      readability: 'readable',
       position: { x: 0, y: 0, z: 0 },
       radius: 2,
       warning: 'careful',
@@ -367,5 +375,36 @@ describe('headTurnToward', () => {
   it('accounts for CK\'s own facing, not just world direction', () => {
     // Target is world +X; CK already facing +X (yaw = PI/2) should read as ~0.
     expect(headTurnToward(Math.PI / 2, 5, 0)).toBeCloseTo(0, 5);
+  });
+});
+
+describe('resolveSitePose', () => {
+  const spawn = { x: 1, z: -2 };
+  const spawnYaw = 0.3;
+  const radius = 10;
+
+  it('falls back to the authored spawn when nothing is stored', () => {
+    const pose = resolveSitePose(undefined, spawn, spawnYaw, radius);
+    expect(pose).toEqual({ x: 1, z: -2, yaw: 0.3, pitch: 0 });
+  });
+
+  it('restores a stored pose that is still within bounds', () => {
+    const stored: PlayerState = { x: 4, z: 5, yaw: 1.2, pitch: -0.4 };
+    expect(resolveSitePose(stored, spawn, spawnYaw, radius)).toEqual(stored);
+  });
+
+  it('falls back to spawn when the stored pose is outside the current radius', () => {
+    const stored: PlayerState = { x: 40, z: 5, yaw: 1.2, pitch: -0.4 };
+    expect(resolveSitePose(stored, spawn, spawnYaw, radius)).toEqual({ x: 1, z: -2, yaw: 0.3, pitch: 0 });
+  });
+
+  it('falls back to spawn for a corrupt (non-finite) stored pose', () => {
+    const stored: PlayerState = { x: NaN, z: 5, yaw: 1.2, pitch: -0.4 };
+    expect(resolveSitePose(stored, spawn, spawnYaw, radius)).toEqual({ x: 1, z: -2, yaw: 0.3, pitch: 0 });
+  });
+
+  it('accepts a pose exactly on the boundary', () => {
+    const stored: PlayerState = { x: radius, z: -radius, yaw: 0, pitch: 0 };
+    expect(resolveSitePose(stored, spawn, spawnYaw, radius)).toEqual(stored);
   });
 });

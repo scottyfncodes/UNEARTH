@@ -63,4 +63,21 @@ describe('activeCatRoute', () => {
     const near: CatRouteZone = { ...ROUTE, id: 'near', position: { x: 10, y: 0, z: 6.2 } };
     expect(activeCatRoute(10, 6.3, [ROUTE, near])?.id).toBe('near');
   });
+
+  it('a new route (not yet active) uses its plain radius, not the wider exit margin', () => {
+    // Just past the true radius — should not register as "entering" even
+    // though it's within the hysteresis margin used for an already-active route.
+    expect(activeCatRoute(10, 6 + 1.25, [ROUTE], null)).toBeNull();
+    expect(activeCatRoute(10, 6 + 1.25, [ROUTE], 'gap')?.id).toBe('gap');
+  });
+
+  it('clears once CK is far enough past even the widened exit margin', () => {
+    expect(activeCatRoute(10, 6 + 1.4, [ROUTE], 'gap')).toBeNull();
+  });
+
+  it('hysteresis only applies to the currently active route, not an unrelated one', () => {
+    // Just past ROUTE's own radius; passing a different route's id as
+    // "current" must not widen ROUTE's test.
+    expect(activeCatRoute(10, 6 + 1.25, [ROUTE], 'some_other_route')).toBeNull();
+  });
 });

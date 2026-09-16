@@ -24,6 +24,7 @@ import {
   headTurnToward,
   isInteractableAvailable,
   nearestInteractable,
+  resolveSitePose,
   sweepCoilPosition,
   thirdPersonCameraPose,
   type Collider,
@@ -88,6 +89,16 @@ interface Hud {
 
 /** Site ids whose intro has already been dismissed this page session — see ExploreScreenImpl's hud init. */
 const introSeenSites = new Set<string>();
+
+/**
+ * CK's last known pose per site, this page session only — see
+ * resolveSitePose. A dig detours through the 'excavate' and 'discovery'
+ * routes, which fully unmounts this screen; without this, every dig would
+ * drop CK back at the site's front door instead of where he was digging.
+ * Keyed by site id so moving between different authored sites can never
+ * inherit another site's position.
+ */
+const siteExplorePoses = new Map<string, PlayerState>();
 
 function ExploreScreenImpl() {
   const { save } = useGameState(); // subscribe so notice()/save changes re-render the overlay
@@ -163,7 +174,8 @@ function ExploreScreenImpl() {
       built.scene.add(ck.root);
       disposeScene = built.dispose;
       const colliders: Collider[] = buildColliders(site.props);
-      const player: PlayerState = { x: site.spawn.x, z: site.spawn.z, yaw: site.spawnYaw, pitch: 0 };
+      const player: PlayerState = resolveSitePose(siteExplorePoses.get(site.id), site.spawn, site.spawnYaw, site.radius);
+      let currentCatRouteId: string | null = null;
 
       const refreshVisibility = () => {
         const s = game.get().save;
@@ -280,7 +292,8 @@ function ExploreScreenImpl() {
           }
         }
 
-        const catRoute = activeCatRoute(player.x, player.z, site.catRoutes ?? []);
+        const catRoute = activeCatRoute(player.x, player.z, site.catRoutes ?? [], currentCatRouteId);
+        currentCatRouteId = catRoute?.id ?? null;
         if (catRoute && !currentSave.siteProgress.includes(catRoute.grantsFlag)) {
           addSiteFlag(catRoute.grantsFlag);
           if (catRoute.note) notice(catRoute.note, 6000);
@@ -401,6 +414,20 @@ function ExploreScreenImpl() {
 
         renderer.render(built.scene, camera);
       });
+
+      return () => {
+        // Session-local only — see siteExplorePoses' own comment. Saved on
+        // every unmount (not just a real "leave"), since a dig's route
+        // detour unmounts this screen the exact same way leaving does.
+        siteExplorePoses.set(site.id, { x: player.x, z: player.z, yaw: player.yaw, pitch: player.pitch });
+        loop.stop();
+        detachMove();
+        detachLook();
+        renderer.dispose();
+        disposeScene();
+        audio.ambience(null);
+        promptRef.current = null;
+      };
     } else if (location && field) {
       const built = buildFieldScene(location, field.seed);
       built.scene.add(camera);
@@ -689,16 +716,6 @@ function ExploreScreenImpl() {
       leaveSite();
       return;
     }
-
-    return () => {
-      loop.stop();
-      detachMove();
-      detachLook();
-      renderer.dispose();
-      disposeScene();
-      audio.ambience(null);
-      promptRef.current = null;
-    };
     // The loop owns its own state; it must not be torn down on every store tick.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode, site?.id, field?.locationId, field?.seed]);

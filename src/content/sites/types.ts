@@ -93,10 +93,37 @@ export type HazardKind =
   | 'swinging'
   | 'unstable';
 
+/**
+ * How fair a hazard is meant to be, and the site author's promise about what
+ * backs that claim up — see the "Booby traps" guidance in the README before
+ * picking one for a new hazard:
+ *
+ *  - 'readable': the danger is visible on sight (a plate you can see, a
+ *    taut wire) — no separate clue needed. The most forgiving category;
+ *    reach for it whenever the geometry allows.
+ *  - 'discoverable': not obvious at a glance, but a `notice` interactable
+ *    placed nearby (holes in a wall, disturbed stone, an old scorch mark)
+ *    rewards a player who actually looks before they walk in.
+ *  - 'sneaky': genuinely easy to trigger by accident, with no advance
+ *    warning — reserve this for hazards whose own `warning` text explains
+ *    what just happened clearly enough that the *next* encounter with
+ *    something similar is recognisable. Never pair with a real setback (see
+ *    the design rule against punishing traps); a push-back and a line of
+ *    text is the ceiling for this category.
+ *
+ * Purely cosmetic today (it scales how visible the ground decal is — see
+ * engine/scene3d/build.ts), but required on every hazard on purpose: naming
+ * the category up front is what makes a missing `notice` next to a
+ * 'discoverable' hazard read as an authoring gap instead of a matter of taste.
+ */
+export type HazardReadability = 'readable' | 'discoverable' | 'sneaky';
+
 export interface HazardZone {
   id: string;
   /** Cosmetic only; omit for the plain unmarked hazard (e.g. a hidden cistern). */
   kind?: HazardKind;
+  /** How fair this hazard is meant to be — see HazardReadability. */
+  readability: HazardReadability;
   /** Centre of the danger area. */
   position: Vec3;
   /** Radius in metres. */
