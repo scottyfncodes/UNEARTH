@@ -9,13 +9,25 @@
  * the whole time. One hazard, unmarked, discovered by getting too close to it
  * rather than by any UI telling you it is there.
  *
+ * A second, quieter thread runs alongside that one: a glazed shard lying out
+ * in the open near the west wall, and its matching half sealed in the inner
+ * vault behind the weight plate. Neither half means anything on its own —
+ * only assembling them (the Journal's Assemble tab, same mechanism as
+ * anywhere else composites are used) reveals a small vessel carrying the
+ * same coiled-serpent mark as both wall carvings, and a fresh, deliberate
+ * break across it. The archaeologist didn't drop these shards; he split a
+ * whole vessel in two and hid the halves as far apart as this court allows —
+ * which only makes sense if he didn't trust whoever the boot prints and
+ * dropped crate belong to.
+ *
  * The south-east corner adds a small, contained side-vault: a collapsed gap
  * in an old partition wall, easily missed and nowhere near wide enough for
  * the archaeologist who built this place — but CK fits. Inside: a dart trap
  * readable before it fires, a buried tin that finally resolves the "someone
  * else was here" thread the main court only gestures at (the footprints, the
- * dropped crate), and a plate that wants weight CK doesn't have, solved the
- * same way as anywhere else in this game — find something to push onto it.
+ * dropped crate), a plate that wants weight CK doesn't have (solved the same
+ * way as anywhere else in this game — find something to push onto it), and
+ * the vault's own reward: the vessel's missing second half.
  */
 import type { SiteDef } from './types';
 
@@ -215,12 +227,12 @@ export const SILENT_COURT: SiteDef = {
     {
       id: 'vault_reveal',
       kind: 'pickup',
-      prompt: 'Take the cache',
+      prompt: 'Take the shard',
       position: { x: 12.7, y: 0, z: 6.7 },
       range: 1.6,
-      visual: 'relicPedestal',
+      visual: 'potteryShard',
       requiresFlag: 'vault_mechanism_shaken',
-      targetId: 'tgt_court_hidden_cache',
+      targetId: 'tgt_court_shard_b',
     },
   ],
 

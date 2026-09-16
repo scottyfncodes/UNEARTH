@@ -144,9 +144,17 @@ describe('locations', () => {
         expect(piece, `${composite.id} references missing piece ${pieceId}`).toBeDefined();
         expect(piece!.pieceOf, `${pieceId} should point back at ${composite.id}`).toBe(composite.id);
         // A piece must actually be findable somewhere (or itself a composite,
-        // though nothing in the game currently nests composites).
-        const findable = LOCATIONS.some((loc) => loc.table.some((e) => e.targetId === pieceId));
-        expect(findable, `${pieceId} is not on any loot table`).toBe(true);
+        // though nothing in the game currently nests composites) — either on
+        // a procedural loot table, or authored directly into a first-person
+        // site (a pickup/observe interactable or a detector dig).
+        const findable =
+          LOCATIONS.some((loc) => loc.table.some((e) => e.targetId === pieceId)) ||
+          SITES.some(
+            (site) =>
+              site.interactables.some((i) => i.targetId === pieceId) ||
+              site.detectorDigs.some((d) => d.targetId === pieceId),
+          );
+        expect(findable, `${pieceId} is not on any loot table or site`).toBe(true);
       }
     }
   });

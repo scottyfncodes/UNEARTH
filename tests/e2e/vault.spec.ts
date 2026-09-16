@@ -40,7 +40,7 @@ test.beforeEach(async ({ page }) => {
   });
 });
 
-test('reaches the vault through a cat-only gap, digs the intruder tin, and solves the plate to reach the cache', async ({
+test('reaches the vault through a cat-only gap, digs the intruder tin, and solves the plate to reach the second shard', async ({
   page,
 }) => {
   test.setTimeout(300_000);
@@ -134,20 +134,20 @@ test('reaches the vault through a cat-only gap, digs the intruder tin, and solve
   const afterPlate = (await readSave(page)) as { siteProgress: string[] };
   expect(afterPlate.siteProgress).toContain('vault_mechanism_shaken');
 
-  // ── take the cache the vault was hiding ──────────────────────────────
+  // ── take the second shard the vault was hiding ───────────────────────
   await walkToSite(page, 12.7, 6.7, 0.5);
   const revealButton = page.getByTestId('site-interact');
-  await expect(revealButton).toHaveText(/take the cache/i, { timeout: 15_000 });
+  await expect(revealButton).toHaveText(/take the shard/i, { timeout: 15_000 });
   await revealButton.click();
   await expect(page.getByTestId('discovery-screen')).toBeVisible();
   const name = await page.getByTestId('discovery-name').textContent();
-  expect(name).toContain('Inner Cache');
+  expect(name).toContain('Shard');
   await page.getByTestId('keep-searching').click();
 
   const finalSave = (await readSave(page)) as { discoveries: { targetId: string }[] };
   const foundIds = finalSave.discoveries.map((d) => d.targetId);
   expect(foundIds).toContain('tgt_court_intruder_tin');
-  expect(foundIds).toContain('tgt_court_hidden_cache');
+  expect(foundIds).toContain('tgt_court_shard_b');
 });
 
 test('springing the dart trap outright grants the same progress as solving the plate carefully', async ({
@@ -193,7 +193,7 @@ test('springing the dart trap outright grants the same progress as solving the p
   // "you did it wrong" branch, just the one flag either route can grant.
   await walkToSite(page, 12.7, 6.7, 0.5);
   const revealButton = page.getByTestId('site-interact');
-  await expect(revealButton).toHaveText(/take the cache/i, { timeout: 15_000 });
+  await expect(revealButton).toHaveText(/take the shard/i, { timeout: 15_000 });
   await revealButton.click();
   await expect(page.getByTestId('discovery-screen')).toBeVisible();
 
@@ -201,5 +201,5 @@ test('springing the dart trap outright grants the same progress as solving the p
   // still in the vault, and the run is still winnable.
   await page.getByTestId('keep-searching').click();
   const finalSave = (await readSave(page)) as { discoveries: { targetId: string }[] };
-  expect(finalSave.discoveries.map((d) => d.targetId)).toContain('tgt_court_hidden_cache');
+  expect(finalSave.discoveries.map((d) => d.targetId)).toContain('tgt_court_shard_b');
 });

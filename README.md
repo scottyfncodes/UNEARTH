@@ -353,7 +353,9 @@ connect → unlock → follow-the-clue loop, entirely in third person, across:
   broken statue, whose payoff is a relic that was standing nearby the whole
   time; one hazard (a collapsed cistern) is never flagged by any UI, only
   discovered by getting too close to it; a dropped modern crate and boot
-  prints hint that someone else has been through here.
+  prints hint that someone else has been through here. A glazed shard lying
+  in the open near the west wall looks like ordinary debris until its match
+  turns up much later, in the last place a human could reach.
   Tucked in its south-east corner, a contained cat-traversal/booby-trap
   vertical slice: a gap in an old partition wall the site itself calls too
   narrow for the archaeologist who built the place — CK fits anyway — opens
@@ -363,7 +365,12 @@ connect → unlock → follow-the-clue loop, entirely in third person, across:
   a warning sign before it ever fires; and a plate that wants weight CK
   doesn't have is solved the same way as anywhere else in this game — find a
   loose stone and push it into place — which disarms the trap and opens the
-  vault's own reward. The same flag springs whether you solve the plate
+  vault's own reward: the shard's other half. Assembling the two in the
+  Journal doesn't just make a whole vessel — the break across it is a clean,
+  deliberate cut, not an accident, and the vessel carries the same coiled
+  serpent as both wall carvings, tying the statue, the carvings, and the
+  vault together as one thing the archaeologist chose to hide rather than
+  leave whole. The same trap-disarm flag springs whether you solve the plate
   carefully or just blunder into the trap outright; either way, something
   opens. Digging the tin still detours through the excavation screen, and CK
   comes back exactly where he left off rather than at the site's entrance.
@@ -389,5 +396,7 @@ Deliberately not built: a third authored site, a third adventure, any economy
 beyond funds for kit, and any progression system other than equipment,
 knowledge and unlocked ground. The Silent Court's boot prints and dropped
 crate are only partly resolved — the vault's buried tin confirms someone has
-been quietly working this court, but not who, or toward what; that stays a
+been quietly working this court, and the reassembled vessel confirms the
+archaeologist knew exactly what he was hiding it from, but not who that is,
+or what he found beyond this court that made him keep going; that stays a
 loose thread on purpose, for whatever picks it up next.

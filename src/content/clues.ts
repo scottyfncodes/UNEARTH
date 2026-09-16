@@ -132,6 +132,14 @@ export const CLUES: ClueDef[] = [
     text:
       'The east wall carries an identical coil — same proportions, same depth of cut, same hand. Two matching marks, on opposite walls of the same small court, do not happen by accident.',
   },
+  {
+    id: 'clue_court_vessel',
+    chainId: 'chain_court_vessel',
+    symbol: 'Twin Serpent Coil',
+    title: 'The same coil, in the clay',
+    text:
+      'The reassembled vessel carries the same coiled serpent as both walls — pressed into the clay before it was ever fired, not scratched in after. Whatever this court was built around, it wasn\'t the statue at the centre. It was this.',
+  },
 ];
 
 export const CHAINS: MysteryChain[] = [
@@ -201,6 +209,15 @@ export const CHAINS: MysteryChain[] = [
     completeTitle: 'BOTH WALLS AGREE',
     completeText:
       'The same coiled serpent, cut into stone on opposite sides of the court, by the same hand, at the same height. Whatever stood at the centre of this place was important enough to mark twice.',
+  },
+  {
+    id: 'chain_court_vessel',
+    name: 'He Split It On Purpose',
+    clueIds: ['clue_court_vessel'],
+    hint: 'The vessel is in two pieces, on opposite sides of the court. That is not how things usually break.',
+    completeTitle: 'HE SPLIT IT ON PURPOSE',
+    completeText:
+      'The break across the vessel is a clean, modern cut — not decay, not an accident. He found this whole, understood what it was, and deliberately hid it in two places rather than leave it for whoever left that tin. Somewhere beyond this court, there is more of whatever he was protecting it from — and he went to see it anyway.',
   },
 ];
 
