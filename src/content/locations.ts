@@ -245,6 +245,31 @@ export const LOCATIONS: LocationDef[] = [
     },
     table: [],
   },
+  {
+    id: 'loc_undercroft',
+    name: 'The Undercroft',
+    subtitle: 'Beneath the Silent Court, no recorded entrance',
+    description:
+      'A low stone chamber, reached only once you know it is there. Something in the centre of the room still turns — carefully, like it always has.',
+    bounds: { w: 1, h: 1 },
+    targetCount: [0, 0],
+    depthBias: 1,
+    hardness: 0.5,
+    ambience: 'ruins',
+    lockedBy: 'chain_court_vessel',
+    lockedHint: "Whatever the vessel was hiding from, it wasn't finished with this court.",
+    siteId: 'site_undercroft',
+    ground: {
+      base: '#1c2020',
+      mid: '#2a2f2c',
+      light: '#3d443d',
+      detail: '#4f574c',
+      haze: '#0e1110',
+      sky: '#3d443d',
+      scatter: 'rubble',
+    },
+    table: [],
+  },
 ];
 
 const LOCATION_INDEX = new Map(LOCATIONS.map((l) => [l.id, l]));

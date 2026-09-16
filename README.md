@@ -374,6 +374,23 @@ connect → unlock → follow-the-clue loop, entirely in third person, across:
   carefully or just blunder into the trap outright; either way, something
   opens. Digging the tin still detours through the excavation screen, and CK
   comes back exactly where he left off rather than at the site's entrance.
+- **The Undercroft** — unlocked only by assembling the Silent Court's vessel,
+  a compact archaeological-deduction puzzle with no keypad, no color match,
+  and no arbitrary sequence: a raised waystone ringed by four stone posts,
+  each carved with a different mark. Only one — the coiled serpent, the same
+  mark from the court's own walls — actually turns it; the tell is entirely
+  physical (that post is worn pale and smooth from years of the same grip;
+  the other three are rough with disuse) and echoed by a half-legible note
+  the archaeologist left wedged nearby. A wrong post grinds a stiff quarter
+  turn and locks — a real, recognisable dead end, not a soft no-op — but
+  every post stays available afterward; nothing resets. Turning the correct
+  one only gets the waystone itself moving: the actual catch is behind a
+  cat-only gap, in a gap too tight for the hand that clearly reached for it
+  (a bent iron tool, wedged and abandoned, is proof enough) and gave up. CK
+  finishes it with a single push no person could have made. The payoff is a
+  sealed bronze marker, not a treasure — the kind you leave when you intend
+  to come back — naming a place the archaeologist went looking next, one
+  this game doesn't visit.
 - **Two authored adventures**, reached through the map like anywhere else:
   **The Sealed Chamber** (a door puzzle, a precision artifact extraction under
   rising tension with an ordered clamp release, and a reactive escape) and
@@ -392,11 +409,12 @@ they belong to the same formal chain and whether they were dug up or simply
 noticed; its Assemble tab tracks progress on every fragment set and performs
 the assembly.
 
-Deliberately not built: a third authored site, a third adventure, any economy
-beyond funds for kit, and any progression system other than equipment,
-knowledge and unlocked ground. The Silent Court's boot prints and dropped
-crate are only partly resolved — the vault's buried tin confirms someone has
-been quietly working this court, and the reassembled vessel confirms the
-archaeologist knew exactly what he was hiding it from, but not who that is,
-or what he found beyond this court that made him keep going; that stays a
-loose thread on purpose, for whatever picks it up next.
+Deliberately not built: a third authored adventure, any economy beyond funds
+for kit, and any progression system other than equipment, knowledge and
+unlocked ground. The Silent Court's boot prints and dropped crate are only
+partly resolved — the vault's buried tin confirms someone has been quietly
+working this court, and the reassembled vessel confirms the archaeologist
+knew exactly what he was hiding it from, but not who that is. The Undercroft
+answers that with a direction, not a name: a marker naming somewhere he went
+looking next, that this game doesn't follow him to. Both stay loose threads
+on purpose, for whatever picks them up next.

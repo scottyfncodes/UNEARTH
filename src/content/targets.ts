@@ -1007,6 +1007,32 @@ export const TARGETS: TargetDef[] = [
     clueId: 'clue_court_vessel',
     authored: true,
   },
+
+  // ── The Undercroft: a rotating waystone gated behind the vessel chain ───────
+  {
+    id: 'tgt_undercroft_relic',
+    name: 'The Stamped Marker',
+    category: 'relic',
+    material: 'bronze',
+    materialName: 'Cast bronze, wax-sealed',
+    rarity: 'rare',
+    era: 'Unknown',
+    depth: [0, 0],
+    size: 0.35,
+    value: 140,
+    significance: 'major',
+    fragility: 0.35,
+    excavationDifficulty: 0,
+    description:
+      "A small bronze disc, the kind used to peg a site before real excavation starts — except this one is stamped, not scratched, and sealed in wax against the weather. Whoever left it meant it to survive being buried again.",
+    discoveryText: "Not treasure. A marker. Somebody meant to come back to exactly this spot.",
+    examineText:
+      "The stamped word reads clearly enough once the wax gives way — a name, not his own, and a place if the rest of his notes are any guide. He didn't find what he was protecting the vessel from in this court. He found where to look for it next.",
+    silhouette: 'token',
+    unidentifiedName: 'Sealed Bronze Disc',
+    clueId: 'clue_undercroft_relic',
+    authored: true,
+  },
 ];
 
 const TARGET_INDEX = new Map(TARGETS.map((t) => [t.id, t]));

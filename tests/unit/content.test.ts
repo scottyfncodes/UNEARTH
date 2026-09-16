@@ -107,7 +107,18 @@ describe('locations', () => {
     const placedAt = (targetId: string) =>
       LOCATIONS.some(
         (loc) => reachable.has(loc.id) && loc.table.some((entry) => entry.targetId === targetId),
-      );
+      ) ||
+      SITES.some((site) => {
+        // A site-authored piece is only obtainable once the location hosting
+        // that site is itself reachable — the same "not through a still-locked
+        // spot" rule LOCATIONS.table gets above.
+        const hostLocation = LOCATIONS.find((loc) => loc.siteId === site.id);
+        if (!hostLocation || !reachable.has(hostLocation.id)) return false;
+        return (
+          site.interactables.some((i) => i.targetId === targetId) ||
+          site.detectorDigs.some((d) => d.targetId === targetId)
+        );
+      });
 
     const obtainable = (targetId: string): boolean => {
       const def = TARGETS.find((t) => t.id === targetId);

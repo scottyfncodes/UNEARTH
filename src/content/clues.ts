@@ -140,6 +140,17 @@ export const CLUES: ClueDef[] = [
     text:
       'The reassembled vessel carries the same coiled serpent as both walls — pressed into the clay before it was ever fired, not scratched in after. Whatever this court was built around, it wasn\'t the statue at the centre. It was this.',
   },
+
+  // ── The Undercroft (content/sites/undercroft.ts): what the vessel was
+  // pointing toward, past the court itself.
+  {
+    id: 'clue_undercroft_relic',
+    chainId: 'chain_undercroft_trail',
+    symbol: 'The Tell',
+    title: 'A marker, not a treasure',
+    text:
+      "A bronze site-marker, deliberately placed and wax-sealed — the kind you leave when you mean to come back, not the kind you take. Whatever he was protecting the vessel from, he didn't find it in this court. He found where to look for it.",
+  },
 ];
 
 export const CHAINS: MysteryChain[] = [
@@ -218,6 +229,16 @@ export const CHAINS: MysteryChain[] = [
     completeTitle: 'HE SPLIT IT ON PURPOSE',
     completeText:
       'The break across the vessel is a clean, modern cut — not decay, not an accident. He found this whole, understood what it was, and deliberately hid it in two places rather than leave it for whoever left that tin. Somewhere beyond this court, there is more of whatever he was protecting it from — and he went to see it anyway.',
+    unlocksLocation: 'loc_undercroft',
+  },
+  {
+    id: 'chain_undercroft_trail',
+    name: 'Solved, But Left Open',
+    clueIds: ['clue_undercroft_relic'],
+    hint: 'Something in the Undercroft still turns. Whatever it was built to hide has been waiting a long time.',
+    completeTitle: 'HE MARKED WHERE HE WAS GOING',
+    completeText:
+      "A stamped marker, not a treasure — the kind left by someone planning to return, not someone taking what they found. He solved the waystone, took nothing for himself, and left a direction instead. Wherever the tell his marker names actually is, that's where he went next. He hasn't come back from there either.",
   },
 ];
 
