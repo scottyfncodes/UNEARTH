@@ -4,6 +4,7 @@ import {
   clampToBounds,
   clampToRectBounds,
   facingVectors,
+  headTurnToward,
   isInteractableAvailable,
   nearestInteractable,
   resolveCollisions,
@@ -334,5 +335,37 @@ describe('nearestInteractable', () => {
     const near: SiteInteractable = { ...OBSERVE, id: 'near', position: { x: 0, y: 0, z: -1 } };
     const found = nearestInteractable(0, 0, 0, [OBSERVE, near], { siteProgress: [], discovered: [] });
     expect(found?.id).toBe('near');
+  });
+});
+
+describe('headTurnToward', () => {
+  it('is zero for a target dead ahead', () => {
+    expect(headTurnToward(0, 0, -5)).toBeCloseTo(0, 5);
+  });
+
+  it('is zero for a target at the same spot as CK', () => {
+    expect(headTurnToward(0, 0, 0)).toBe(0);
+  });
+
+  it('turns toward a target off to one side, within the clamp', () => {
+    const offset = headTurnToward(0, 3, -3, 0.55);
+    expect(offset).toBeGreaterThan(0);
+    expect(offset).toBeLessThanOrEqual(0.55);
+  });
+
+  it('turns the other way for a target on the other side', () => {
+    const left = headTurnToward(0, -3, -3, 0.55);
+    expect(left).toBeLessThan(0);
+  });
+
+  it('clamps for a target far outside the comfortable turn range', () => {
+    // Almost directly behind CK — an unclamped offset would be near +-PI.
+    const offset = headTurnToward(0, 0.01, 5, 0.5);
+    expect(Math.abs(offset)).toBeLessThanOrEqual(0.5);
+  });
+
+  it('accounts for CK\'s own facing, not just world direction', () => {
+    // Target is world +X; CK already facing +X (yaw = PI/2) should read as ~0.
+    expect(headTurnToward(Math.PI / 2, 5, 0)).toBeCloseTo(0, 5);
   });
 });

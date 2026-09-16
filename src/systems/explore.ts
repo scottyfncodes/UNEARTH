@@ -308,6 +308,23 @@ export function thirdPersonCameraPose(
 }
 
 /**
+ * Clamped local yaw offset for CK's head to turn toward a world-space point
+ * of interest, relative to his own facing — the pure math behind "curious
+ * head movement near artifacts" and "brief hesitation near a known hazard".
+ * Uses the same atan2(dx, -dz) convention as nearestInteractable's facing
+ * check, so a target dead ahead always yields 0.
+ */
+export function headTurnToward(yaw: number, dx: number, dz: number, maxOffsetRad = 0.55): number {
+  const dist = Math.hypot(dx, dz);
+  if (dist < 1e-3) return 0;
+  const angleToTarget = Math.atan2(dx, -dz);
+  let diff = angleToTarget - yaw;
+  while (diff > Math.PI) diff -= Math.PI * 2;
+  while (diff < -Math.PI) diff += Math.PI * 2;
+  return Math.max(-maxOffsetRad, Math.min(maxOffsetRad, diff));
+}
+
+/**
  * The single interactable the crosshair is "on", if any: closest available
  * one within range and roughly in front of the player. Close range skips the
  * facing check so you don't have to be pixel-perfect on something right next

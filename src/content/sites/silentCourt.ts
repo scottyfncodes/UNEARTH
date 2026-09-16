@@ -8,6 +8,14 @@
  * which opens onto the payoff — a relic that was sitting twelve metres away
  * the whole time. One hazard, unmarked, discovered by getting too close to it
  * rather than by any UI telling you it is there.
+ *
+ * The south-east corner adds a small, contained side-vault: a collapsed gap
+ * in an old partition wall, easily missed and nowhere near wide enough for
+ * the archaeologist who built this place — but CK fits. Inside: a dart trap
+ * readable before it fires, a buried tin that finally resolves the "someone
+ * else was here" thread the main court only gestures at (the footprints, the
+ * dropped crate), and a plate that wants weight CK doesn't have, solved the
+ * same way as anywhere else in this game — find something to push onto it.
  */
 import type { SiteDef } from './types';
 
@@ -69,6 +77,13 @@ export const SILENT_COURT: SiteDef = {
 
     // The statue itself — broken at the wrist, missing whatever it once held.
     { id: 'statue', kind: 'statueBody', position: { x: 0, y: 0, z: -9 } },
+
+    // The inner vault, south-east corner: a small partition with one gap.
+    { id: 'vault_rubble', kind: 'rubble', position: { x: 9.3, y: 0, z: 1.9 }, scale: [0.6, 0.6, 0.6] },
+    { id: 'vault_entrance', kind: 'archway', position: { x: 10.3, y: 0, z: 6 }, rotationY: Math.PI / 2 },
+    { id: 'vault_side_a', kind: 'wall', position: { x: 11.65, y: 0, z: 3 }, scale: [0.45, 1, 1] },
+    { id: 'vault_side_b', kind: 'wall', position: { x: 11.65, y: 0, z: 8.5 }, scale: [0.45, 1, 1] },
+    { id: 'vault_back', kind: 'wall', position: { x: 13, y: 0, z: 5.75 }, rotationY: Math.PI / 2, scale: [0.917, 1, 1] },
   ],
 
   interactables: [
@@ -147,6 +162,66 @@ export const SILENT_COURT: SiteDef = {
       requiresFlag: 'court_hand_fitted',
       targetId: 'tgt_court_relic',
     },
+
+    // ── The inner vault ─────────────────────────────────────────────────
+    {
+      id: 'notice_vault_gap',
+      kind: 'notice',
+      prompt: 'Look closer',
+      position: { x: 9.3, y: 0, z: 6 },
+      range: 2.2,
+      visual: 'footprints',
+      flavor:
+        "A gap where the old partition wall has come down, barely wider than you are lying flat. Whoever built this court could never have fit through it — which may be exactly why nobody ever has.",
+      setsFlagOnUse: 'court_seen_vault_gap',
+      hideOnFlag: 'court_seen_vault_gap',
+    },
+    {
+      id: 'notice_trap_sign',
+      kind: 'notice',
+      prompt: 'Look closer',
+      position: { x: 10.7, y: 0, z: 4.3 },
+      range: 1.1,
+      visual: 'carving',
+      flavor:
+        'A row of small, evenly spaced holes along the base of the near wall, at about knee height. Nothing that even and that deliberate is decoration.',
+      setsFlagOnUse: 'court_seen_trap_sign',
+      hideOnFlag: 'court_seen_trap_sign',
+    },
+    {
+      id: 'notice_plate',
+      kind: 'notice',
+      prompt: 'Look closer',
+      position: { x: 12.5, y: 0, z: 7.6 },
+      range: 1.4,
+      visual: 'carving',
+      flavor:
+        "A flat stone slab, flush with the floor, and a loose block beside it that clearly used to sit somewhere else. Standing on the plate does nothing. It wants weight you don't have.",
+      setsFlagOnUse: 'court_seen_plate',
+      hideOnFlag: 'court_seen_plate',
+    },
+    {
+      id: 'plate_stone_push',
+      kind: 'fit',
+      prompt: 'Push the stone onto the plate',
+      position: { x: 12.8, y: 0, z: 7.6 },
+      range: 1.4,
+      visual: 'potteryShard',
+      setsFlagOnUse: 'vault_mechanism_shaken',
+      hideOnFlag: 'vault_mechanism_shaken',
+      flavor:
+        'The stone grinds onto the plate. Somewhere near the entrance, the row of small holes clicks and goes still — and the recess behind the back wall is no longer sealed.',
+    },
+    {
+      id: 'vault_reveal',
+      kind: 'pickup',
+      prompt: 'Take the cache',
+      position: { x: 12.7, y: 0, z: 6.7 },
+      range: 1.6,
+      visual: 'relicPedestal',
+      requiresFlag: 'vault_mechanism_shaken',
+      targetId: 'tgt_court_hidden_cache',
+    },
   ],
 
   hazards: [
@@ -155,6 +230,18 @@ export const SILENT_COURT: SiteDef = {
       position: { x: -9, y: 0, z: 3 },
       radius: 2.1,
       warning: 'The ground gives here — a collapsed cistern, hidden under old growth. Stay back from the edge.',
+    },
+    {
+      id: 'vault_dart_trap',
+      kind: 'dart',
+      // Tucked into the corner nearest the entrance, off the direct line to
+      // everything else in the room — easy to avoid once you know it's there,
+      // easy to blunder into if you don't.
+      position: { x: 11.6, y: 0, z: 3.6 },
+      radius: 0.7,
+      disarmedByFlag: 'vault_mechanism_shaken',
+      setsFlagOnTrigger: 'vault_mechanism_shaken',
+      warning: 'Something in the wall snaps forward — a jolt, and the row of holes at the base goes quiet.',
     },
   ],
 
@@ -165,6 +252,25 @@ export const SILENT_COURT: SiteDef = {
       targetId: 'tgt_court_hand',
       depthCm: 24,
       baseCondition: 82,
+    },
+    {
+      id: 'dig_court_intruder_tin',
+      position: { x: 10.9, y: 0, z: 7 },
+      targetId: 'tgt_court_intruder_tin',
+      depthCm: 11,
+      baseCondition: 88,
+    },
+  ],
+
+  catRoutes: [
+    {
+      id: 'vault_gap',
+      kind: 'squeeze',
+      position: { x: 10.3, y: 0, z: 6 },
+      radius: 1.4,
+      clearWidthM: 0.85,
+      grantsFlag: 'court_used_vault_gap',
+      note: "You flatten low and slip through — nothing bigger than a cat is getting past this gap.",
     },
   ],
 };

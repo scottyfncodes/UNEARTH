@@ -103,16 +103,33 @@ export function footprintsTexture(size = 256): THREE.CanvasTexture {
   return tex;
 }
 
-/** A dark, unweathered patch of ground — the only warning a hazard gets. */
-export function hazardDecalTexture(size = 256): THREE.CanvasTexture {
+/**
+ * A dark, unweathered patch of ground — the only warning a hazard gets, and
+ * the whole of its "visual language": every kind uses the same silhouette
+ * (a patch with cracks radiating from it) so the player learns to read
+ * "something is wrong here" once, and a tinted core so a returning player can
+ * start telling trap kinds apart at a glance without a legend to explain it.
+ */
+const HAZARD_TINTS: Record<string, string> = {
+  pressurePlate: '10,9,7',
+  tripwire: '10,9,7',
+  fallingStone: '18,13,8',
+  dart: '28,9,7',
+  collapsingFloor: '10,9,7',
+  swinging: '10,9,7',
+  unstable: '20,7,18',
+};
+
+export function hazardDecalTexture(size = 256, kind?: string): THREE.CanvasTexture {
   const canvas = document.createElement('canvas');
   canvas.width = size;
   canvas.height = size;
   const ctx = canvas.getContext('2d')!;
+  const tint = (kind && HAZARD_TINTS[kind]) || '10,9,7';
   const grad = ctx.createRadialGradient(size / 2, size / 2, size * 0.1, size / 2, size / 2, size * 0.5);
-  grad.addColorStop(0, 'rgba(10,9,7,0.55)');
-  grad.addColorStop(0.7, 'rgba(10,9,7,0.28)');
-  grad.addColorStop(1, 'rgba(10,9,7,0)');
+  grad.addColorStop(0, `rgba(${tint},0.55)`);
+  grad.addColorStop(0.7, `rgba(${tint},0.28)`);
+  grad.addColorStop(1, `rgba(${tint},0)`);
   ctx.fillStyle = grad;
   ctx.beginPath();
   ctx.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2);

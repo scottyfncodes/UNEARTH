@@ -934,6 +934,52 @@ export const TARGETS: TargetDef[] = [
     examineText: "He will ask where you got this. You will not have an answer he can use.",
     silhouette: 'oddity',
   },
+
+  // ── The Silent Court's inner vault: reached through a gap only CK fits
+  // through. One find continues the footprints/crate thread left dangling
+  // by the main court; the other is the vault's own reward.
+  {
+    id: 'tgt_court_intruder_tin',
+    name: 'Sealed Tin, Modern Make',
+    category: 'personal',
+    material: 'nonFerrous',
+    materialName: 'Tinplate',
+    rarity: 'uncommon',
+    era: 'Recent',
+    depth: [8, 14],
+    size: 0.35,
+    value: 3,
+    significance: 'notable',
+    fragility: 0.15,
+    excavationDifficulty: 0.2,
+    unidentifiedName: 'Buried Tin, Recent',
+    description:
+      'A watertight tin, buried on purpose rather than lost — the lid seats too well for an accident. Inside, gone soft with damp: a folded page of survey notes in a hand that is not his, and not old.',
+    discoveryText: "Someone hid this. Recently. In a court nobody else has any reason to be in.",
+    examineText:
+      "The boot prints out front, the crate by the entrance, and now this. Whoever left them was not passing through — they were working, and hiding what they found the same way anyone does.",
+    clueId: 'clue_court_intruder',
+    silhouette: 'tin',
+  },
+  {
+    id: 'tgt_court_hidden_cache',
+    name: 'The Inner Cache',
+    category: 'relic',
+    material: 'bronze',
+    materialName: 'Cast bronze',
+    rarity: 'rare',
+    era: 'Unknown',
+    depth: [0, 0],
+    size: 0.4,
+    value: 90,
+    significance: 'notable',
+    fragility: 0.4,
+    excavationDifficulty: 0,
+    description:
+      "Small enough to fit in two hands, set into a recess behind the weighted plate. Whoever built this court hid it from anyone tall enough to walk in the front way — which is most people, and exactly none of the cats.",
+    discoveryText: 'Behind the plate, exactly where the weight said something would be.',
+    silhouette: 'idol',
+  },
 ];
 
 const TARGET_INDEX = new Map(TARGETS.map((t) => [t.id, t]));

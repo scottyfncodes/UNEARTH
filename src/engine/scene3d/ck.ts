@@ -17,6 +17,14 @@ export interface CKReactState {
   effort: number;
   /** 0..1 — current collar signal strength, drives ear/tail urgency. */
   signal: number;
+  /** 0..1 — proximity/relevance of something worth looking at (an interactable, a dig). */
+  interest?: number;
+  /** 0..1 — proximity to a live, undisarmed hazard; drives a cautious posture. */
+  wary?: number;
+  /** Clamped radians (see systems/explore.ts's headTurnToward) — where CK's head turns relative to his own facing. */
+  headTurn?: number;
+  /** Which cat-specific traversal posture CK is currently using, if any. */
+  traversal?: 'none' | 'squeeze' | 'crawl';
 }
 
 export interface CK {
@@ -165,15 +173,33 @@ export function buildCK(): CK {
   let idlePhase = Math.random() * Math.PI * 2;
   let earPerk = 0;
   let tailUrgency = 0;
+  let headYaw = 0;
+  let waryAmt = 0;
+  let crouchAmt = 0;
 
   function update(dt: number, s: CKReactState): void {
-    const moveAmount = s.moving ? Math.max(0.35, s.effort) : 0;
+    const interest = s.interest ?? 0;
+    const wary = s.wary ?? 0;
+    const traversal = s.traversal ?? 'none';
+    const crouching = traversal === 'squeeze' || traversal === 'crawl';
+
+    // Wary and crouching both make CK move more carefully — a hazard or a
+    // tight gap is not something he trots through at full stride.
+    const cautionScale = 1 - 0.35 * wary - 0.25 * (crouching ? 1 : 0);
+    const moveAmount = (s.moving ? Math.max(0.35, s.effort) : 0) * Math.max(0.3, cautionScale);
     walkPhase += dt * (5.5 + moveAmount * 4.5);
     idlePhase += dt * 0.8;
 
+    waryAmt = THREE.MathUtils.damp(waryAmt, wary, 5, dt);
+    crouchAmt = THREE.MathUtils.damp(crouchAmt, crouching ? 1 : 0, 7, dt);
+
     const bob = moveAmount > 0 ? Math.abs(Math.sin(walkPhase)) * 0.024 * moveAmount : Math.sin(idlePhase) * 0.006;
-    bodyPivot.position.y = bob;
+    // Crouching (a low crawl or a tight squeeze) presses CK's whole body
+    // closer to the ground, on top of the ordinary walk bob.
+    bodyPivot.position.y = bob - crouchAmt * 0.055;
     bodyPivot.rotation.z = moveAmount > 0 ? Math.sin(walkPhase) * 0.02 * moveAmount : 0;
+    // A wary cat leans forward and low, reading as caution rather than fear.
+    bodyPivot.rotation.x = waryAmt * 0.1 + crouchAmt * 0.16;
 
     for (let i = 0; i < legPivots.length; i++) {
       const diag = i === 0 || i === 3 ? 0 : Math.PI; // trot: opposite-corner legs in phase
@@ -181,18 +207,28 @@ export function buildCK(): CK {
       legPivots[i]!.rotation.x = swing;
     }
 
-    // Ears rotate up and forward as the collar signal strengthens — this is
-    // the main tell the design calls for: "the cat becomes the detector head".
-    earPerk = THREE.MathUtils.damp(earPerk, s.signal, 6, dt);
+    // Ears rotate up and forward for a strong collar signal or a nearby
+    // interactable — "the cat becomes the detector head" — and flatten back
+    // when creeping through a tight gap, same as a real cat making itself small.
+    const earTarget = crouching ? -0.3 : Math.max(s.signal, interest);
+    earPerk = THREE.MathUtils.damp(earPerk, earTarget, 6, dt);
     for (const pivot of earPivots) pivot.rotation.x = -earPerk * 0.6;
 
+    // A wary or crouching cat holds its tail stiffer and slower; otherwise it
+    // quickens with collar urgency the way it always has.
+    const tension = Math.max(waryAmt, crouchAmt);
     tailUrgency = THREE.MathUtils.damp(tailUrgency, s.signal, 4, dt);
-    const tailSpeed = 1 + tailUrgency * 7 + moveAmount * 1.2;
-    const tailAmp = 0.18 + tailUrgency * 0.4;
+    const tailSpeed = (1 + tailUrgency * 7 + moveAmount * 1.2) * (1 - 0.6 * tension);
+    const tailAmp = (0.18 + tailUrgency * 0.4) * (1 - 0.5 * tension);
     for (let i = 0; i < tailSegments.length; i++) {
       const seg = tailSegments[i]!;
       seg.rotation.y = Math.sin(walkPhase * 0.35 * tailSpeed + i * 0.7) * tailAmp;
     }
+
+    // Curious or cautious head turns toward whatever's worth CK's attention —
+    // an artifact, a dig, or a hazard he's giving a wide berth.
+    headYaw = THREE.MathUtils.damp(headYaw, s.headTurn ?? 0, 8, dt);
+    head.rotation.y = headYaw;
 
     head.getWorldPosition(headTarget);
   }

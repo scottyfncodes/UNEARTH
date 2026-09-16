@@ -73,7 +73,7 @@ export function buildSiteScene(site: SiteDef): BuiltSite {
   for (const hz of site.hazards) {
     const decal = new THREE.Mesh(
       new THREE.CircleGeometry(hz.radius * 1.05, 24),
-      new THREE.MeshBasicMaterial({ map: hazardDecalTexture(), transparent: true, depthWrite: false }),
+      new THREE.MeshBasicMaterial({ map: hazardDecalTexture(256, hz.kind), transparent: true, depthWrite: false }),
     );
     decal.rotation.x = -Math.PI / 2;
     decal.position.set(hz.position.x, 0.02, hz.position.z);

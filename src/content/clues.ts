@@ -100,6 +100,19 @@ export const CLUES: ClueDef[] = [
       'Cut into the courtyard flagstones, worn almost flat: the same woven knot, and beside it, a line pointing down — toward the spoil heaps above the old mine.',
   },
 
+  // ── The Silent Court's inner vault: a buried tin left by whoever left the
+  // footprints and the crate up front — the loose thread the main court
+  // never resolves, picked back up here, reachable only through a gap CK's
+  // own body is small enough to use.
+  {
+    id: 'clue_court_intruder',
+    chainId: 'chain_court_intruder',
+    symbol: 'Recent Boot Prints',
+    title: 'Not part of the ruin',
+    text:
+      'Survey notes, damp but legible, in a hand that is not the archaeologist\'s and not old. Someone else has been quietly working this court — and hiding what they found the same way anyone would.',
+  },
+
   // ── The Silent Court (content/sites/silentCourt.ts): two matching carvings,
   // found by looking rather than digging — the game's first "wait, I've seen
   // this" moment that happens entirely on foot, with no detector involved.
@@ -170,6 +183,15 @@ export const CHAINS: MysteryChain[] = [
     completeTitle: 'ONE SYMBOL, THREE SITES',
     completeText:
       'The tablet pointed to the courtyard. The courtyard points to the mine. The same woven knot marks every step — a different mark entirely from the three-pointed sun on the badge and the survey tag, which means two separate mysteries are converging on the same patch of ground.',
+  },
+  {
+    id: 'chain_court_intruder',
+    name: 'Someone Else Was Here',
+    clueIds: ['clue_court_intruder'],
+    hint: 'Boot prints and a dropped crate, up front. Whoever left them may have left more than that.',
+    completeTitle: 'NOT ALONE OUT HERE',
+    completeText:
+      'Recent notes, hidden on purpose, in ground nobody but a cat could reach unannounced. Whoever this belongs to has been through this court more than once — and left before finishing.',
   },
   {
     id: 'chain_court_coil',

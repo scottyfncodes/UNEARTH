@@ -8,7 +8,11 @@ archaeological mystery that was never actually about you going missing at
 all. Most of what comes up out of the ground is rubbish. Occasionally it is
 the first piece of something much bigger — a shard that turns out to be one
 of three, a symbol that keeps recurring on finds made in different places, a
-clue that opens up ground you had no reason to go looking at before.
+clue that opens up ground you had no reason to go looking at before. Being a
+cat matters here beyond how the world looks: some gaps are his and his
+alone, some floor plates need weight he doesn't have, and some booby traps
+built for a grown archaeologist are a lot less dangerous to something this
+small — until he blunders into one anyway.
 
 **Play it: https://scottyfncodes.github.io/UNEARTH/** — best on a phone, with
 sound on.
@@ -82,6 +86,24 @@ target stays in the ground and you can go back and find it properly. Likewise,
 you can walk straight past something you never looked at — that is intended
 too.
 
+- **Cat routes.** Some gaps are narrower than anything a person could use —
+  the site says so, out loud, the first time you find one — and CK just
+  walks through. There's no special button: if his own small collision
+  radius fits, he fits. `systems/traversal.ts` is what makes that claim
+  honest rather than just a comment (see `isCatOnlyGap`).
+- **Booby traps.** A hazard now optionally carries a `kind` (pressure plate,
+  tripwire, falling stone, dart, collapsing floor, swinging, unstable) that
+  only changes the decal you see, so returning players start reading them at
+  a glance — the underlying trigger is the same push-back-and-warn mechanic
+  everywhere. Some are readable before they fire (a `notice` placed nearby),
+  some are disarmed by solving a mechanism, and firing one can itself set a
+  flag — a trap sprung, deliberately or not, can be the thing that opens the
+  next room.
+- CK reacts to more than the collar now: his ears and head turn toward
+  whatever's actually relevant — a target, a strong signal, a hazard he's
+  giving a wide berth — and he visibly creeps and flattens his ears through
+  a tight squeeze rather than just clipping through it like a camera would.
+
 ## Architecture
 
 Content is data, systems are pure functions, engines own the frame loop, and
@@ -107,11 +129,13 @@ src/
                           content file plus one line in index.ts
     sites/                authored third-person spaces — same registry
                           pattern; a SiteDef is walls, props, interactables,
-                          hazards and collar-findable spots, all still data.
+                          hazards, collar-findable spots and (optionally)
+                          catRoutes — cat-only passages — all still data.
                           site_home is both the opening (the archaeologist is
                           gone) and, once both adventures are complete, the
                           ending, gated with SiteInteractable's
-                          requiresAdventuresComplete
+                          requiresAdventuresComplete; site_silent_court's
+                          inner vault is the cat-traversal/booby-trap slice
   core/
     types.ts            shared content and state types
     gameState.ts        the store: persistent save + navigation + actions
@@ -129,9 +153,17 @@ src/
     assembly.ts         fragment-piece progress tracking and composite assembly
     explore.ts           movement: collision, rectangular and circular
                           bounds, hazards, interaction targeting, the collar's
-                          sweep position, and thirdPersonCameraPose — the pure
-                          math for where the chase camera sits, reusing the
-                          same yaw/pitch a first-person eye camera would
+                          sweep position, thirdPersonCameraPose (the pure math
+                          for where the chase camera sits, reusing the same
+                          yaw/pitch a first-person eye camera would), and
+                          headTurnToward (the clamped local yaw offset behind
+                          CK's curious/wary head turns)
+    traversal.ts         cat-only gap classification (isCatOnlyGap and the
+                          two width minimums it compares) and activeCatRoute,
+                          the trigger-zone lookup a CatRouteZone uses — not a
+                          physics system, since there's no separate "human"
+                          collider in this game to mechanically exclude; see
+                          its own header comment
   engine/         browser-facing, imperative
     loop.ts             rAF loop with clamped delta, pauses when hidden
     input.ts             touch move stick, look drag controller, drag tracker,
@@ -143,9 +175,13 @@ src/
                             detecting LocationDef; ck.ts builds CK himself
                             (body/head/ears/tail/legs/collar, procedural
                             primitives, no model files) and animates him from
-                            movement and collar signal strength; artifact
-                            sprites reuse render/object.ts so a carving looks
-                            the same in the world as it does in the journal
+                            movement, collar signal strength, proximity to
+                            hazards and interactables (ears, head turn, a
+                            wary posture) and cat-route traversal (a lower,
+                            flatter crouch through a squeeze or crawl);
+                            artifact sprites reuse render/object.ts so a
+                            carving looks the same in the world as it does
+                            in the journal
   app/            React screens and a handful of components
     screens/ExploreScreen.tsx   the one third-person screen for every
                                  location — authored site or open field —
@@ -177,13 +213,21 @@ like `content/adventure/courtyard.ts` (a `mechanism`/`escape` are optional — a
 puzzle-only adventure just omits them) plus one line in
 `content/adventure/index.ts`. A new authored third-person site is a content
 file shaped like `content/sites/silentCourt.ts` (props, interactables, one or
-two hazards, and the spots the collar can actually find something) plus one
-line in `content/sites/index.ts` and a `siteId` on the `LocationDef` that
-hosts it — the 3D engine draws whatever the props and interactables say, so a
-second site never touches `engine/scene3d/`. None of that requires touching
-gameplay code — the content tests will tell you if a reference is broken, a
-locked location is unreachable, a composite's pieces are not actually
-findable, or a site's flags gate something nothing else ever unlocks.
+two hazards, the spots the collar can actually find something, and optionally
+`catRoutes`) plus one line in `content/sites/index.ts` and a `siteId` on the
+`LocationDef` that hosts it — the 3D engine draws whatever the props and
+interactables say, so a second site never touches `engine/scene3d/`. A new
+booby trap is a `HazardZone` with a cosmetic `kind` for the decal, same
+`radius`/`warning`/`disarmedByFlag` as any other hazard, plus an optional
+`setsFlagOnTrigger` if springing it should itself unlock something. A new cat
+route is a `CatRouteZone` (`kind`, `position`, `radius`, an authored
+`clearWidthM`, `grantsFlag`, an optional one-time `note`) — the content test
+suite checks that a `'squeeze'` route's `clearWidthM` actually satisfies
+`isCatOnlyGap`, so a site can't quietly claim a normal-width doorway is
+cat-only. None of that requires touching gameplay code — the content tests
+will tell you if a reference is broken, a locked location is unreachable, a
+composite's pieces are not actually findable, or a site's flags gate
+something nothing else ever unlocks.
 
 ## Save data
 
@@ -207,19 +251,25 @@ and listening.
 - `npm test` — unit tests across the signal model, placement, excavation and
   damage, discovery and unlocks, the mechanism, fragment assembly and symbol
   connections, movement/collision/hazard/targeting/chase-camera math (shared
-  by every space), save robustness, and content integrity (including that
-  every composite's pieces are actually findable, every locked location —
-  chain-gated or assembly-gated — is reachable, and every site/scenery-clue
-  reference and flag actually resolves to something real).
+  by every space), cat-gap classification and cat-route lookup, save
+  robustness, and content integrity (including that every composite's pieces
+  are actually findable, every locked location — chain-gated or
+  assembly-gated — is reachable, every site/scenery-clue reference and flag
+  — including a hazard's `setsFlagOnTrigger` — actually resolves to something
+  real, and every authored `'squeeze'` cat route is honestly narrow enough to
+  earn the name).
 - `npm run e2e` — plays the whole loop at a 390×844 viewport with touch and
   the real third-person controls: walks a detecting field, sweeps, pinpoints,
   digs, excavates by dragging, extracts, checks the journal, and reloads to
   confirm persistence; finds a fixed scenery clue by looking rather than
   digging; confirms a wrong-place dig stays honestly empty; walks into The
   Silent Court to confirm its 3D scene renders and its contextual prompt goes
-  through the same journal pipeline as a dig; and plays both authored
-  adventures end to end (the chamber's door puzzle, mechanism and escape; the
-  courtyard's puzzle-only path), plus the tablet assembly flow.
+  through the same journal pipeline as a dig; squeezes through the court's
+  cat-only gap into its inner vault, digs up a find, reads a trap warning,
+  solves the weight/plate puzzle to disarm the trap, and collects the vault's
+  reward; and plays both authored adventures end to end (the chamber's door
+  puzzle, mechanism and escape; the courtyard's puzzle-only path), plus the
+  tablet assembly flow.
 
 Only Chromium is available in this environment, so the phone is emulated
 (iPhone-13 viewport, DPR 3, touch, mobile UA) and rendered in software (no
@@ -245,12 +295,22 @@ connect → unlock → follow-the-clue loop, entirely in third person, across:
   table and one fixed scenery clue found by looking, not sweeping.
 - **The Silent Court** — a small authored ruin. Two matching serpent carvings
   on opposite walls produce a "wait, that matches" symbol connection by
-  looking rather than digging; a buried stone hand (the site's one
-  collar-findable dig) fits an empty socket on a broken statue, whose payoff
-  is a relic that was standing nearby the whole time; one hazard (a collapsed
-  cistern) is never flagged by any UI, only discovered by getting too close
-  to it; a dropped modern crate and boot prints that are not yours seed a
-  future narrative thread without resolving it.
+  looking rather than digging; a buried stone hand fits an empty socket on a
+  broken statue, whose payoff is a relic that was standing nearby the whole
+  time; one hazard (a collapsed cistern) is never flagged by any UI, only
+  discovered by getting too close to it; a dropped modern crate and boot
+  prints hint that someone else has been through here.
+  Tucked in its south-east corner, a contained cat-traversal/booby-trap
+  vertical slice: a gap in an old partition wall the site itself calls too
+  narrow for the archaeologist who built the place — CK fits anyway — opens
+  onto a small vault. A buried tin (readable before you ever risk the trap)
+  finally resolves the boot-prints/crate thread the main court only gestures
+  at; a dart trap tucked off the direct path is readable from a warning sign
+  before it ever fires; and a plate that wants weight CK doesn't have is
+  solved the same way as anywhere else in this game — find a loose stone and
+  push it into place — which disarms the trap and opens the vault's own
+  reward. The same flag springs whether you solve the plate carefully or
+  just blunder into the trap outright; either way, something opens.
 - **Two authored adventures**, reached through the map like anywhere else:
   **The Sealed Chamber** (a door puzzle, a precision artifact extraction under
   rising tension with an ordered clamp release, and a reactive escape) and
@@ -271,11 +331,7 @@ the assembly.
 
 Deliberately not built: a third authored site, a third adventure, any economy
 beyond funds for kit, and any progression system other than equipment,
-knowledge and unlocked ground. Booby traps and cat-specific traversal
-puzzles (too light for a pressure plate, small enough for a gap a human
-couldn't take) exist as systems — hazards and mechanisms are already data —
-but no site has been authored around them yet; that's the next vertical
-slice, not this one. The Silent Court drops one loose thread on purpose —
-boot prints that are not yours, near a dropped modern crate — and does
-nothing further with it. It is there for a future site to pick up, not for
-this one to resolve.
+knowledge and unlocked ground. The Silent Court's boot prints and dropped
+crate are only partly resolved — the vault's buried tin confirms someone has
+been quietly working this court, but not who, or toward what; that stays a
+loose thread on purpose, for whatever picks it up next.

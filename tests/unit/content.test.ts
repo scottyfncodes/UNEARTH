@@ -6,6 +6,7 @@ import { DETECTORS, TOOLS } from '@/content/equipment';
 import { SILHOUETTES, getSilhouette, pointInSilhouette } from '@/content/silhouettes';
 import { SITES, getSite } from '@/content/sites';
 import { RARITY_ORDER } from '@/core/types';
+import { isCatOnlyGap } from '@/systems/traversal';
 
 describe('target definitions', () => {
   it('have unique ids', () => {
@@ -227,9 +228,10 @@ describe('first-person sites', () => {
 
   it('every requiresFlag/hideOnFlag/disarmedByFlag is actually set by something in the same site', () => {
     for (const site of SITES) {
-      const setFlags = new Set(
-        site.interactables.filter((i) => i.setsFlagOnUse).map((i) => i.setsFlagOnUse!),
-      );
+      const setFlags = new Set([
+        ...site.interactables.filter((i) => i.setsFlagOnUse).map((i) => i.setsFlagOnUse!),
+        ...site.hazards.filter((h) => h.setsFlagOnTrigger).map((h) => h.setsFlagOnTrigger!),
+      ]);
       const referenced = [
         ...site.interactables.map((i) => i.requiresFlag).filter((f): f is string => !!f),
         ...site.interactables.map((i) => i.hideOnFlag).filter((f): f is string => !!f),
@@ -264,6 +266,16 @@ describe('first-person sites', () => {
         expect(within(it.position.x, it.position.z), `${site.id}/${it.id}`).toBe(true);
       }
       for (const d of site.detectorDigs) expect(within(d.position.x, d.position.z), `${site.id}/${d.id}`).toBe(true);
+      for (const r of site.catRoutes ?? []) expect(within(r.position.x, r.position.z), `${site.id}/${r.id}`).toBe(true);
+    }
+  });
+
+  it('a "squeeze" cat route is honestly classified: CK fits, a person would not', () => {
+    for (const site of SITES) {
+      for (const route of site.catRoutes ?? []) {
+        if (route.kind !== 'squeeze') continue;
+        expect(isCatOnlyGap(route.clearWidthM), `${site.id}/${route.id}`).toBe(true);
+      }
     }
   });
 });

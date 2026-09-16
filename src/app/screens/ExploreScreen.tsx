@@ -21,6 +21,7 @@ import { clamp01, lerp } from '@/core/rng';
 import { beepInterval, digTolerance, readout, sampleField, targetSignal, toneOf } from '@/systems/detection';
 import {
   buildColliders,
+  headTurnToward,
   isInteractableAvailable,
   nearestInteractable,
   sweepCoilPosition,
@@ -29,6 +30,7 @@ import {
   type PlayerState,
   stepPlayer,
 } from '@/systems/explore';
+import { activeCatRoute } from '@/systems/traversal';
 import { buildSiteScene } from '@/engine/scene3d/build';
 import { buildCK } from '@/engine/scene3d/ck';
 import { buildFieldScene, fieldToWorld, worldToField } from '@/engine/scene3d/buildField';
@@ -84,6 +86,9 @@ interface Hud {
   hint: string | null;
 }
 
+/** Site ids whose intro has already been dismissed this page session — see ExploreScreenImpl's hud init. */
+const introSeenSites = new Set<string>();
+
 function ExploreScreenImpl() {
   const { save } = useGameState(); // subscribe so notice()/save changes re-render the overlay
   const activeSiteId = game.get().activeSite;
@@ -102,14 +107,19 @@ function ExploreScreenImpl() {
   const promptRef = useRef<Prompt | null>(null);
   const fieldActionsRef = useRef<FieldActions | null>(null);
 
-  const [hud, setHud] = useState<Hud>({
+  const [hud, setHud] = useState<Hud>(() => ({
     promptLabel: null,
-    showIntro: true,
+    // A dig inside a site detours through the 'excavate' and 'discovery'
+    // routes, which fully unmounts this screen — remounting on the way back
+    // must not re-show the intro card the player already dismissed a moment
+    // ago. introSeenSites is session-only (module scope, not saved) on
+    // purpose: entering fresh from the map still shows it, same as always.
+    showIntro: !!site && !introSeenSites.has(site.id),
     pinpointing: false,
     marked: false,
     remaining: 0,
     hint: null,
-  });
+  }));
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -258,11 +268,35 @@ function ExploreScreenImpl() {
           siteProgress: currentSave.siteProgress,
         });
 
-        if (result.hazard && elapsed - lastHazardWarnAt > 3.2) {
-          lastHazardWarnAt = elapsed;
-          notice(result.hazard.warning);
-          haptics.danger();
+        if (result.hazard) {
+          if (result.hazard.setsFlagOnTrigger && !currentSave.siteProgress.includes(result.hazard.setsFlagOnTrigger)) {
+            addSiteFlag(result.hazard.setsFlagOnTrigger);
+            refreshVisibility();
+          }
+          if (elapsed - lastHazardWarnAt > 3.2) {
+            lastHazardWarnAt = elapsed;
+            notice(result.hazard.warning);
+            haptics.danger();
+          }
         }
+
+        const catRoute = activeCatRoute(player.x, player.z, site.catRoutes ?? []);
+        if (catRoute && !currentSave.siteProgress.includes(catRoute.grantsFlag)) {
+          addSiteFlag(catRoute.grantsFlag);
+          if (catRoute.note) notice(catRoute.note, 6000);
+        }
+
+        let nearestHazardDist = Infinity;
+        let nearestHazardPos: { x: number; z: number } | null = null;
+        for (const hz of site.hazards) {
+          if (hz.disarmedByFlag && currentSave.siteProgress.includes(hz.disarmedByFlag)) continue;
+          const dist = Math.hypot(player.x - hz.position.x, player.z - hz.position.z) - hz.radius;
+          if (dist < nearestHazardDist) {
+            nearestHazardDist = dist;
+            nearestHazardPos = { x: hz.position.x, z: hz.position.z };
+          }
+        }
+        const wary = nearestHazardPos ? clamp01(1 - nearestHazardDist / 3) : 0;
 
         const adventuresComplete = Object.entries(currentSave.adventures)
           .filter(([, status]) => status === 'complete')
@@ -303,9 +337,38 @@ function ExploreScreenImpl() {
         const canDig =
           !!dominant && dominant.strength > 0.3 && dominant.distCm <= digTolerance(dominant.def, detector) * 1.1;
 
+        // What's worth CK's attention right now, in priority order: a thing
+        // he can act on, a strong signal, or — failing those — a hazard he's
+        // giving a wide berth. Drives both ear-perk/interest and the head turn.
+        let attentionDx = 0;
+        let attentionDz = 0;
+        let interest = 0;
+        if (target) {
+          attentionDx = target.position.x - player.x;
+          attentionDz = target.position.z - player.z;
+          interest = 1;
+        } else if (dominant && dominant.strength > 0.15) {
+          attentionDx = dominant.dig.position.x - player.x;
+          attentionDz = dominant.dig.position.z - player.z;
+          interest = dominant.strength;
+        } else if (nearestHazardPos && wary > 0.3) {
+          attentionDx = nearestHazardPos.x - player.x;
+          attentionDz = nearestHazardPos.z - player.z;
+        }
+        const headTurn =
+          interest > 0 || wary > 0.3 ? headTurnToward(player.yaw, attentionDx, attentionDz) : 0;
+
         ck.root.position.set(player.x, 0, player.z);
         ck.root.rotation.y = player.yaw;
-        ck.update(dt, { moving: move.magnitude > 0.05, effort: move.magnitude, signal: dominant?.strength ?? 0 });
+        ck.update(dt, {
+          moving: move.magnitude > 0.05,
+          effort: move.magnitude,
+          signal: dominant?.strength ?? 0,
+          interest,
+          wary,
+          headTurn,
+          traversal: catRoute?.kind === 'squeeze' || catRoute?.kind === 'crawl' ? catRoute.kind : 'none',
+        });
 
         const camPose = thirdPersonCameraPose(player.x, player.z, player.yaw, player.pitch, {
           distance: CAM_DISTANCE,
@@ -504,9 +567,21 @@ function ExploreScreenImpl() {
         dominantUid = sample.dominant?.target.uid ?? null;
 
         // ── CK + chase camera ────────────────────────────────────────
+        let fieldHeadTurn = 0;
+        if (sample.dominant && signal > 0.15) {
+          const tx = fieldToWorld(sample.dominant.target.x, built.halfWidth);
+          const tz = fieldToWorld(sample.dominant.target.y, built.halfHeight);
+          fieldHeadTurn = headTurnToward(player.yaw, tx - player.x, tz - player.z);
+        }
         ck.root.position.set(player.x, 0, player.z);
         ck.root.rotation.y = player.yaw;
-        ck.update(dt, { moving: move.magnitude > 0.05 && !pinpointing, effort: move.magnitude, signal });
+        ck.update(dt, {
+          moving: move.magnitude > 0.05 && !pinpointing,
+          effort: move.magnitude,
+          signal,
+          interest: signal,
+          headTurn: fieldHeadTurn,
+        });
 
         const camPose = thirdPersonCameraPose(player.x, player.z, player.yaw, player.pitch, {
           distance: CAM_DISTANCE,
@@ -772,7 +847,10 @@ function ExploreScreenImpl() {
                 variant="primary"
                 wide
                 data-testid="explore-begin"
-                onClick={() => setHud((prev) => ({ ...prev, showIntro: false }))}
+                onClick={() => {
+                  if (site) introSeenSites.add(site.id);
+                  setHud((prev) => ({ ...prev, showIntro: false }));
+                }}
               >
                 Begin
               </Btn>
