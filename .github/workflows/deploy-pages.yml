@@ -11,9 +11,8 @@ permissions:
   contents: read
   pages: write
   id-token: write
-  # Needed only for the deployment-branch-policy self-repair below — the
-  # Deployment branch policies API sits under repo administration, not pages.
-  administration: write
+  # Needed only for the deployment-branch-policy self-repair below.
+  environments: write
 
 # One deploy at a time; a newer push supersedes an in-flight one.
 concurrency:
