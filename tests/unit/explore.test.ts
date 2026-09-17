@@ -4,11 +4,14 @@ import {
   clampToBounds,
   clampToRectBounds,
   facingVectors,
+  headTurnToward,
   isInteractableAvailable,
   nearestInteractable,
   resolveCollisions,
+  resolveSitePose,
   stepPlayer,
   sweepCoilPosition,
+  thirdPersonCameraPose,
   type PlayerState,
 } from '@/systems/explore';
 import type { HazardZone, SiteInteractable, SiteProp } from '@/content/sites/types';
@@ -171,7 +174,13 @@ describe('stepPlayer', () => {
 
   it('an active hazard pushes the player back out and is reported', () => {
     const p: PlayerState = { x: 0, z: 0, yaw: 0, pitch: 0 };
-    const hazard: HazardZone = { id: 'h', position: { x: 0, y: 0, z: 0 }, radius: 2, warning: 'careful' };
+    const hazard: HazardZone = {
+      id: 'h',
+      readability: 'readable',
+      position: { x: 0, y: 0, z: 0 },
+      radius: 2,
+      warning: 'careful',
+    };
     const result = stepPlayer(p, {
       dt: 0,
       moveX: 0,
@@ -192,6 +201,7 @@ describe('stepPlayer', () => {
     const p: PlayerState = { x: 0, z: 0, yaw: 0, pitch: 0 };
     const hazard: HazardZone = {
       id: 'h',
+      readability: 'readable',
       position: { x: 0, y: 0, z: 0 },
       radius: 2,
       warning: 'careful',
@@ -240,6 +250,77 @@ describe('isInteractableAvailable', () => {
     const hidden: SiteInteractable = { ...OBSERVE, id: 'h', hideOnFlag: 'done' };
     expect(isInteractableAvailable(hidden, { siteProgress: ['done'], discovered: [] })).toBe(false);
   });
+
+  it('respects requiresAdventuresComplete', () => {
+    const gated: SiteInteractable = {
+      ...OBSERVE,
+      id: 'ending',
+      requiresAdventuresComplete: ['adv_a', 'adv_b'],
+    };
+    expect(isInteractableAvailable(gated, { siteProgress: [], discovered: [] })).toBe(false);
+    expect(isInteractableAvailable(gated, { siteProgress: [], discovered: [], adventuresComplete: ['adv_a'] })).toBe(
+      false,
+    );
+    expect(
+      isInteractableAvailable(gated, {
+        siteProgress: [],
+        discovered: [],
+        adventuresComplete: ['adv_a', 'adv_b'],
+      }),
+    ).toBe(true);
+  });
+});
+
+describe('thirdPersonCameraPose', () => {
+  it('sits behind and above CK when facing -Z at zero pitch', () => {
+    const pose = thirdPersonCameraPose(0, 0, 0, 0, {
+      distance: 2,
+      height: 1,
+      lookHeight: 0.4,
+      pitchMin: -0.5,
+      pitchMax: 0.5,
+    });
+    // Facing -Z (yaw 0), "behind" is +Z.
+    expect(pose.z).toBeCloseTo(2, 5);
+    expect(pose.x).toBeCloseTo(0, 5);
+    expect(pose.y).toBeCloseTo(1, 5);
+    expect(pose.lookX).toBe(0);
+    expect(pose.lookY).toBe(0.4);
+    expect(pose.lookZ).toBe(0);
+  });
+
+  it('clamps pitch to the given orbit arc', () => {
+    const overPitched = thirdPersonCameraPose(0, 0, 0, 5, {
+      distance: 2,
+      height: 1,
+      lookHeight: 0.4,
+      pitchMin: -0.5,
+      pitchMax: 0.5,
+    });
+    const clampedAtMax = thirdPersonCameraPose(0, 0, 0, 0.5, {
+      distance: 2,
+      height: 1,
+      lookHeight: 0.4,
+      pitchMin: -0.5,
+      pitchMax: 0.5,
+    });
+    expect(overPitched.y).toBeCloseTo(clampedAtMax.y, 5);
+  });
+
+  it('follows CK\'s position and yaw', () => {
+    const pose = thirdPersonCameraPose(10, -4, Math.PI / 2, 0, {
+      distance: 2,
+      height: 1,
+      lookHeight: 0.4,
+      pitchMin: -0.5,
+      pitchMax: 0.5,
+    });
+    expect(pose.lookX).toBe(10);
+    expect(pose.lookZ).toBe(-4);
+    // Facing +X (yaw PI/2), "behind" is -X.
+    expect(pose.x).toBeCloseTo(8, 5);
+    expect(pose.z).toBeCloseTo(-4, 5);
+  });
 });
 
 describe('nearestInteractable', () => {
@@ -262,5 +343,68 @@ describe('nearestInteractable', () => {
     const near: SiteInteractable = { ...OBSERVE, id: 'near', position: { x: 0, y: 0, z: -1 } };
     const found = nearestInteractable(0, 0, 0, [OBSERVE, near], { siteProgress: [], discovered: [] });
     expect(found?.id).toBe('near');
+  });
+});
+
+describe('headTurnToward', () => {
+  it('is zero for a target dead ahead', () => {
+    expect(headTurnToward(0, 0, -5)).toBeCloseTo(0, 5);
+  });
+
+  it('is zero for a target at the same spot as CK', () => {
+    expect(headTurnToward(0, 0, 0)).toBe(0);
+  });
+
+  it('turns toward a target off to one side, within the clamp', () => {
+    const offset = headTurnToward(0, 3, -3, 0.55);
+    expect(offset).toBeGreaterThan(0);
+    expect(offset).toBeLessThanOrEqual(0.55);
+  });
+
+  it('turns the other way for a target on the other side', () => {
+    const left = headTurnToward(0, -3, -3, 0.55);
+    expect(left).toBeLessThan(0);
+  });
+
+  it('clamps for a target far outside the comfortable turn range', () => {
+    // Almost directly behind CK — an unclamped offset would be near +-PI.
+    const offset = headTurnToward(0, 0.01, 5, 0.5);
+    expect(Math.abs(offset)).toBeLessThanOrEqual(0.5);
+  });
+
+  it('accounts for CK\'s own facing, not just world direction', () => {
+    // Target is world +X; CK already facing +X (yaw = PI/2) should read as ~0.
+    expect(headTurnToward(Math.PI / 2, 5, 0)).toBeCloseTo(0, 5);
+  });
+});
+
+describe('resolveSitePose', () => {
+  const spawn = { x: 1, z: -2 };
+  const spawnYaw = 0.3;
+  const radius = 10;
+
+  it('falls back to the authored spawn when nothing is stored', () => {
+    const pose = resolveSitePose(undefined, spawn, spawnYaw, radius);
+    expect(pose).toEqual({ x: 1, z: -2, yaw: 0.3, pitch: 0 });
+  });
+
+  it('restores a stored pose that is still within bounds', () => {
+    const stored: PlayerState = { x: 4, z: 5, yaw: 1.2, pitch: -0.4 };
+    expect(resolveSitePose(stored, spawn, spawnYaw, radius)).toEqual(stored);
+  });
+
+  it('falls back to spawn when the stored pose is outside the current radius', () => {
+    const stored: PlayerState = { x: 40, z: 5, yaw: 1.2, pitch: -0.4 };
+    expect(resolveSitePose(stored, spawn, spawnYaw, radius)).toEqual({ x: 1, z: -2, yaw: 0.3, pitch: 0 });
+  });
+
+  it('falls back to spawn for a corrupt (non-finite) stored pose', () => {
+    const stored: PlayerState = { x: NaN, z: 5, yaw: 1.2, pitch: -0.4 };
+    expect(resolveSitePose(stored, spawn, spawnYaw, radius)).toEqual({ x: 1, z: -2, yaw: 0.3, pitch: 0 });
+  });
+
+  it('accepts a pose exactly on the boundary', () => {
+    const stored: PlayerState = { x: radius, z: -radius, yaw: 0, pitch: 0 };
+    expect(resolveSitePose(stored, spawn, spawnYaw, radius)).toEqual(stored);
   });
 });

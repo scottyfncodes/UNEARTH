@@ -17,7 +17,7 @@ export function TitleScreen() {
       go('map');
     } else {
       enterLocation('loc_old_park');
-      notice('Your detector is picking something up.');
+      notice('Your collar is picking something up.');
     }
   };
 
@@ -26,9 +26,9 @@ export function TitleScreen() {
       <h1 className="title-screen__logo">UNEARTH</h1>
       <div className="title-screen__rule" />
       <p className="title-screen__tag">
-        Most of what the ground gives up is rubbish.
+        He went out one morning and didn't come back.
         <br />
-        Some of it is the first piece of something much bigger.
+        You are a cat. You are going to go find him.
       </p>
       <Btn variant="primary" onClick={begin} sound="open">
         {returning ? 'Continue' : 'Begin'}
@@ -39,7 +39,7 @@ export function TitleScreen() {
         </p>
       ) : (
         <p className="tiny" style={{ marginTop: 18 }}>
-          Headphones recommended. Sound is how you find things.
+          Headphones recommended. The collar talks through sound.
         </p>
       )}
     </div>

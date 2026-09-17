@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "UNEARTH — a mobile-first metal detecting and excavation game.",
+  "description": "UNEARTH — a third-person archaeological adventure about a cat looking for his missing human.",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",

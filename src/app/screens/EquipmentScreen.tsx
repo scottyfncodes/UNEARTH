@@ -21,7 +21,7 @@ export function EquipmentScreen() {
       <TopBar title="Kit" subtitle={`${save.money} funds`} />
 
       <div className="scroll">
-        <div className="group-heading">Detectors</div>
+        <div className="group-heading">Collars</div>
         {DETECTORS.map((det) => {
           const owned = save.ownedEquipment.includes(det.id);
           const equipped = save.detectorId === det.id;
@@ -71,7 +71,7 @@ export function EquipmentScreen() {
           );
         })}
 
-        <div className="group-heading">Excavation tools</div>
+        <div className="group-heading">Excavation</div>
         {TOOLS.map((tool) => {
           const owned = save.ownedEquipment.includes(tool.id);
           const affordable = save.money >= tool.price;

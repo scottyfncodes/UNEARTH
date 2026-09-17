@@ -124,6 +124,36 @@ export interface PlayerState {
   pitch: number;
 }
 
+/**
+ * Where CK should spawn when (re)entering an authored site: his last known
+ * pose in this site, if the session still remembers one and it's still
+ * usable, otherwise the site's authored entrance. A dig detours through the
+ * 'excavate' and 'discovery' routes, which fully unmounts the explore screen
+ * — without this, every dig would drop CK back at the front door. Session
+ * memory only (see ExploreScreen's siteExplorePoses); this is not save data.
+ *
+ * The validity check is deliberately generous rather than exact: it guards
+ * against a stale pose from a since-shrunk site, a corrupt/NaN value, or any
+ * other reason a remembered pose might no longer make sense, without needing
+ * to know that site's actual collider layout.
+ */
+export function resolveSitePose(
+  stored: PlayerState | undefined,
+  spawn: { x: number; z: number },
+  spawnYaw: number,
+  radius: number,
+): PlayerState {
+  const usable =
+    !!stored &&
+    Number.isFinite(stored.x) &&
+    Number.isFinite(stored.z) &&
+    Number.isFinite(stored.yaw) &&
+    Number.isFinite(stored.pitch) &&
+    Math.abs(stored.x) <= radius &&
+    Math.abs(stored.z) <= radius;
+  return usable ? stored! : { x: spawn.x, z: spawn.z, yaw: spawnYaw, pitch: 0 };
+}
+
 export interface StepInput {
   dt: number;
   /** -1..1, strafe right positive. */
@@ -206,12 +236,22 @@ export function stepPlayer(state: PlayerState, input: StepInput): StepResult {
 export interface InteractionState {
   siteProgress: readonly string[];
   discovered: readonly string[];
+  /**
+   * Ids of authored adventures currently marked 'complete'. Optional because
+   * most call sites (and every existing test) don't care about it — only an
+   * interactable with `requiresAdventuresComplete` looks at this.
+   */
+  adventuresComplete?: readonly string[];
 }
 
 /** Whether an interactable currently offers anything — gating + "already used". */
 export function isInteractableAvailable(it: SiteInteractable, state: InteractionState): boolean {
   if (it.requiresFlag && !state.siteProgress.includes(it.requiresFlag)) return false;
   if (it.hideOnFlag && state.siteProgress.includes(it.hideOnFlag)) return false;
+  if (it.requiresAdventuresComplete) {
+    const complete = state.adventuresComplete ?? [];
+    if (!it.requiresAdventuresComplete.every((id) => complete.includes(id))) return false;
+  }
   if ((it.kind === 'observe' || it.kind === 'pickup') && it.targetId && state.discovered.includes(it.targetId)) {
     return false;
   }
@@ -246,6 +286,72 @@ export function sweepCoilPosition(
     x: x + forwardX * opts.forward + rightX * lateral,
     z: z + forwardZ * opts.forward + rightZ * lateral,
   };
+}
+
+export interface ThirdPersonCameraOptions {
+  /** Metres behind CK at zero arc. */
+  distance: number;
+  /** Base camera height above the ground, metres. */
+  height: number;
+  /** Look-at target height above the ground, roughly CK's head. */
+  lookHeight: number;
+  /** Clamped range for the vertical orbit arc, radians. */
+  pitchMin: number;
+  pitchMax: number;
+}
+
+export interface ThirdPersonCameraPose {
+  x: number;
+  y: number;
+  z: number;
+  lookX: number;
+  lookY: number;
+  lookZ: number;
+}
+
+/**
+ * Where a third-person chase camera sits, given CK's position and the same
+ * yaw/pitch a first-person eye camera would have used. Reusing yaw/pitch
+ * (rather than a free orbit) means every interaction/collision system that
+ * already reasons about "where the player is facing" keeps working unchanged
+ * — the camera just trails behind that facing instead of sitting at it.
+ */
+export function thirdPersonCameraPose(
+  x: number,
+  z: number,
+  yaw: number,
+  pitch: number,
+  opts: ThirdPersonCameraOptions,
+): ThirdPersonCameraPose {
+  const { forwardX, forwardZ } = facingVectors(yaw);
+  const armPitch = Math.max(opts.pitchMin, Math.min(opts.pitchMax, pitch));
+  const back = Math.cos(armPitch) * opts.distance;
+  const up = Math.sin(armPitch) * opts.distance;
+  return {
+    x: x - forwardX * back,
+    y: opts.height + up,
+    z: z - forwardZ * back,
+    lookX: x,
+    lookY: opts.lookHeight,
+    lookZ: z,
+  };
+}
+
+/**
+ * Clamped local yaw offset for CK's head to turn toward a world-space point
+ * of interest, relative to his own facing — the pure math behind "curious
+ * head movement near artifacts" and "brief hesitation near a known hazard".
+ * Uses the same atan2(dx, -dz) convention as nearestInteractable's facing
+ * check, so a target dead ahead always yields 0.
+ */
+export function headTurnToward(yaw: number, dx: number, dz: number, maxOffsetRad = 0.55): number {
+  const dist = Math.hypot(dx, dz);
+  if (dist < 1e-3) return 0;
+  const angleToTarget = Math.atan2(dx, -dz);
+  let diff = angleToTarget - yaw;
+  while (diff > Math.PI) diff -= Math.PI * 2;
+  while (diff < -Math.PI) diff += Math.PI * 2;
+  return Math.max(-maxOffsetRad, Math.min(maxOffsetRad, diff));
 }
 
 /**

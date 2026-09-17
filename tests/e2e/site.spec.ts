@@ -99,3 +99,72 @@ test('walks in, renders the 3D world, and a dead-ahead notice goes through the s
   await page.waitForTimeout(300);
   await expect(page.getByTestId('location-loc_silent_court')).toBeVisible();
 });
+
+/**
+ * Real pointer-drag input, not the keyboard fallback the rest of this suite
+ * leans on. MoveController/LookController listen to generic PointerEvents —
+ * they never branch on pointerType — so a mouse-driven drag exercises
+ * exactly the same dead-zone/magnitude/look-delta code a touch drag would;
+ * this is the same reasoning the excavation pit's own drag test (scrubPit)
+ * already relies on. What's worth proving here specifically: the move stick
+ * is analog (a small push should visibly lag a full push, not snap to one
+ * speed like the keyboard fallback does), which matters for a hazard-dense
+ * room where a player might want to creep rather than trot.
+ */
+test('touch-style pointer drag moves and turns CK, with analog stick pressure', async ({ page }) => {
+  await page.goto('/?debug=1');
+  await page.getByTestId('location-loc_silent_court').click();
+  await page.getByTestId('explore-begin').click();
+  await expect(page.getByTestId('explore-canvas')).toBeVisible();
+  await page.waitForTimeout(300);
+
+  // Left 44% of the screen is the move zone, the rest is look — see
+  // ExploreScreen's moveZoneRef/lookZoneRef. Kept well clear of the top bar
+  // and any contextual button.
+  const moveX = 80;
+  const lookX = 280;
+  const y = 400;
+
+  const spawn = await readExploreFrame(page);
+  expect(spawn).toMatchObject({ x: 0, z: 15.5 });
+
+  // A drag under the 5px dead zone must not move CK at all.
+  await page.mouse.move(moveX, y);
+  await page.mouse.down();
+  await page.mouse.move(moveX, y - 3);
+  await page.waitForTimeout(400);
+  await page.mouse.up();
+  const afterDeadZone = await readExploreFrame(page);
+  expect(Math.hypot(afterDeadZone!.x - spawn!.x, afterDeadZone!.z - spawn!.z)).toBeLessThan(0.05);
+
+  // A gentle push (well under the stick's full 64px radius) for a fixed hold.
+  await page.mouse.move(moveX, y);
+  await page.mouse.down();
+  await page.mouse.move(moveX, y - 16);
+  await page.waitForTimeout(500);
+  await page.mouse.up();
+  const afterGentle = await readExploreFrame(page);
+  const gentleDist = Math.hypot(afterGentle!.x - afterDeadZone!.x, afterGentle!.z - afterDeadZone!.z);
+  expect(gentleDist).toBeGreaterThan(0.05); // it did move CK, just carefully
+
+  // A full push for the same fixed hold should cover visibly more ground —
+  // the whole point of an analog stick over the keyboard's on/off fallback.
+  await page.mouse.move(moveX, y);
+  await page.mouse.down();
+  await page.mouse.move(moveX, y - 70);
+  await page.waitForTimeout(500);
+  await page.mouse.up();
+  const afterFull = await readExploreFrame(page);
+  const fullDist = Math.hypot(afterFull!.x - afterGentle!.x, afterFull!.z - afterGentle!.z);
+  expect(fullDist).toBeGreaterThan(gentleDist * 1.3);
+
+  // The look zone turns CK the same way a finger swipe would.
+  const beforeLook = await readExploreFrame(page);
+  await page.mouse.move(lookX, y);
+  await page.mouse.down();
+  await page.mouse.move(lookX + 120, y, { steps: 8 });
+  await page.mouse.up();
+  await page.waitForTimeout(150);
+  const afterLook = await readExploreFrame(page);
+  expect(afterLook!.yaw).not.toBeCloseTo(beforeLook!.yaw, 2);
+});

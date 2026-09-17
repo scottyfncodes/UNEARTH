@@ -6,6 +6,7 @@ import { DETECTORS, TOOLS } from '@/content/equipment';
 import { SILHOUETTES, getSilhouette, pointInSilhouette } from '@/content/silhouettes';
 import { SITES, getSite } from '@/content/sites';
 import { RARITY_ORDER } from '@/core/types';
+import { isCatOnlyGap } from '@/systems/traversal';
 
 describe('target definitions', () => {
   it('have unique ids', () => {
@@ -106,7 +107,18 @@ describe('locations', () => {
     const placedAt = (targetId: string) =>
       LOCATIONS.some(
         (loc) => reachable.has(loc.id) && loc.table.some((entry) => entry.targetId === targetId),
-      );
+      ) ||
+      SITES.some((site) => {
+        // A site-authored piece is only obtainable once the location hosting
+        // that site is itself reachable — the same "not through a still-locked
+        // spot" rule LOCATIONS.table gets above.
+        const hostLocation = LOCATIONS.find((loc) => loc.siteId === site.id);
+        if (!hostLocation || !reachable.has(hostLocation.id)) return false;
+        return (
+          site.interactables.some((i) => i.targetId === targetId) ||
+          site.detectorDigs.some((d) => d.targetId === targetId)
+        );
+      });
 
     const obtainable = (targetId: string): boolean => {
       const def = TARGETS.find((t) => t.id === targetId);
@@ -143,9 +155,17 @@ describe('locations', () => {
         expect(piece, `${composite.id} references missing piece ${pieceId}`).toBeDefined();
         expect(piece!.pieceOf, `${pieceId} should point back at ${composite.id}`).toBe(composite.id);
         // A piece must actually be findable somewhere (or itself a composite,
-        // though nothing in the game currently nests composites).
-        const findable = LOCATIONS.some((loc) => loc.table.some((e) => e.targetId === pieceId));
-        expect(findable, `${pieceId} is not on any loot table`).toBe(true);
+        // though nothing in the game currently nests composites) — either on
+        // a procedural loot table, or authored directly into a first-person
+        // site (a pickup/observe interactable or a detector dig).
+        const findable =
+          LOCATIONS.some((loc) => loc.table.some((e) => e.targetId === pieceId)) ||
+          SITES.some(
+            (site) =>
+              site.interactables.some((i) => i.targetId === pieceId) ||
+              site.detectorDigs.some((d) => d.targetId === pieceId),
+          );
+        expect(findable, `${pieceId} is not on any loot table or site`).toBe(true);
       }
     }
   });
@@ -227,9 +247,11 @@ describe('first-person sites', () => {
 
   it('every requiresFlag/hideOnFlag/disarmedByFlag is actually set by something in the same site', () => {
     for (const site of SITES) {
-      const setFlags = new Set(
-        site.interactables.filter((i) => i.setsFlagOnUse).map((i) => i.setsFlagOnUse!),
-      );
+      const setFlags = new Set([
+        ...site.interactables.filter((i) => i.setsFlagOnUse).map((i) => i.setsFlagOnUse!),
+        ...site.hazards.filter((h) => h.setsFlagOnTrigger).map((h) => h.setsFlagOnTrigger!),
+        ...(site.catRoutes ?? []).map((r) => r.grantsFlag),
+      ]);
       const referenced = [
         ...site.interactables.map((i) => i.requiresFlag).filter((f): f is string => !!f),
         ...site.interactables.map((i) => i.hideOnFlag).filter((f): f is string => !!f),
@@ -242,8 +264,12 @@ describe('first-person sites', () => {
   it('a gated interactable (requiresFlag) is reachable: something else grants that flag unconditionally', () => {
     for (const site of SITES) {
       const gaters = site.interactables.filter((i) => i.setsFlagOnUse);
+      // A cat route's own flag is always reachable — walking into the zone is
+      // the only condition — so it counts as an unconditional grant too.
+      const routeFlags = new Set((site.catRoutes ?? []).map((r) => r.grantsFlag));
       for (const it of site.interactables) {
         if (!it.requiresFlag) continue;
+        if (routeFlags.has(it.requiresFlag)) continue;
         const granter = gaters.find((g) => g.setsFlagOnUse === it.requiresFlag);
         expect(granter, `${site.id}/${it.id} requires ${it.requiresFlag}`).toBeDefined();
         // The granter itself must not be gated behind something no other
@@ -264,6 +290,35 @@ describe('first-person sites', () => {
         expect(within(it.position.x, it.position.z), `${site.id}/${it.id}`).toBe(true);
       }
       for (const d of site.detectorDigs) expect(within(d.position.x, d.position.z), `${site.id}/${d.id}`).toBe(true);
+      for (const r of site.catRoutes ?? []) expect(within(r.position.x, r.position.z), `${site.id}/${r.id}`).toBe(true);
+    }
+  });
+
+  it('a "squeeze" cat route is honestly classified: CK fits, a person would not', () => {
+    for (const site of SITES) {
+      for (const route of site.catRoutes ?? []) {
+        if (route.kind !== 'squeeze') continue;
+        expect(isCatOnlyGap(route.clearWidthM), `${site.id}/${route.id}`).toBe(true);
+      }
+    }
+  });
+
+  it('a "discoverable" hazard has a notice within reach to actually discover it', () => {
+    // The whole point of the category: a player who looks around before
+    // walking in has something nearby to find. Reach is generous (the
+    // notice just has to be in the same neighbourhood, not point-on-point)
+    // because what matters is "was there something to notice", not exact
+    // staging.
+    const DISCOVERY_REACH_M = 4;
+    for (const site of SITES) {
+      const notices = site.interactables.filter((i) => i.kind === 'notice');
+      for (const hz of site.hazards) {
+        if (hz.readability !== 'discoverable') continue;
+        const hasNearbyNotice = notices.some(
+          (n) => Math.hypot(n.position.x - hz.position.x, n.position.z - hz.position.z) <= DISCOVERY_REACH_M,
+        );
+        expect(hasNearbyNotice, `${site.id}/${hz.id} is 'discoverable' but has no notice nearby`).toBe(true);
+      }
     }
   });
 });

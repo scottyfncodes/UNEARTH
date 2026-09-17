@@ -3,12 +3,16 @@ import type { DetectorDef, ToolDef } from '@/core/types';
 /**
  * Progression is equipment and knowledge, not experience points.
  * Funds come only from the field value of real finds — junk pays nothing.
+ *
+ * "Detector" here means CK's collar — the same signal model, worn instead of
+ * carried. Upgrading it is buying a better collar, not a better gadget in
+ * your own hands; you have paws, not hands.
  */
 export const DETECTORS: DetectorDef[] = [
   {
     id: 'det_starter',
-    name: 'Starter Detector',
-    tagline: 'Entry-level coil. Honest about metal, vague about everything else.',
+    name: 'Old Leather Collar',
+    tagline: "The one he already had. Honest about metal, vague about everything else.",
     reach: 62,
     depthCapacity: 22,
     discrimination: 0.35,
@@ -18,8 +22,8 @@ export const DETECTORS: DetectorDef[] = [
   },
   {
     id: 'det_field',
-    name: 'Field Detector',
-    tagline: 'Deeper ground, steadier tone. The obvious first upgrade.',
+    name: 'Field Collar',
+    tagline: 'Deeper ground, steadier hum. The obvious first upgrade.',
     reach: 74,
     depthCapacity: 29,
     discrimination: 0.5,
@@ -29,8 +33,8 @@ export const DETECTORS: DetectorDef[] = [
   },
   {
     id: 'det_precision',
-    name: 'Precision Detector',
-    tagline: 'Tight signal envelope. Tells you where, not just whether.',
+    name: 'Precision Collar',
+    tagline: 'A tighter band of signal. Tells you where, not just whether.',
     reach: 70,
     depthCapacity: 31,
     discrimination: 0.72,
@@ -40,8 +44,8 @@ export const DETECTORS: DetectorDef[] = [
   },
   {
     id: 'det_deep',
-    name: 'Deep Scanner',
-    tagline: 'A big coil for deep iron and deeper oddities.',
+    name: 'Deep-Range Collar',
+    tagline: 'A wider coil, woven in, for deep iron and deeper oddities.',
     reach: 96,
     depthCapacity: 42,
     discrimination: 0.55,
@@ -51,8 +55,8 @@ export const DETECTORS: DetectorDef[] = [
   },
   {
     id: 'det_advanced',
-    name: 'Advanced Detector',
-    tagline: 'Depth, discrimination and a tone you can trust.',
+    name: "Archaeologist's Collar",
+    tagline: 'His own spare, tuned properly. Depth, discrimination, a hum you can trust.',
     reach: 92,
     depthCapacity: 46,
     discrimination: 0.9,
@@ -65,7 +69,7 @@ export const DETECTORS: DetectorDef[] = [
 export const TOOLS: ToolDef[] = [
   {
     id: 'tool_scoop',
-    name: 'Hand Scoop',
+    name: 'Paw',
     kind: 'scoop',
     tagline: 'Moves dirt fast. Does not care what it hits.',
     power: 1,
@@ -75,7 +79,7 @@ export const TOOLS: ToolDef[] = [
   },
   {
     id: 'tool_brush',
-    name: 'Field Brush',
+    name: 'Tail',
     kind: 'brush',
     tagline: 'Slow, safe, and the only thing you should use near an edge.',
     power: 0.55,
@@ -85,7 +89,7 @@ export const TOOLS: ToolDef[] = [
   },
   {
     id: 'tool_pick',
-    name: 'Precision Pick',
+    name: 'Claw',
     kind: 'pick',
     tagline: 'Breaks up packed ground in a small area. Sharp end, sharp consequences.',
     power: 1.45,
@@ -95,7 +99,7 @@ export const TOOLS: ToolDef[] = [
   },
   {
     id: 'tool_fine_brush',
-    name: 'Fine Sable Brush',
+    name: 'Whiskers',
     kind: 'brush',
     tagline: 'Lifts dirt off an artifact without ever touching it hard.',
     power: 0.82,
@@ -105,9 +109,9 @@ export const TOOLS: ToolDef[] = [
   },
   {
     id: 'tool_pinpointer',
-    name: 'Pinpointer',
+    name: 'Nose',
     kind: 'pinpointer',
-    tagline: 'Handheld probe. In the hole, it tells you which way to dig.',
+    tagline: 'A close sniff. In the hole, it tells you which way to dig.',
     power: 0,
     risk: 0,
     radius: 0,
