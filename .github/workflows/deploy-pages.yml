@@ -11,8 +11,6 @@ permissions:
   contents: read
   pages: write
   id-token: write
-  # Needed only for the deployment-branch-policy self-repair below.
-  environments: write
 
 # One deploy at a time; a newer push supersedes an in-flight one.
 concurrency:
@@ -86,23 +84,8 @@ jobs:
           echo "::endgroup::"
 
           echo "::group::Deployment branch policies"
-          api GET /environments/github-pages/deployment-branch-policies | tee policies.json
+          api GET /environments/github-pages/deployment-branch-policies || true
           echo "::endgroup::"
-
-          # A custom branch policy allow-list rejects the deploy job before it
-          # even starts, silently — this is the fix for that, not just the
-          # report. Every branch this workflow might run from (this push
-          # trigger's list, plus whatever ref workflow_dispatch was given)
-          # needs its own allow-list entry; add any that are missing.
-          for branch in $(printf '%s\n' claude/unearth-game-build-eftvze main "$GITHUB_REF_NAME" | sort -u); do
-            if ! grep -q "\"name\":[[:space:]]*\"$branch\"" policies.json; then
-              echo "::warning::'$branch' is not an allowed deployment branch for github-pages; adding it."
-              echo "::group::Allow '$branch' to deploy to github-pages"
-              api POST /environments/github-pages/deployment-branch-policies \
-                -d "{\"name\":\"$branch\",\"type\":\"branch\"}"
-              echo "::endgroup::"
-            fi
-          done
 
       - name: Upload site
         uses: actions/upload-pages-artifact@v3
