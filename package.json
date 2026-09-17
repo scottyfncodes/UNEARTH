@@ -3,18 +3,16 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "UNEARTH — a third-person archaeological adventure about a cat looking for his missing human.",
+  "description": "UNEARTH \u2014 a third-person archaeological adventure about a cat looking for his missing human.",
   "scripts": {
     "dev": "vite",
-    "build": "tsc --noEmit && vite build && vite build --config vite.homecook.config.ts",
+    "build": "tsc --noEmit && vite build",
     "preview": "vite preview --port 4173",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
     "e2e": "playwright test",
-    "measure": "vitest run --config vitest.measure.config.ts",
-    "dev:homecook": "vite --config vite.homecook.config.ts",
-    "build:homecook": "tsc --noEmit && vite build --config vite.homecook.config.ts"
+    "measure": "vitest run --config vitest.measure.config.ts"
   },
   "dependencies": {
     "react": "^19.3.0",

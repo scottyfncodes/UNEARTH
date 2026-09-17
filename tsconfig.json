@@ -16,15 +16,7 @@
     "isolatedModules": true,
     "noEmit": true,
     "types": ["vite/client", "node"],
-    "paths": { "@/*": ["./src/*"], "@homecook/*": ["./homecook/src/*"] }
+    "paths": { "@/*": ["./src/*"] }
   },
-  "include": [
-    "src",
-    "homecook/src",
-    "tests",
-    "vite.config.ts",
-    "vite.homecook.config.ts",
-    "vitest.config.ts",
-    "playwright.config.ts"
-  ]
+  "include": ["src", "tests", "vite.config.ts", "vitest.config.ts", "playwright.config.ts"]
 }
