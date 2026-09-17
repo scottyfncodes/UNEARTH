@@ -138,6 +138,8 @@ export class MoveController {
  * absolute angle, so the render loop stays the single owner of camera state.
  */
 export class LookController {
+  /** True while a pointer is actively dragging — for touchpad-style visual feedback. */
+  active = false;
   private yawDelta = 0;
   private pitchDelta = 0;
   private pointerId: number | null = null;
@@ -153,6 +155,7 @@ export class LookController {
       const target = e.target as HTMLElement | null;
       if (target?.closest('[data-ui="true"]')) return;
       this.pointerId = e.pointerId;
+      this.active = true;
       this.last = { x: e.clientX, y: e.clientY };
       capturePointer(el, e.pointerId);
     };
@@ -169,6 +172,7 @@ export class LookController {
     const up = (e: PointerEvent) => {
       if (e.pointerId !== this.pointerId) return;
       this.pointerId = null;
+      this.active = false;
     };
 
     // Q/E turn left/right — a keyboard fallback so a mouse-less desktop (and

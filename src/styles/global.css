@@ -418,6 +418,82 @@ button {
   flex: 0 0 40%;
 }
 
+/* ── touchpads ────────────────────────────────────────────────────────────
+   Visual affordance only — the real move/look hitboxes are the full-height
+   zones underneath. A thumb can still land anywhere on its half; these just
+   show where the control lives and echo the live stick/look vector. */
+.touchpad {
+  position: absolute;
+  bottom: calc(var(--safe-bottom) + 116px);
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  background: rgba(233, 226, 208, 0.05);
+  border: 1px solid var(--line-strong);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    inset 0 0 18px rgba(0, 0, 0, 0.2),
+    0 4px 16px rgba(0, 0, 0, 0.3);
+  pointer-events: none;
+  transition:
+    opacity 0.2s ease,
+    border-color 0.2s ease,
+    background 0.2s ease;
+  opacity: 0.5;
+}
+
+.touchpad--left {
+  left: 22px;
+}
+
+.touchpad--right {
+  right: 22px;
+}
+
+.touchpad--active {
+  opacity: 0.92;
+  border-color: var(--gold-dim);
+  background: rgba(217, 164, 65, 0.07);
+}
+
+.touchpad__glyph {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+  opacity: 0.65;
+  transition: color 0.2s ease, opacity 0.2s ease;
+}
+
+.touchpad--active .touchpad__glyph {
+  color: var(--gold);
+  opacity: 0.95;
+}
+
+.touchpad__knob {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 36px;
+  height: 36px;
+  margin: -18px 0 0 -18px;
+  border-radius: 50%;
+  background: rgba(233, 226, 208, 0.12);
+  border: 1px solid var(--line-strong);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16);
+  transform: translate(0, 0);
+  will-change: transform;
+}
+
+.touchpad--active .touchpad__knob {
+  background: rgba(217, 164, 65, 0.24);
+  border-color: var(--gold);
+}
+
 /* ── discovery card ───────────────────────────────────────────────────── */
 .discovery {
   position: absolute;
