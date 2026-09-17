@@ -3,16 +3,18 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "UNEARTH — a mobile-first metal detecting and excavation game.",
+  "description": "UNEARTH \u2014 a mobile-first metal detecting and excavation game. Ships alongside HomeCook, a private meal planner, at /homecook.",
   "scripts": {
     "dev": "vite",
-    "build": "tsc --noEmit && vite build",
+    "build": "tsc --noEmit && vite build && vite build --config vite.homecook.config.ts",
     "preview": "vite preview --port 4173",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
     "e2e": "playwright test",
-    "measure": "vitest run --config vitest.measure.config.ts"
+    "measure": "vitest run --config vitest.measure.config.ts",
+    "dev:homecook": "vite --config vite.homecook.config.ts",
+    "build:homecook": "tsc --noEmit && vite build --config vite.homecook.config.ts"
   },
   "dependencies": {
     "react": "^19.3.0",
