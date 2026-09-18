@@ -1,12 +1,8 @@
 /**
- * Read-only introspection hook.
- *
- * Off by default. Enabled in dev, or in any build with `?debug=1`, where it
- * exposes `window.__unearth` for automated tests and for debugging a field
- * without having to guess what the audio is telling you. It exposes state and
- * nothing else — there are no cheats in here, and gameplay never reads it.
+ * Read-only introspection hook. Off by default; enabled in dev, or in any
+ * build with `?debug=1`, where it exposes `window.__unearth` for tests.
  */
-import { game } from './gameState';
+import { dispatch, game } from './game';
 
 export const DEBUG_ENABLED: boolean = (() => {
   try {
@@ -17,43 +13,10 @@ export const DEBUG_ENABLED: boolean = (() => {
   }
 })();
 
-export interface DetectorFrame {
-  x: number;
-  y: number;
-  coilX: number;
-  coilY: number;
-  facing: number;
-  signal: number;
-  pinpointing: boolean;
-  /** uid of the strongest contributor, if any. */
-  dominant: string | null;
-}
-
-export interface ExploreFrame {
-  /** Metres, matching SiteDef coordinates. */
-  x: number;
-  z: number;
-  yaw: number;
-  /** Label of the single contextual prompt currently offered, if any. */
-  promptLabel: string | null;
-}
-
-const frames: { detector?: DetectorFrame; explore?: ExploreFrame } = {};
-
-export function publishDetectorFrame(frame: DetectorFrame): void {
-  if (!DEBUG_ENABLED) return;
-  frames.detector = frame;
-}
-
-export function publishExploreFrame(frame: ExploreFrame): void {
-  if (!DEBUG_ENABLED) return;
-  frames.explore = frame;
-}
-
 export function installDebug(): void {
   if (!DEBUG_ENABLED) return;
   (window as unknown as Record<string, unknown>).__unearth = {
     state: () => game.get(),
-    frames,
+    dispatch,
   };
 }

@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - claude/unearth-game-build-eftvze
+      - claude/unearth-8bit-adventure-6jyx0d
       - main
   workflow_dispatch:
 

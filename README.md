@@ -1,25 +1,21 @@
 # UNEARTH
 
-A mobile-first archaeological adventure, played entirely in first person. You
-walk real ground, sweep a metal detector, dig carefully, and find out what has
-been down there — or notice it lying in plain sight without digging at all.
-Most of what comes up is rubbish. Occasionally it is the first piece of
-something much bigger — a shard that turns out to be one of three, a symbol
-that keeps recurring on finds made in different places, a clue that opens up
-ground you had no reason to go looking at before.
+An 8-bit archaeological adventure starring **CK, the Curious Kitten** — the pet
+of a famous archaeologist who has mysteriously disappeared. CK follows the
+trail across an increasingly strange ruin, digging up fragments, dodging
+booby traps, and squeezing through gaps no person could fit through.
 
-**Play it: https://scottyfncodes.github.io/UNEARTH/** — best on a phone, with
-sound on.
+**Play it: https://scottyfncodes.github.io/UNEARTH/** — best on a phone.
 
 ```
-EXPLORE → SEARCH / OBSERVE → DISCOVER → IDENTIFY → CONNECT → UNLOCK → FOLLOW THE CLUE → DISCOVER MORE
+EXPLORE → DETECT → INVESTIGATE → DISCOVER → ASSEMBLE → SOLVE → UNLOCK → EXPLORE DEEPER
 ```
 
-There is one perspective for the whole game: real first-person 3D, everywhere.
-Left thumb moves, right thumb looks, one contextual button does whatever
-standing in front of something makes possible. The detector is a tool you
-carry, not a separate minigame you switch into — walking from open ground into
-an authored ruin never changes how the game controls or feels.
+Top-down, tile-based, chunky pixel art. CK moves one tile at a time; the
+detector collar hums when something is near (buried, or a mechanism behind a
+wall); paws dig, push, and open things. The eventual punchline: after an
+enormous adventure, CK discovers the archaeologist just went to the store and
+has been gone about twenty minutes.
 
 Deployed to GitHub Pages by `.github/workflows/deploy-pages.yml` on every push
 to the active branch; the unit suite has to pass before the site goes out.
@@ -31,222 +27,131 @@ npm install
 npm run dev        # http://localhost:5173 — open it on a phone on your network
 npm run build      # typecheck + production build
 npm run preview    # serve the build on :4173
-npm test           # unit tests (systems, content, save)
-npm run e2e        # end-to-end tests at a phone viewport
-npm run measure    # prints excavation timing/damage balance figures
+npm test           # unit tests (engine, content)
+npm run e2e        # end-to-end smoke test at a phone viewport
 ```
 
-Everything is rendered at runtime — no image or audio assets. Three.js is
-lazy-loaded, so a player who never walks past the map pays nothing for it; the
-main bundle is about 110 kB gzipped.
+Everything is rendered on a `<canvas>` at runtime — no image or audio assets,
+no engine dependency. The whole game is React + a hand-rolled 2D tile
+renderer; gzipped the bundle is well under 100 kB.
 
 ## How it plays
 
-- **Move** with a thumb stick that appears wherever your left thumb lands;
-  **look** by dragging anywhere on the right side of the screen. WASD + mouse
-  drag work on a desktop, with Q/E as a keyboard-only turn fallback.
-- **SEARCH.** Hold the ground steady and walk — the detector sweeps in front
-  of you automatically. Beeps get faster and brighter as the coil passes
-  closer to something. Pitch hints at the material — low and coarse for iron,
-  bright for silver, wrong and doubled for things that should not be down
-  there. There is no on-screen meter for this on purpose: the detector talks
-  to you through your ears, not a percentage.
-- **Hold PINPOINT** to narrow the sweep and read the target. That also drops a
-  mark on the ground, which is the spot DIG will dig — so you can release the
-  button and still dig where you found it.
-- **OBSERVE.** Some things are never buried — a carving on a wall, a plaque
-  half-sunk in the grass, boot prints that are not yours. Walk up, look at it,
-  and a single contextual prompt appears. No detector involved; you only find
-  these by actually looking.
-- **Dig.** Scoop out the bulk, and the moment you feel the tool touch
-  something, switch to the brush. The scoop does not care what it hits.
-- **Lift it out** once about 70% of it is uncovered. Condition is permanent.
-- Some finds carry markings. Those go in the journal as clues, and clues
-  connect — the same recurring symbol on two "unrelated" finds is a real
-  in-game signal, not decoration, and the journal's Links tab surfaces it,
-  whether the two finds came from digging, looking, or both.
-- Some finds are only *part* of something. The Journal's Assemble tab shows
-  every fragment set you have made progress on; once you hold every piece,
-  fitting them together produces the whole object — and changes what you know.
-
-Digging in the wrong place gives you an empty hole. That is intended: the
-target stays in the ground and you can go back and find it properly. Likewise,
-you can walk straight past something you never looked at — that is intended
-too.
+- **Move** with the on-screen d-pad (or arrow keys / WASD). CK steps one tile
+  at a time and turns to face whatever it bumps into.
+- **Detector collar** (🔁 to switch tools): glows and hums when something is
+  near. A gold ring means something's buried; a red ring means a mechanism —
+  often a trap. The signal tells you *something's* there, not always *dig
+  here*.
+- **Dig** (⛏): faces a soft patch of ground and turns it up in one action.
+  Signal → investigate → discover, not sweeping.
+- **Interact** (✋): talk, pull a lever, read a note, open a door, inspect
+  something suspicious — whatever CK is facing.
+- **Fragments assemble automatically** the instant CK is carrying every piece
+  a recipe needs — no separate "combine" screen.
+- **Cat-only gaps**: cracks in a wall too narrow for a person. CK just walks
+  through them; that's the whole ability.
+- **Pressure plates + traps**: readable, not random. A trap has a tell — an
+  obvious plate, scorch marks, a detector "mechanism" reading — before it
+  fires. Getting hit knocks a heart off and bounces CK back; running out of
+  hearts resets CK to the room's entrance, no game-over screen.
 
 ## Architecture
 
-Content is data, systems are pure functions, engines own the frame loop, and
-React only draws screens. No gameplay rule lives in a component.
-
 ```
 src/
-  content/        pure data — no logic, no imports from app/
-    targets.ts          every findable object, including fragment pieces,
-                         the composites they assemble into, and the fixed
-                         scenery clues found by looking rather than digging
-    locations.ts         plots, their loot tables, and any sceneryClues —
-                          every non-adventure location is played in first
-                          person, whether it hosts a procedural field or an
-                          authored SiteDef (see siteId)
-    clues.ts             clues and the chains (and cross-chain connections) they form
-    equipment.ts         detectors and excavation tools
-    silhouettes.ts       object shapes as primitives (used for both hit-testing and drawing)
-    adventure/           authored adventures (puzzle/mechanism/escape) — a
-                          registry keyed by id, so a second adventure is a
-                          content file plus one line in index.ts
-    sites/                authored first-person spaces — same registry
-                          pattern; a SiteDef is walls, props, interactables,
-                          hazards and detector-findable spots, all still data
+  game/            pure, framework-free engine logic — unit-testable without a browser
+    types.ts             GameMap, Entity, GameState, Action, GameEvent
+    mapBuilder.ts        turns an ASCII legend + rows into a GameMap
+    world.ts              read-only queries: what's at a tile, is it blocked, is a door open
+    movement.ts           one-tile-at-a-time stepping: walls, blocks/pits, plates/traps, exits
+    dig.ts                 face a diggable tile, reveal what's buried (or just dirt)
+    detector.ts            nearest-signal model (buried vs. mechanism), radius-limited
+    interact.ts            the one contextual action: talk, unlock, pull, read, inspect
+    artifacts.ts            fragment → artifact assembly recipes
+    inventory.ts            small state helpers: add item, add clue, set flag
+    engine.ts               reduce(state, action) -> { state, events } — the single dispatch point
+    save.ts                  minimal localStorage save/load
+  content/          pure data — maps, items, clues, recipes
+    maps.ts               the vertical slice's world: home, outskirts, the Forgotten Temple
+    items.ts                fragment/artifact/trinket display info
+    clues.ts                 the archaeologist's trail, read in the journal
+    recipes.ts               which fragments assemble into which artifact
+    initialState.ts          fresh save + engine context wiring
+  render/           canvas 2D presentation — no game logic
+    tiles.ts, entities.ts, ck.ts, draw.ts, motion.ts, palette.ts
+  app/              React shell: canvas mount, HUD, touch controls, journal, dialogue
   core/
-    types.ts            shared content and state types
-    gameState.ts        the store: persistent save + navigation + actions
-    save.ts             versioned save, migrations, and a sanitiser that eats bad data
-    store.ts            tiny framework-agnostic observable
-    rng.ts               seeded RNG, value noise, maths helpers
-    debug.ts             opt-in read-only introspection (?debug=1)
-  systems/        pure game logic, all unit-tested without a browser
-    detection.ts        the signal model: falloff, depth, masking, noise, readouts
-    placement.ts        procedural target placement from seeds
-    excavation.ts       dirt, debris, contact, damage, exposure, extraction
-    mechanism.ts        the precision artifact extraction
-    discovery.ts        extraction/assembly/observation → journal record, clue, unlocks, funds
-    mystery.ts          clue chain evaluation + cross-chain symbol connections
-    assembly.ts         fragment-piece progress tracking and composite assembly
-    explore.ts           first-person movement: collision, rectangular and
-                          circular bounds, hazards, interaction targeting, and
-                          the detector coil's sweep position — shared by every
-                          first-person space, field or authored site alike
-  engine/         browser-facing, imperative
-    loop.ts             rAF loop with clamped delta, pauses when hidden
-    input.ts             touch move stick, look drag controller, drag tracker,
-                          canvas fitting
-    audio.ts             everything synthesised with Web Audio
-    haptics.ts            throttled vibration
-    render/               the pit, mechanism, object and texture renderers (2D)
-    scene3d/               builds a THREE.Scene from either a SiteDef or a
-                            detecting LocationDef, and the first-person
-                            detector prop both share; artifact sprites reuse
-                            render/object.ts so a carving looks the same in
-                            the world as it does in the journal
-  app/            React screens and a handful of components
-    screens/ExploreScreen.tsx   the one first-person screen for every
-                                 location — authored site or open field —
-                                 the excavation pit is still its own screen,
-                                 reached the same way from either
+    game.ts               the live Store<GameState> + dispatch()
+    store.ts                tiny framework-agnostic observable
+    debug.ts                 opt-in read-only introspection (?debug=1)
 ```
 
 Two rules hold the shape:
 
-1. **Systems never touch the DOM.** The pit, the signal model, the mechanism
-   and `systems/explore.ts` are plain data transformations, which is why they
-   can be tested exhaustively (and the pit's balance tuned with `npm run
-   measure`) without a browser.
-2. **State lives in one store.** Per-frame values (player position, the dirt
-   grid) stay in the engine and are flushed into the store at sensible moments,
-   so React is never in the frame budget.
+1. **`src/game/*` never touches the DOM or React.** Every mechanic — movement,
+   digging, the detector, puzzles, traps, assembly — is a pure function over
+   plain data, which is why it's exhaustively unit-tested without a browser.
+2. **Maps are terrain + entities, not one big blob.** Terrain (walls, floors,
+   pits, cat gaps, diggable dirt) is an immutable grid; anything that changes
+   at runtime — a dug patch, a pushed block, an opened door, a story flag —
+   lives in per-map runtime state, layered on top by `world.ts`.
 
 ### Adding content
 
-A new find is an entry in `targets.ts` plus a silhouette. A new detecting
-location is an entry in `locations.ts` with its own loot table (and,
-optionally, one or two `sceneryClues` — fixed, always-visible finds discovered
-by looking). A new mystery is clues plus a chain in `clues.ts`. A new fragment
-set is three or more `TargetDef`s with `pieceOf` pointing at a composite
-`TargetDef` with `assemblyOf` — the composite must be `authored: true` and
-never gets a `locations` list, since the only way to obtain it is
-`systems/assembly.ts`, not a dig. A new adventure is a content file shaped
-like `content/adventure/courtyard.ts` (a `mechanism`/`escape` are optional — a
-puzzle-only adventure just omits them) plus one line in
-`content/adventure/index.ts`. A new authored first-person site is a content
-file shaped like `content/sites/silentCourt.ts` (props, interactables, one or
-two hazards, and the spots a detector can actually find something) plus one
-line in `content/sites/index.ts` and a `siteId` on the `LocationDef` that
-hosts it — the 3D engine draws whatever the props and interactables say, so a
-second site never touches `engine/scene3d/`. None of that requires touching
-gameplay code — the content tests will tell you if a reference is broken, a
-locked location is unreachable, a composite's pieces are not actually
-findable, or a site's flags gate something nothing else ever unlocks.
+A new room is a `buildMap()` call in `content/maps.ts`: an ASCII grid for
+terrain, plus a list of entities (npc/item/door/switch/block/trap/clueNote/
+decoration) positioned by tile coordinate. `mapBuilder.ts` throws immediately
+on a bad legend character or a mismatched row length. A new fragment set is
+entries in `content/items.ts` plus a recipe in `content/recipes.ts`; assembly
+happens automatically the instant the inventory satisfies it. A new clue is an
+entry in `content/clues.ts`, referenced by a `clueNote` or `decoration`
+entity's `clueId`. `tests/unit/content/maps.test.ts` checks that every
+exit points somewhere real, every map is reachable from home, every entity is
+in bounds, and every referenced item/clue id actually exists — so a typo in
+content fails a test, not a player's game.
 
 ## Save data
 
-Saved to `localStorage` under `unearth.save.v1`, versioned, and run through
-migrations and then a field-by-field sanitiser on every load. A corrupt,
-truncated or newer-than-this-build save is set aside under
-`unearth.save.rejected` and the game starts clean instead of crashing. If
-storage is unavailable (private browsing), the game falls back to an in-memory
-store and keeps working for that session.
+Flags, inventory, clues, position and hearts are saved to `localStorage`
+under `unearth.save.v1` after every action that produces an event. A corrupt
+or missing save falls back to a fresh game rather than crashing; if storage
+is unavailable, the game just keeps running without persistence for that
+session.
 
 ## Debug hook
 
 Load any build with `?debug=1` to get a read-only `window.__unearth` exposing
-game state and the live detector/explore frames. It exists for debugging and
-for the end-to-end tests, which use it as their "ears" while driving the game
-through real input. It grants nothing a player could not work out by looking
-and listening.
+live game state and a `dispatch()` for driving actions directly — used by the
+end-to-end smoke test.
 
 ## Testing
 
-- `npm test` — unit tests across the signal model, placement, excavation and
-  damage, discovery and unlocks, the mechanism, fragment assembly and symbol
-  connections, first-person movement/collision/hazard/targeting math (shared
-  by every space), save robustness, and content integrity (including that
-  every composite's pieces are actually findable, every locked location —
-  chain-gated or assembly-gated — is reachable, and every site/scenery-clue
-  reference and flag actually resolves to something real).
-- `npm run e2e` — plays the whole loop at a 390×844 viewport with touch and
-  the real first-person controls: walks a detecting field, sweeps, pinpoints,
-  digs, excavates by dragging, extracts, checks the journal, and reloads to
-  confirm persistence; finds a fixed scenery clue by looking rather than
-  digging; confirms a wrong-place dig stays honestly empty; walks into The
-  Silent Court to confirm its 3D scene renders and its contextual prompt goes
-  through the same journal pipeline as a dig; and plays both authored
-  adventures end to end (the chamber's door puzzle, mechanism and escape; the
-  courtyard's puzzle-only path), plus the tablet assembly flow.
+- `npm test` — movement/collision/cat-only gaps, digging, the detector signal
+  model, artifact assembly, inventory, dialogue and completion flags,
+  switches/doors/locked areas, movable-block-into-pit puzzles, pressure-plate
+  traps and knockback, save/load round-tripping, and content validation
+  (every map reachable, every reference resolves) — plus an integration test
+  that walks the real vertical-slice content through its full progression
+  loop, fragment collection through to the sanctum reward, and a second test
+  covering the hidden-lever shortcut.
+- `npm run e2e` — a phone-viewport smoke test: title screen → begin → the
+  canvas and HUD render → the touch d-pad actually moves CK → the journal
+  opens and closes.
 
-Only Chromium is available in this environment, so the phone is emulated
-(iPhone-13 viewport, DPR 3, touch, mobile UA) and rendered in software (no
-GPU) — WebGL still runs, just slower than on a real device, and this
-environment's synthetic keyboard/pointer input has enough of its own timing
-jitter that the e2e helpers favour coarse, self-correcting navigation
-(turn-then-forward, re-checking after every step) over precise single moves.
-Neither of those stand in for a pass on real iOS Safari and Android Chrome.
+## Current scope — the vertical slice
 
-## Current scope
+Built and playable: **CK's Home** (the archaeologist's departure and his
+note), **the Outskirts** (a short connective screen with one optional buried
+trinket and a decorative clue), and **the Forgotten Temple** — three rooms:
+an entry hall (a buried fragment, a clue note, a cat-only gap hiding a second
+fragment), a puzzle chamber (a pressure-plate dart trap on the obvious path,
+a movable block that bridges a pit to a hidden lever-shortcut), and the inner
+sanctum (locked by the assembled key or the shortcut lever; the reward and
+the final field-notes clue).
 
-Built and playable: the full explore → search/observe → discover → identify →
-connect → unlock → follow-the-clue loop, entirely in first person, across:
-
-- **Three detecting fields** — Old Park, the Old Railway, and the Abandoned
-  Mine — each a walkable, seed-scattered plot with a full procedural loot
-  table and one fixed scenery clue found by looking, not sweeping.
-- **The Silent Court** — a small authored ruin. Two matching serpent carvings
-  on opposite walls produce a "wait, that matches" symbol connection by
-  looking rather than digging; a buried stone hand (the site's one detector
-  find) fits an empty socket on a broken statue, whose payoff is a relic that
-  was standing nearby the whole time; one hazard (a collapsed cistern) is
-  never flagged by any UI, only discovered by getting too close to it; a
-  dropped modern crate and boot prints that are not yours seed a future
-  narrative thread without resolving it.
-- **Two authored adventures**, reached through the map like anywhere else:
-  **The Sealed Chamber** (a door puzzle, a precision artifact extraction under
-  rising tension with an ordered clamp release, and a reactive escape) and
-  **The Overgrown Courtyard** (a puzzle-only adventure — no mechanism, no
-  escape — reached only by assembling a fragmented artifact first).
-
-Two independent mystery threads run through the detecting fields, each with
-its own recurring symbol, and cross at the end: the three-pointed sun
-(paperwork → the mine → the sealed chamber) and the woven knot (three
-ordinary-looking shards, found in the two starting fields, that turn out to be
-one object — assemble it and it points somewhere new). The Journal's Links tab
-surfaces a connection the moment two held clues share a symbol, whether or not
-they belong to the same formal chain and whether they were dug up or simply
-noticed; its Assemble tab tracks progress on every fragment set and performs
-the assembly.
-
-Deliberately not built: a second authored site, a third adventure, any economy
-beyond funds for kit, and any progression system other than equipment,
-knowledge and unlocked ground. The Silent Court drops one loose thread on
-purpose — boot prints that are not yours, near a dropped modern crate — and
-does nothing further with it. It is there for a future site to pick up, not
-for this one to resolve.
+Deliberately not built yet: the rest of the world map (Desert Ruins,
+Overgrown Temple, Burial Grounds, and the rest), a second dungeon, more than
+one artifact recipe, an ability tree beyond CK's innate cat traversal, combat,
+and the comedic ending itself — that lands once there's a full journey to
+undercut.
