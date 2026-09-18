@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - claude/unearth-game-build-eftvze
-      - claude/homecook-meal-planner-8hqkcf
+      - claude/unearth-8bit-adventure-6jyx0d
       - main
   workflow_dispatch:
 

@@ -1,79 +1,49 @@
-import { lazy, Suspense, useEffect } from 'react';
-import { game, persistNow } from '@/core/gameState';
+import { useEffect, useState } from 'react';
 import { audio } from '@/engine/audio';
 import { haptics } from '@/engine/haptics';
-import { useGameState } from './useGame';
-import { TitleScreen } from './screens/TitleScreen';
-import { MapScreen } from './screens/MapScreen';
-import { ExcavateScreen } from './screens/ExcavateScreen';
-import { DiscoveryScreen } from './screens/DiscoveryScreen';
-import { JournalScreen } from './screens/JournalScreen';
-import { EquipmentScreen } from './screens/EquipmentScreen';
-import { AdventureScreen } from './screens/AdventureScreen';
-
-// Three.js is a real slice of bundle weight — nobody should pay for it until
-// they actually walk into a first-person site.
-const ExploreScreen = lazy(() => import('./screens/ExploreScreen'));
+import { GameCanvas } from './GameCanvas';
+import { Hud } from './Hud';
+import { TouchControls } from './TouchControls';
+import { DialogueBox } from './DialogueBox';
+import { Toast } from './Toast';
+import { Journal } from './Journal';
+import { TitleScreen } from './TitleScreen';
+import { useGameEvents } from './useGameEvents';
+import { useGameState } from './useGameState';
 
 export function App() {
-  const { route, save, activeAdventure, activeSite } = useGameState();
+  const [started, setStarted] = useState(false);
+  const [journalOpen, setJournalOpen] = useState(false);
+  const toast = useGameEvents();
+  const state = useGameState();
 
-  // Settings drive the engines, not the other way around.
   useEffect(() => {
-    audio.setEnabled(save.settings.sound);
-    haptics.setEnabled(save.settings.haptics);
-  }, [save.settings.sound, save.settings.haptics]);
-
-  // Any first touch anywhere is a legitimate moment to start audio on iOS.
-  useEffect(() => {
-    const unlock = () => {
-      audio.unlock();
-      audio.setEnabled(game.get().save.settings.sound);
-    };
+    haptics.setEnabled(true);
+    const unlock = () => audio.unlock();
     window.addEventListener('pointerdown', unlock, { once: true });
     return () => window.removeEventListener('pointerdown', unlock);
   }, []);
 
-  // Never lose progress to a backgrounded tab, and pick audio back up when it
-  // returns — iOS suspends the AudioContext on backgrounding, and a visible
-  // tab is itself close enough to a user gesture to ask it to resume.
   useEffect(() => {
-    const flush = () => {
-      persistNow();
+    const onVisibility = () => {
       if (!document.hidden) audio.resume();
     };
-    window.addEventListener('pagehide', flush);
-    document.addEventListener('visibilitychange', flush);
-    return () => {
-      window.removeEventListener('pagehide', flush);
-      document.removeEventListener('visibilitychange', flush);
-    };
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => document.removeEventListener('visibilitychange', onVisibility);
   }, []);
 
-  switch (route) {
-    case 'title':
-      return <TitleScreen />;
-    case 'map':
-      return <MapScreen />;
-    case 'excavate':
-      return <ExcavateScreen />;
-    case 'discovery':
-      return <DiscoveryScreen />;
-    case 'journal':
-      return <JournalScreen />;
-    case 'equipment':
-      return <EquipmentScreen />;
-    case 'adventure':
-      // A fresh key per adventure forces a clean remount if the active
-      // adventure ever changes without leaving the route in between.
-      return <AdventureScreen key={activeAdventure ?? 'none'} />;
-    case 'explore3d':
-      return (
-        <Suspense fallback={<div className="screen screen--world" />}>
-          <ExploreScreen key={activeSite ?? save.field?.locationId ?? 'none'} />
-        </Suspense>
-      );
-    default:
-      return <MapScreen />;
-  }
+  if (!started) return <TitleScreen onBegin={() => setStarted(true)} />;
+
+  return (
+    <div className="game-root">
+      <div className="game-viewport">
+        <GameCanvas />
+      </div>
+      <Hud onOpenJournal={() => setJournalOpen(true)} />
+      {!state.dialogue && <Toast text={toast} />}
+      <DialogueBox />
+      <TouchControls />
+      {journalOpen && <Journal onClose={() => setJournalOpen(false)} />}
+    </div>
+  );
 }
