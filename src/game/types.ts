@@ -42,7 +42,8 @@ export function step(pos: Vec2, dir: Direction): Vec2 {
  * terrain — they're entities that sit on top of an ordinary floor tile, so
  * their state (open/closed, pushed, disarmed) never has to fight the grid.
  */
-export type TileType = 'floor' | 'wall' | 'water' | 'diggable' | 'catGap' | 'plate' | 'hazard' | 'exit';
+/** `path` is walkable floor drawn as a trodden track — purely visual. */
+export type TileType = 'floor' | 'path' | 'wall' | 'water' | 'diggable' | 'catGap' | 'plate' | 'hazard' | 'exit';
 
 export interface ExitDef {
   /** Tile position on this map that triggers the transition when stepped on. */
@@ -52,7 +53,9 @@ export interface ExitDef {
   spawnFacing?: Direction;
   /** Optional progression gate — the exit is inert until this flag is set. */
   requiresFlag?: string;
-  /** Shown once if the exit is gated and the flag isn't set yet. */
+  /** Optional inventory gate — the exit is inert until CK carries this item. */
+  requiresItem?: string;
+  /** Shown if the exit is gated and its requirement isn't met yet. */
   lockedMessage?: string;
 }
 
@@ -61,6 +64,8 @@ export interface NpcEntity {
   id: string;
   pos: Vec2;
   name: string;
+  /** Which pixel sprite the renderer draws — 'dad', 'tortoise', 'bat', 'crow'… */
+  sprite: string;
   lines: string[];
   /** Checked top-to-bottom; first flag present in state wins over `lines`. */
   flagLines?: { flag: string; lines: string[] }[];
@@ -68,6 +73,8 @@ export interface NpcEntity {
   vanishesWhenFlag?: string;
   /** Set true the moment the currently-active line sequence is read to the end. */
   onCompleteFlag?: string;
+  /** Hidden (not present, not interactable) until this flag is set. */
+  requiresFlag?: string;
 }
 
 export interface ItemEntity {
@@ -77,6 +84,8 @@ export interface ItemEntity {
   itemId: string;
   /** Hidden (not present, not interactable) until this flag is set. */
   requiresFlag?: string;
+  /** A treat: restores this many hearts on pickup instead of going in the satchel. */
+  heals?: number;
 }
 
 export interface DoorEntity {
@@ -87,6 +96,8 @@ export interface DoorEntity {
   requiresArtifact?: string;
   /** Flag set by a switch/lever elsewhere that, once true, opens this door. */
   opensOnFlag?: string;
+  /** Opens while a pushable block rests on every one of these tiles. */
+  opensWhenBlocksOn?: Vec2[];
   lockedMessage?: string;
 }
 
@@ -129,11 +140,24 @@ export interface DecorationEntity {
   id: string;
   pos: Vec2;
   spriteId: string;
+  /** Floor-level detail (a rug, scorch marks) CK can walk over. Decorations are solid otherwise. */
+  walkable?: boolean;
   /** Inspecting this decoration (interact) reveals a clue, no pickup. */
   clueId?: string;
   /** Purely flavor line shown on interact when there's no clue. */
   line?: string;
   requiresFlag?: string;
+  /**
+   * Knock-over: the first interact bats this off its perch and drops an item
+   * (very cat). The decoration is then drawn knocked over and shows
+   * `afterLine` on later interacts.
+   */
+  givesItem?: string;
+  /** Set true on the first interact — a story beat hung on looking at something. */
+  setsFlag?: string;
+  afterLine?: string;
+  /** After interacting, CK is moved here — used for the story's one big time-skip. */
+  warpTo?: { mapId: string; pos: Vec2; facing?: Direction };
 }
 
 export type Entity =
@@ -156,7 +180,11 @@ export interface GameMap {
   id: string;
   name: string;
   /** Region identity, drives the palette used to render this map. */
-  region: 'home' | 'outskirts' | 'temple';
+  region: Region;
+  /** Unlit: the renderer only shows what CK's light reaches. */
+  dark?: boolean;
+  /** A chapter title card shown the first time CK arrives. */
+  chapter?: { number: string; title: string };
   width: number;
   height: number;
   tiles: TileType[][];
@@ -166,7 +194,11 @@ export interface GameMap {
   exits: ExitDef[];
   /** Tile CK lands on when entering this map with no better spawn info. */
   defaultSpawn: Vec2;
+  /** Hidden nooks (keyed "x,y") that chime and count the first time CK steps in. */
+  secrets: Record<string, true>;
 }
+
+export type Region = 'home' | 'meadow' | 'temple' | 'well' | 'crypt' | 'vault';
 
 export interface MapRuntimeState {
   dug: Record<string, true>;
@@ -175,10 +207,22 @@ export interface MapRuntimeState {
   toggledSwitches: Record<string, true>;
   movedBlocks: Record<string, Vec2>;
   disarmedTraps: Record<string, true>;
+  foundSecrets: Record<string, true>;
+  /** Decorations CK has already knocked over / used. */
+  usedDecorations: Record<string, true>;
 }
 
 export function emptyMapState(): MapRuntimeState {
-  return { dug: {}, takenItems: {}, openedDoors: {}, toggledSwitches: {}, movedBlocks: {}, disarmedTraps: {} };
+  return {
+    dug: {},
+    takenItems: {},
+    openedDoors: {},
+    toggledSwitches: {},
+    movedBlocks: {},
+    disarmedTraps: {},
+    foundSecrets: {},
+    usedDecorations: {},
+  };
 }
 
 export type ToolId = 'detector' | 'paws';
@@ -206,7 +250,11 @@ export interface GameState {
 
 export type GameEvent =
   | { type: 'bump' }
-  | { type: 'transition'; toMap: string }
+  | { type: 'transition'; toMap: string; firstVisit: boolean }
+  | { type: 'secret' }
+  | { type: 'heal'; itemId: string }
+  | { type: 'knock'; itemId?: string }
+  | { type: 'warp'; toMap: string }
   | { type: 'dig-empty' }
   | { type: 'reveal'; itemId: string }
   | { type: 'pickup'; itemId: string }

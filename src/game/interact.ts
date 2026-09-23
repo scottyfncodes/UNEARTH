@@ -5,8 +5,9 @@
  */
 import type { DecorationEntity, DoorEntity, Entity, GameEvent, GameMap, GameState, MapRegistry, NpcEntity, SwitchEntity } from './types';
 import { emptyMapState, step } from './types';
-import { addClue, setFlag } from './inventory';
-import { entitiesAt } from './world';
+import { addClue, addItem, setFlag } from './inventory';
+import { entitiesAt, isDoorOpen, mapStateOf } from './world';
+import { enterMap } from './movement';
 
 function pickLines(npc: NpcEntity, state: GameState): string[] {
   for (const conditional of npc.flagLines ?? []) {
@@ -40,7 +41,7 @@ export function advanceDialogue(maps: MapRegistry, state: GameState): { state: G
 
 function tryOpenDoor(state: GameState, map: GameMap, door: DoorEntity): { state: GameState; events: GameEvent[] } {
   const mapState = state.mapStates[map.id];
-  if (mapState?.openedDoors[door.id] || (door.opensOnFlag && state.flags[door.opensOnFlag])) {
+  if (isDoorOpen(door, state, map)) {
     return { state, events: [{ type: 'already-done' }] };
   }
   if (door.requiresArtifact && state.inventory.includes(door.requiresArtifact)) {
@@ -58,9 +59,39 @@ function pullSwitch(state: GameState, sw: SwitchEntity): { state: GameState; eve
   return { state: setFlag(state, sw.setsFlag), events: [{ type: 'switch-on', switchId: sw.id }] };
 }
 
-function inspectDecoration(state: GameState, deco: DecorationEntity): { state: GameState; events: GameEvent[] } {
-  if (deco.clueId) return { state: addClue(state, deco.clueId), events: [{ type: 'clue', clueId: deco.clueId }] };
-  return { state, events: [{ type: 'flavor', line: deco.line ?? '...' }] };
+function inspectDecoration(state: GameState, map: GameMap, deco: DecorationEntity): { state: GameState; events: GameEvent[] } {
+  const mapState = mapStateOf(state, map.id);
+  const used = !!mapState.usedDecorations[deco.id];
+  const oneShot = !!(deco.givesItem || deco.setsFlag || deco.warpTo);
+
+  if (oneShot && used) {
+    return { state, events: [{ type: 'flavor', line: deco.afterLine ?? deco.line ?? '...' }] };
+  }
+
+  let next = state;
+  const events: GameEvent[] = [];
+  if (oneShot) {
+    next = {
+      ...next,
+      mapStates: { ...next.mapStates, [map.id]: { ...mapState, usedDecorations: { ...mapState.usedDecorations, [deco.id]: true } } },
+    };
+  }
+  if (deco.line && oneShot) events.push({ type: 'flavor', line: deco.line });
+  if (deco.givesItem) {
+    next = addItem(next, deco.givesItem);
+    events.push({ type: 'knock', itemId: deco.givesItem });
+  }
+  if (deco.setsFlag) next = setFlag(next, deco.setsFlag);
+  if (deco.clueId) {
+    next = addClue(next, deco.clueId);
+    events.push({ type: 'clue', clueId: deco.clueId });
+  }
+  if (deco.warpTo) {
+    next = enterMap(next, deco.warpTo.mapId, deco.warpTo.pos, deco.warpTo.facing ?? 'down');
+    events.push({ type: 'warp', toMap: deco.warpTo.mapId });
+  }
+  if (events.length === 0) events.push({ type: 'flavor', line: deco.line ?? '...' });
+  return { state: next, events };
 }
 
 export function attemptInteract(maps: MapRegistry, state: GameState): { state: GameState; events: GameEvent[] } {
@@ -84,7 +115,7 @@ export function attemptInteract(maps: MapRegistry, state: GameState): { state: G
   if (clue) return { state: addClue(state, clue.clueId), events: [{ type: 'clue', clueId: clue.clueId }] };
 
   const deco = candidates.find((e): e is DecorationEntity => e.kind === 'decoration');
-  if (deco) return inspectDecoration(state, deco);
+  if (deco) return inspectDecoration(state, map, deco);
 
   return { state, events: [] };
 }

@@ -4,8 +4,8 @@
  * into a wall still turns CK to face it (readable, and it's how you aim a
  * dig or a push).
  */
-import type { Direction, Entity, GameEvent, GameState, MapRegistry, TrapEntity, Vec2 } from './types';
-import { step } from './types';
+import type { Direction, Entity, GameEvent, GameMap, GameState, MapRegistry, TrapEntity, Vec2 } from './types';
+import { key, step } from './types';
 import { addItem } from './inventory';
 import { entitiesAt, isBlocked, isDoorOpen, isTrapDisarmed, mapStateOf, resolvedTerrainAt, terrainAt } from './world';
 
@@ -24,8 +24,57 @@ function isPushDestinationOpen(maps: MapRegistry, state: GameState, pos: Vec2): 
     return false;
   }
   if (blockAt(maps, state, pos)) return false;
-  if (entitiesAt(map, state, pos).some((e) => (e.kind === 'door' && !isDoorOpen(e, state)) || e.kind === 'npc')) return false;
+  if (entitiesAt(map, state, pos).some((e) => (e.kind === 'door' && !isDoorOpen(e, state, map)) || e.kind === 'npc' || (e.kind === 'decoration' && !e.walkable))) return false;
   return true;
+}
+
+export function visitedFlag(mapId: string): string {
+  return `visited:${mapId}`;
+}
+
+/** Puts CK on another map and remembers that it has been visited. */
+export function enterMap(state: GameState, mapId: string, pos: Vec2, facing: Direction): GameState {
+  return {
+    ...state,
+    mapId,
+    player: { pos, facing },
+    mapStates: { ...state.mapStates, [mapId]: mapStateOf(state, mapId) },
+    flags: { ...state.flags, [visitedFlag(mapId)]: true },
+  };
+}
+
+/**
+ * A weighted-plate door, once its plates are all covered, stays open for
+ * good — so resetting the room's blocks later can never lock CK out.
+ */
+function latchWeightedDoors(map: GameMap, state: GameState, events: GameEvent[]): { state: GameState; events: GameEvent[] } {
+  let next = state;
+  for (const door of map.entities) {
+    if (door.kind !== 'door' || !door.opensWhenBlocksOn) continue;
+    const mapState = mapStateOf(next, map.id);
+    if (mapState.openedDoors[door.id] || !isDoorOpen(door, next, map)) continue;
+    next = {
+      ...next,
+      mapStates: { ...next.mapStates, [map.id]: { ...mapState, openedDoors: { ...mapState.openedDoors, [door.id]: true } } },
+    };
+    events.push({ type: 'door-open', doorId: door.id });
+  }
+  return { state: next, events };
+}
+
+/**
+ * Leaving a room puts its loose blocks back where they started, so a block
+ * shoved into a corner can never softlock a puzzle. A block that bridges a
+ * pit is progress, not a mistake — it stays.
+ */
+function resetLooseBlocks(map: GameMap, state: GameState): GameState {
+  const mapState = mapStateOf(state, map.id);
+  const kept: Record<string, Vec2> = {};
+  for (const [id, pos] of Object.entries(mapState.movedBlocks)) {
+    if (terrainAt(map, pos) === 'hazard') kept[id] = pos;
+  }
+  if (Object.keys(kept).length === Object.keys(mapState.movedBlocks).length) return state;
+  return { ...state, mapStates: { ...state.mapStates, [map.id]: { ...mapState, movedBlocks: kept } } };
 }
 
 function firingTrapAt(maps: MapRegistry, state: GameState, platePos: Vec2): TrapEntity | undefined {
@@ -69,10 +118,15 @@ export function attemptMove(maps: MapRegistry, state: GameState, direction: Dire
       player: { pos: to, facing: direction },
     };
     events.push({ type: 'push' });
-    return { state: next, events };
+    return latchWeightedDoors(map, next, events);
   }
 
-  const gatedExit = map.exits.find((ex) => ex.at.x === to.x && ex.at.y === to.y && ex.requiresFlag && !next.flags[ex.requiresFlag]);
+  const gatedExit = map.exits.find(
+    (ex) =>
+      ex.at.x === to.x &&
+      ex.at.y === to.y &&
+      ((ex.requiresFlag && !next.flags[ex.requiresFlag]) || (ex.requiresItem && !next.inventory.includes(ex.requiresItem))),
+  );
   if (gatedExit) {
     events.push({ type: 'exit-locked', message: gatedExit.lockedMessage ?? "That way isn't open yet." });
     return { state: next, events };
@@ -92,8 +146,23 @@ export function attemptMove(maps: MapRegistry, state: GameState, direction: Dire
       ...next,
       mapStates: { ...next.mapStates, [map.id]: { ...mapState, takenItems: { ...mapState.takenItems, [item.id]: true } } },
     };
-    next = addItem(next, item.itemId);
-    events.push({ type: 'pickup', itemId: item.itemId });
+    if (item.heals) {
+      next = { ...next, hearts: Math.min(next.maxHearts, next.hearts + item.heals) };
+      events.push({ type: 'heal', itemId: item.itemId });
+    } else {
+      next = addItem(next, item.itemId);
+      events.push({ type: 'pickup', itemId: item.itemId });
+    }
+  }
+
+  const secretKey = key(to);
+  if (map.secrets[secretKey] && !mapStateOf(next, map.id).foundSecrets[secretKey]) {
+    const mapState = mapStateOf(next, map.id);
+    next = {
+      ...next,
+      mapStates: { ...next.mapStates, [map.id]: { ...mapState, foundSecrets: { ...mapState.foundSecrets, [secretKey]: true } } },
+    };
+    events.push({ type: 'secret' });
   }
 
   const terrain = resolvedTerrainAt(map, mapStateOf(next, map.id), to);
@@ -109,14 +178,9 @@ export function attemptMove(maps: MapRegistry, state: GameState, direction: Dire
 
   const exit = map.exits.find((ex) => ex.at.x === to.x && ex.at.y === to.y);
   if (exit) {
-    const targetMap = maps[exit.toMap]!;
-    next = {
-      ...next,
-      mapId: exit.toMap,
-      player: { pos: exit.spawn, facing: exit.spawnFacing ?? next.player.facing },
-      mapStates: { ...next.mapStates, [targetMap.id]: mapStateOf(next, targetMap.id) },
-    };
-    events.push({ type: 'transition', toMap: exit.toMap });
+    next = resetLooseBlocks(map, next);
+    next = enterMap(next, exit.toMap, exit.spawn, exit.spawnFacing ?? next.player.facing);
+    events.push({ type: 'transition', toMap: exit.toMap, firstVisit: !state.flags[visitedFlag(exit.toMap)] });
   }
 
   return { state: next, events };

@@ -1,142 +1,288 @@
 import { describe, expect, it } from 'vitest';
 import { reduce } from '@/game/engine';
 import { createEngineContext, createInitialState } from '@/content/initialState';
-import type { GameState } from '@/game/types';
+import { MAPS } from '@/content/maps';
+import { SHINY_IDS } from '@/content/items';
+import { FIELD_NOTE_PAGES } from '@/content/clues';
+import { isBlocked, isTrapDisarmed } from '@/game/world';
+import { key, step, type Direction, type GameEvent, type GameState, type Vec2 } from '@/game/types';
 
 /**
- * Walks the real vertical-slice content through its intended progression
- * loop: home → the archaeologist leaves → the outskirts → the Forgotten
- * Temple → dig up one fragment, find the other → auto-assemble the key →
- * unlock the sanctum → the reward. Exercises the actual authored maps and
- * recipes, not a synthetic fixture, so a broken coordinate or id here would
- * be a real content bug.
+ * Plays the whole game, start to credits, through the real engine and the
+ * real authored maps. Movement is never teleported: `walkTo` pathfinds with
+ * the engine's own collision rules and dispatches genuine move actions, so a
+ * wall in the wrong place, an unreachable item or a broken exit fails here
+ * rather than in a player's hands. It also detours around live trap plates,
+ * the way a careful player would, and collects every shiny on the way.
  */
 const ctx = createEngineContext();
 
-function at(state: GameState, x: number, y: number, facing: GameState['player']['facing']): GameState {
-  return { ...state, player: { pos: { x, y }, facing } };
+class Run {
+  state: GameState = createInitialState();
+  log: GameEvent[] = [];
+
+  do(action: Parameters<typeof reduce>[2]): GameEvent[] {
+    const result = reduce(ctx, this.state, action);
+    this.state = result.state;
+    this.log.push(...result.events);
+    return result.events;
+  }
+
+  get map() {
+    return MAPS[this.state.mapId]!;
+  }
+
+  private dangerous(pos: Vec2): boolean {
+    return this.map.entities.some(
+      (e) => e.kind === 'trap' && e.triggerPlate.x === pos.x && e.triggerPlate.y === pos.y && !isTrapDisarmed(e, this.state),
+    );
+  }
+
+  private isExit(pos: Vec2): boolean {
+    return this.map.exits.some((ex) => ex.at.x === pos.x && ex.at.y === pos.y);
+  }
+
+  /** Breadth-first walk to (x, y) on the current map using real moves. */
+  walkTo(x: number, y: number): void {
+    const goal = { x, y };
+    const start = this.state.player.pos;
+    const prev = new Map<string, { from: Vec2; dir: Direction }>();
+    const seen = new Set([key(start)]);
+    const queue: Vec2[] = [start];
+    while (queue.length > 0) {
+      const cur = queue.shift()!;
+      if (cur.x === x && cur.y === y) break;
+      for (const dir of ['up', 'down', 'left', 'right'] as Direction[]) {
+        const next = step(cur, dir);
+        const k = key(next);
+        if (seen.has(k)) continue;
+        const isGoal = next.x === x && next.y === y;
+        if (isBlocked(this.map, this.state, next)) continue;
+        if (!isGoal && (this.dangerous(next) || this.isExit(next))) continue;
+        seen.add(k);
+        prev.set(k, { from: cur, dir });
+        queue.push(next);
+      }
+    }
+    if (!seen.has(key(goal))) throw new Error(`${this.state.mapId}: no safe path from ${key(start)} to ${key(goal)}`);
+
+    const dirs: Direction[] = [];
+    for (let at: Vec2 = goal; key(at) !== key(start); ) {
+      const p = prev.get(key(at))!;
+      dirs.unshift(p.dir);
+      at = p.from;
+    }
+    for (const dir of dirs) {
+      const events = this.do({ type: 'move', direction: dir });
+      if (events.some((e) => e.type === 'trap-hit' || e.type === 'bump')) {
+        throw new Error(`${this.state.mapId}: walk to ${key(goal)} was interrupted by ${JSON.stringify(events)}`);
+      }
+    }
+  }
+
+  /** Turn to face a solid tile (a bump turns CK without moving). */
+  face(dir: Direction): void {
+    const before = this.state.player.pos;
+    this.do({ type: 'move', direction: dir });
+    expect(this.state.player.pos, `face(${dir}) moved CK`).toEqual(before);
+  }
+
+  /** Step through an exit and land on `mapId`. */
+  leave(dir: Direction, mapId: string): void {
+    this.do({ type: 'move', direction: dir });
+    expect(this.state.mapId).toBe(mapId);
+  }
+
+  talkThrough(): void {
+    this.do({ type: 'interact' });
+    let guard = 0;
+    while (this.state.dialogue && guard++ < 20) this.do({ type: 'interact' });
+  }
 }
 
-describe('the vertical slice progression loop', () => {
-  it('takes CK from home to the sanctum reward, assembling the key along the way', () => {
-    let state = createInitialState();
+describe("CK's whole journey", () => {
+  it('plays from the prologue to the credits, collecting every shiny', () => {
+    const run = new Run();
 
-    // Talk to the archaeologist through his whole departure — he leaves, and
-    // his note appears in the same spot.
-    state = at(state, 6, 6, 'right');
-    let result = reduce(ctx, state, { type: 'interact' }); // shows line 1 of 3
-    expect(result.events).toEqual([{ type: 'talk-start' }]);
-    result = reduce(ctx, result.state, { type: 'interact' }); // line 2
-    result = reduce(ctx, result.state, { type: 'interact' }); // line 3
-    result = reduce(ctx, result.state, { type: 'interact' }); // closes, sets the flag
-    expect(result.state.flags.archaeologistLeft).toBe(true);
-    expect(result.state.dialogue).toBeNull();
-    state = result.state;
+    // ── Prologue ────────────────────────────────────────────────────────
+    run.walkTo(7, 8);
+    run.face('down'); // Dad is standing in the doorway
+    run.talkThrough();
+    expect(run.state.flags.dadLeft).toBe(true);
 
-    result = reduce(ctx, state, { type: 'interact' });
-    expect(result.events).toEqual([{ type: 'clue', clueId: 'clue_departure_note' }]);
-    expect(result.state.clues).toContain('clue_departure_note');
-    state = result.state;
+    run.walkTo(7, 9);
+    expect(run.do({ type: 'move', direction: 'down' })[0]?.type).toBe('exit-locked');
 
-    // Leave home for the outskirts.
-    state = at(state, 8, 9, 'down');
-    result = reduce(ctx, state, { type: 'move', direction: 'down' });
-    expect(result.events).toEqual([{ type: 'transition', toMap: 'outskirts' }]);
-    state = result.state;
-    expect(state.mapId).toBe('outskirts');
+    run.walkTo(2, 2);
+    run.face('up');
+    run.do({ type: 'interact' });
+    expect(run.state.clues).toContain('clue_old_note');
 
-    // Straight through to the temple entry hall.
-    state = at(state, 8, 9, 'down');
-    result = reduce(ctx, state, { type: 'move', direction: 'down' });
-    state = result.state;
-    expect(state.mapId).toBe('temple1');
+    run.walkTo(5, 7);
+    run.face('up');
+    run.do({ type: 'interact' }); // the vase
+    run.walkTo(14, 1); // the closet, through the cat-gap
 
-    // Dig up the buried fragment.
-    state = at(state, 4, 4, 'up');
-    result = reduce(ctx, state, { type: 'dig' });
-    expect(result.events).toEqual([{ type: 'reveal', itemId: 'fragment_bronze_handle' }]);
-    state = result.state;
-    expect(state.inventory).toContain('fragment_bronze_handle');
+    run.walkTo(7, 9);
+    run.leave('down', 'meadow');
 
-    // Read the note left beside the dig, and inspect the cracked statue.
-    state = at(state, 6, 3, 'left');
-    result = reduce(ctx, state, { type: 'interact' });
-    expect(result.events).toEqual([{ type: 'clue', clueId: 'clue_field_notes_1' }]);
-    state = result.state;
+    // ── The Meadow ──────────────────────────────────────────────────────
+    run.walkTo(12, 5);
+    run.face('up');
+    run.do({ type: 'dig' });
+    run.walkTo(2, 2); // the pond island
+    run.walkTo(14, 6);
+    run.leave('right', 'well');
 
-    state = at(state, 10, 5, 'right');
-    result = reduce(ctx, state, { type: 'interact' });
-    expect(result.events).toEqual([{ type: 'clue', clueId: 'clue_statue_crack' }]);
-    state = result.state;
+    // ── The Old Well, before the Sunstone ──────────────────────────────
+    run.walkTo(8, 6);
+    expect(run.do({ type: 'move', direction: 'up' })[0]?.type).toBe('exit-locked');
+    run.walkTo(6, 4);
+    run.do({ type: 'interact' }); // page 3 — why CK needs a light
+    run.walkTo(7, 8);
+    run.face('down');
+    run.do({ type: 'dig' });
+    run.walkTo(14, 1); // the nook
+    run.walkTo(1, 6);
+    run.leave('left', 'meadow');
+    run.walkTo(7, 11);
+    run.leave('down', 'temple1');
 
-    // Squeeze through the cat-only gap and grab the second fragment — the
-    // instant it's collected, the two halves auto-assemble into the key.
-    state = at(state, 11, 5, 'right');
-    result = reduce(ctx, state, { type: 'move', direction: 'right' });
-    state = result.state;
-    expect(state.player.pos).toEqual({ x: 12, y: 5 });
+    // ── Chapter I ───────────────────────────────────────────────────────
+    run.walkTo(6, 3);
+    run.do({ type: 'interact' }); // Field Notes, page 1
+    run.walkTo(4, 4);
+    run.face('up');
+    run.do({ type: 'dig' });
+    run.walkTo(3, 6);
+    run.face('down');
+    run.do({ type: 'dig' });
+    run.walkTo(14, 5); // through the crack behind the statue
+    expect(run.state.inventory).toContain('key_bronze');
+    run.walkTo(7, 11);
+    run.leave('down', 'temple2');
 
-    result = reduce(ctx, state, { type: 'move', direction: 'right' });
-    expect(result.events).toEqual([
-      { type: 'pickup', itemId: 'fragment_bronze_blade' },
-      { type: 'assemble', artifactId: 'key_bronze' },
+    run.walkTo(4, 9);
+    run.walkTo(2, 8); // secret nook with the coin
+    run.walkTo(7, 11);
+    run.face('down');
+    expect(run.do({ type: 'interact' })).toEqual([{ type: 'door-open', doorId: 'door_sanctum' }]);
+    run.leave('down', 'temple3');
+
+    run.walkTo(7, 5);
+    expect(run.state.inventory).toContain('idol_sunstone');
+    run.walkTo(4, 8);
+    run.face('down');
+    run.do({ type: 'dig' });
+    run.walkTo(4, 6);
+    run.do({ type: 'interact' }); // page 2
+
+    // Back up to the meadow and over to the well.
+    run.walkTo(7, 1);
+    run.leave('up', 'temple2');
+    run.walkTo(7, 1);
+    run.leave('up', 'temple1');
+    run.walkTo(7, 1);
+    run.leave('up', 'meadow');
+    run.walkTo(14, 6);
+    run.leave('right', 'well');
+    run.walkTo(8, 6);
+    run.leave('up', 'crypt1');
+
+    // ── Chapter II ──────────────────────────────────────────────────────
+    run.walkTo(14, 4);
+    run.face('down');
+    run.do({ type: 'dig' });
+    expect(run.state.inventory).toContain('moon_crescent');
+    run.walkTo(2, 8);
+    run.face('down');
+    run.do({ type: 'dig' });
+    run.walkTo(7, 11);
+    run.leave('down', 'crypt2');
+
+    run.walkTo(3, 4);
+    run.do({ type: 'move', direction: 'down' });
+    run.do({ type: 'move', direction: 'down' });
+    run.walkTo(11, 4);
+    run.do({ type: 'move', direction: 'down' });
+    expect(run.do({ type: 'move', direction: 'down' })).toEqual([
+      { type: 'push' },
+      { type: 'door-open', doorId: 'door_gallery' },
     ]);
-    state = result.state;
-    expect(state.inventory).toEqual(['key_bronze']);
+    run.walkTo(1, 10); // the alcove: the watch and the moon's face
+    run.walkTo(13, 11);
+    run.do({ type: 'interact' }); // page 4
+    run.walkTo(7, 11);
+    run.leave('down', 'crypt3');
 
-    // On to the puzzle chamber, then unlock the sanctum door with the key.
-    state = at(state, 8, 9, 'down');
-    result = reduce(ctx, state, { type: 'move', direction: 'down' });
-    state = result.state;
-    expect(state.mapId).toBe('temple2');
+    run.walkTo(10, 3);
+    run.face('up');
+    run.do({ type: 'dig' });
+    expect(run.state.inventory).toContain('moon_seal');
+    run.walkTo(3, 7);
+    run.face('down');
+    run.do({ type: 'dig' });
+    run.walkTo(7, 11);
+    run.face('down');
+    expect(run.do({ type: 'interact' })).toEqual([{ type: 'door-open', doorId: 'door_moon' }]);
+    run.leave('down', 'passage');
 
-    state = at(state, 8, 9, 'down');
-    result = reduce(ctx, state, { type: 'interact' });
-    expect(result.events).toEqual([{ type: 'door-open', doorId: 'door_sanctum' }]);
-    state = result.state;
+    run.walkTo(5, 3);
+    run.do({ type: 'interact' }); // the last page, read where it lies
+    run.walkTo(7, 5);
+    run.leave('down', 'vault');
 
-    result = reduce(ctx, state, { type: 'move', direction: 'down' });
-    expect(result.events).toEqual([{ type: 'transition', toMap: 'temple3' }]);
-    state = result.state;
-    expect(state.mapId).toBe('temple3');
+    // ── Chapter III ─────────────────────────────────────────────────────
+    run.walkTo(7, 3);
+    expect(run.state.inventory).toContain('keepers_bell');
+    run.walkTo(7, 6);
+    run.face('down');
+    const nap = run.do({ type: 'interact' });
+    expect(nap.map((e) => e.type)).toEqual(['flavor', 'warp']);
+    expect(run.state.mapId).toBe('home');
+    expect(run.state.flags.napTaken).toBe(true);
 
-    // The reward: the idol, and the final page of field notes.
-    state = at(state, 8, 4, 'down');
-    result = reduce(ctx, state, { type: 'move', direction: 'down' });
-    expect(result.events).toEqual([{ type: 'pickup', itemId: 'idol_sunstone' }]);
-    state = result.state;
+    // ── Twenty minutes later ───────────────────────────────────────────
+    run.talkThrough(); // Dad is right there, groceries in hand
+    expect(run.state.flags.gameComplete).toBe(true);
 
-    state = at(state, 6, 5, 'left');
-    result = reduce(ctx, state, { type: 'interact' });
-    expect(result.events).toEqual([{ type: 'clue', clueId: 'clue_field_notes_2' }]);
-
-    expect(result.state.inventory).toContain('idol_sunstone');
-    expect(result.state.clues).toEqual(
-      expect.arrayContaining(['clue_departure_note', 'clue_field_notes_1', 'clue_statue_crack', 'clue_field_notes_2']),
-    );
+    for (const id of SHINY_IDS) expect(run.state.inventory, `missing shiny ${id}`).toContain(id);
+    for (const page of FIELD_NOTE_PAGES) expect(run.state.clues, `missing ${page.id}`).toContain(page.id);
+    expect(run.log.some((e) => e.type === 'trap-hit')).toBe(false);
+    expect(run.log.filter((e) => e.type === 'secret').length).toBeGreaterThanOrEqual(4);
   });
 
-  it('the hidden lever offers a shortcut into the sanctum, bypassing the key entirely', () => {
-    let state = createInitialState();
-    state = { ...state, mapId: 'temple2', player: { pos: { x: 8, y: 1 }, facing: 'down' } };
+  it('the hidden lever still opens the sanctum without the key', () => {
+    const run = new Run();
+    run.state = { ...run.state, mapId: 'temple2', player: { pos: { x: 7, y: 1 }, facing: 'down' }, flags: { dadLeft: true } };
+    run.walkTo(7, 4);
+    run.walkTo(7, 5);
+    expect(run.do({ type: 'move', direction: 'left' })).toEqual([{ type: 'push' }]); // block into the pit
+    run.walkTo(2, 5);
+    expect(run.do({ type: 'interact' })).toEqual([{ type: 'switch-on', switchId: 'switch_shortcut' }]);
+    run.walkTo(7, 11);
+    run.leave('down', 'temple3');
+    expect(run.state.inventory).not.toContain('key_bronze');
+  });
+});
 
-    // Push the block west of the corridor into the pit to reach the lever room.
-    state = at(state, 7, 5, 'left');
-    let result = reduce(ctx, state, { type: 'move', direction: 'left' });
-    expect(result.events).toEqual([{ type: 'push' }]);
-    state = result.state;
-    expect(state.mapStates.temple2?.movedBlocks.block_1).toEqual({ x: 5, y: 5 });
+describe('world bookkeeping', () => {
+  it('places every shiny exactly once, somewhere in the world', () => {
+    const placements: string[] = [];
+    for (const map of Object.values(MAPS)) {
+      for (const e of map.entities) {
+        if (e.kind === 'item') placements.push(e.itemId);
+        if (e.kind === 'decoration' && e.givesItem) placements.push(e.givesItem);
+      }
+      for (const b of Object.values(map.buried)) placements.push(b.itemId);
+    }
+    for (const id of SHINY_IDS) expect(placements.filter((p) => p === id), id).toHaveLength(1);
+    expect(SHINY_IDS).toHaveLength(12);
+  });
 
-    // Cross the bridge and walk onto the lever itself, tucked past the pit.
-    state = { ...state, player: { pos: { x: 2, y: 5 }, facing: 'down' } };
-    result = reduce(ctx, state, { type: 'interact' });
-    expect(result.events).toEqual([{ type: 'switch-on', switchId: 'switch_shortcut' }]);
-    expect(result.state.flags.sanctumUnlockedByShortcut).toBe(true);
-
-    // The sanctum door is now open on the flag alone — no key required.
-    state = at(result.state, 8, 9, 'down');
-    result = reduce(ctx, state, { type: 'move', direction: 'down' });
-    expect(result.events).toEqual([{ type: 'transition', toMap: 'temple3' }]);
-    expect(result.state.inventory).not.toContain('key_bronze');
+  it('never parks a secret nook where nothing can reach it', () => {
+    for (const map of Object.values(MAPS)) {
+      for (const k of Object.keys(map.secrets)) expect(map.tiles[Number(k.split(',')[1])]![Number(k.split(',')[0])]).toBe('floor');
+    }
   });
 });

@@ -47,7 +47,7 @@ describe('attemptMove', () => {
     expect(second.events).not.toContainEqual({ type: 'pickup', itemId: 'fragA' });
   });
 
-  const emptyMapState = { dug: {}, takenItems: {}, openedDoors: {}, toggledSwitches: {}, movedBlocks: {}, disarmedTraps: {} };
+  const emptyMapState = { dug: {}, takenItems: {}, openedDoors: {}, toggledSwitches: {}, movedBlocks: {}, disarmedTraps: {}, foundSecrets: {}, usedDecorations: {} };
 
   describe('movable blocks and pits', () => {
     it('pushes a block one tile when the space beyond is open', () => {
@@ -133,7 +133,7 @@ describe('attemptMove', () => {
       expect(next.mapId).toBe('room2');
       expect(next.player.pos).toEqual({ x: 1, y: 1 });
       expect(next.player.facing).toBe('down');
-      expect(events).toEqual([{ type: 'transition', toMap: 'room2' }]);
+      expect(events).toEqual([{ type: 'transition', toMap: 'room2', firstVisit: true }]);
     });
   });
 });

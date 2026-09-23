@@ -13,6 +13,7 @@ const LEGEND: Record<string, TileType> = {
   P: 'plate',
   '^': 'hazard',
   '>': 'exit',
+  ':': 'path',
 };
 
 export interface MapSpec {
@@ -24,6 +25,8 @@ export interface MapSpec {
   buried?: Record<string, BuriedItem>;
   exits?: ExitDef[];
   defaultSpawn: Vec2;
+  dark?: boolean;
+  chapter?: GameMap['chapter'];
 }
 
 export function buildMap(spec: MapSpec): GameMap {
@@ -34,9 +37,15 @@ export function buildMap(spec: MapSpec): GameMap {
       throw new Error(`Map "${spec.id}" row ${i} has length ${row.length}, expected ${width}`);
     }
   });
+  // `s` marks a secret nook: ordinary floor that chimes the first time CK finds it.
+  const secrets: Record<string, true> = {};
   const tiles: TileType[][] = spec.rows.map((row, rowIndex) => {
     return row.split('').map((ch, colIndex) => {
       if (ch === '.') return 'floor';
+      if (ch === 's') {
+        secrets[`${colIndex},${rowIndex}`] = true;
+        return 'floor';
+      }
       const tile = LEGEND[ch];
       if (!tile) throw new Error(`Unknown map tile '${ch}' in "${spec.id}" at (${colIndex},${rowIndex})`);
       return tile;
@@ -54,5 +63,8 @@ export function buildMap(spec: MapSpec): GameMap {
     buried: spec.buried ?? {},
     exits: spec.exits ?? [],
     defaultSpawn: spec.defaultSpawn,
+    secrets,
+    ...(spec.dark ? { dark: true } : {}),
+    ...(spec.chapter ? { chapter: spec.chapter } : {}),
   };
 }

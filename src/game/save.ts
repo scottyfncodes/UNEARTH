@@ -4,7 +4,8 @@
  */
 import type { GameState } from './types';
 
-const SAVE_KEY = 'unearth.save.v1';
+// v2: the world was rebuilt around CK's full journey; v1 positions no longer mean anything.
+const SAVE_KEY = 'unearth.save.v2';
 
 type Persisted = Omit<GameState, 'dialogue'>;
 

@@ -6,7 +6,10 @@
 import { emptyMapState, key, vecEquals, type Entity, type GameMap, type GameState, type MapRuntimeState, type TileType, type Vec2 } from './types';
 
 export function mapStateOf(state: GameState, mapId: string = state.mapId): MapRuntimeState {
-  return state.mapStates[mapId] ?? emptyMapState();
+  const stored = state.mapStates[mapId];
+  if (!stored) return emptyMapState();
+  // Tolerate a map state saved before a field existed.
+  return stored.foundSecrets && stored.usedDecorations ? stored : { ...emptyMapState(), ...stored };
 }
 
 export function inBounds(map: GameMap, pos: Vec2): boolean {
@@ -48,10 +51,20 @@ export function visibleEntities(map: GameMap, state: GameState): { entity: Entit
   return map.entities.filter((e) => entityVisible(e, state, mapState)).map((entity) => ({ entity, pos: entityPos(entity, mapState) }));
 }
 
-export function isDoorOpen(entity: Extract<Entity, { kind: 'door' }>, state: GameState): boolean {
+/** Where every block on `map` currently rests. */
+export function blockPositions(map: GameMap, mapState: MapRuntimeState): Vec2[] {
+  return map.entities.filter((e) => e.kind === 'block').map((e) => entityPos(e, mapState));
+}
+
+export function isDoorOpen(entity: Extract<Entity, { kind: 'door' }>, state: GameState, map?: GameMap): boolean {
   if (entity.opensOnFlag && state.flags[entity.opensOnFlag]) return true;
-  const mapState = mapStateOf(state);
-  return !!mapState.openedDoors[entity.id];
+  const mapState = mapStateOf(state, map?.id);
+  if (mapState.openedDoors[entity.id]) return true;
+  if (entity.opensWhenBlocksOn && map) {
+    const blocks = blockPositions(map, mapState);
+    return entity.opensWhenBlocksOn.every((p) => blocks.some((b) => vecEquals(b, p)));
+  }
+  return false;
 }
 
 export function isTrapDisarmed(entity: Extract<Entity, { kind: 'trap' }>, state: GameState): boolean {
@@ -73,8 +86,9 @@ export function isBlocked(map: GameMap, state: GameState, pos: Vec2): boolean {
   if (blockHere) return true;
 
   for (const entity of entities) {
-    if (entity.kind === 'door' && !isDoorOpen(entity, state)) return true;
+    if (entity.kind === 'door' && !isDoorOpen(entity, state, map)) return true;
     if (entity.kind === 'npc') return true;
+    if (entity.kind === 'decoration' && !entity.walkable) return true;
   }
   return false;
 }

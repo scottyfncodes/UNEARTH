@@ -1,47 +1,101 @@
 /**
- * The archaeologist left a trail, not a map. Clues are read in the journal
- * overlay — CK collects them, the player reconstructs what happened.
+ * The trail. Dad's field notes are numbered pages; everything else is what
+ * CK noticed along the way. Read in order, they tell one story. Read again
+ * after the ending, they tell a slightly different one — every line here is
+ * true, and every line was there the whole time.
  */
 export interface ClueDef {
   id: string;
   title: string;
   text: string;
+  /** Set on Dad's field-note pages, which the journal lists in order with gaps. */
+  page?: number;
 }
 
-export const CLUES: Record<string, ClueDef> = {
-  clue_worn_stone: {
+const list: ClueDef[] = [
+  // ── Dad's field notes ────────────────────────────────────────────────
+  {
+    id: 'clue_field_notes_1',
+    page: 1,
+    title: 'Field Notes — Page 1',
+    text: '"The keepers split their bronze key and hid the halves. One half they buried. The other sits behind a statue, through a crack no person could fit through. Odd. It\'s almost as if they didn\'t want a person to open it at all."',
+  },
+  {
+    id: 'clue_field_notes_2',
+    page: 2,
+    title: 'Field Notes — Page 2',
+    text: '"The Sunstone. Warm as a windowsill in June. The inscriptions say it \'lights the way below the well.\' I think the crypt is under the old well east of the meadow. Tomorrow."',
+  },
+  {
+    id: 'clue_field_notes_3',
+    page: 3,
+    title: 'Field Notes — Page 3',
+    text: '"The well stairs go down into the crypt. My lamp keeps guttering out down there, like the dark is hungry. Ordinary light won\'t do. The keepers must have had something better."',
+  },
+  {
+    id: 'clue_field_notes_4',
+    page: 4,
+    title: 'Field Notes — Page 4',
+    text: '"A seal in three pieces — crescent, face and rim — scattered through the crypt. Moon-marked. Put it back together and the round door opens. I have found exactly none of them. My knees hate this place."',
+  },
+  {
+    id: 'clue_field_notes_5',
+    page: 5,
+    title: 'Field Notes — Last Page',
+    text: '"I\'ve come as far as a person can. The last passage is a crack no wider than my hand. Whatever the keepers hid, they hid it from people. I\'m going home. Maybe I\'ll find a way back someday. — A."',
+  },
+
+  // ── what CK noticed ──────────────────────────────────────────────────
+  {
+    id: 'clue_old_note',
+    title: 'A Note in a Book',
+    text: '"Back soon — followed a lead out past the old ruins. Mind the house. — A." The paper is yellow and crackly at the edges. Dad must have left in a real hurry.',
+  },
+  {
     id: 'clue_worn_stone',
     title: 'A Worn Stone',
-    text: 'Smoothed flat on one side, like a boot heel rested here again and again. Someone stood here a long time, looking south.',
+    text: 'A flat stone rubbed smooth where someone sat and sketched. Scratched into it: an arrow pointing south, and a small symbol — a circle with two pointed ears.',
   },
-  clue_field_notes_1: {
-    id: 'clue_field_notes_1',
-    title: "Field Notes — Page 1",
-    text:
-      '"...the old keepers sealed the vault with twin bronze halves, split for safekeeping. Split, I now think, from a cat\'s reach — not a person\'s. I wonder if that was ever the point."',
-  },
-  clue_statue_crack: {
+  {
     id: 'clue_statue_crack',
     title: 'A Cracked Wall',
-    text: 'A hairline fracture splits the stone behind the statue — just wide enough for something small and determined.',
+    text: 'Behind the statue, a hairline crack splits the stone — just wide enough for something small and determined.',
   },
-  clue_departure_note: {
-    id: 'clue_departure_note',
-    title: 'A Note on the Table',
-    text: '"Back soon — followed a lead out past the old ruins. Mind the house. — Dad" It smells like it was written in a hurry.',
+  {
+    id: 'clue_mural_cats',
+    title: 'A Faded Mural',
+    text: 'Tall painted figures bow low before a much smaller figure with pointed ears and a very upright tail. Nobody in the mural seems surprised by this.',
   },
-  clue_field_notes_2: {
-    id: 'clue_field_notes_2',
-    title: 'Field Notes — Page 2',
-    text:
-      '"If this key is where I think it is, the vault opens onto something I\'ve chased for years. Funny — for something this old, my legs feel every step of it today."',
-  },
-  clue_inscription: {
+  {
     id: 'clue_inscription',
-    title: 'A Worn Inscription',
-    text: 'Faded script circles the idol\'s base. Most of it has worn away — what remains just says "and so it waited."',
+    title: 'The Inscription',
+    text: 'Faded script circles the pedestal. Most of it has worn away. What remains says: "…and so it waited, for one small enough, and curious enough."',
   },
-};
+  {
+    id: 'clue_dusty_hat',
+    title: "Dad's Hat",
+    text: 'A battered field hat, left on a ledge. It is thick with dust. How long has Dad been down here?',
+  },
+  {
+    id: 'clue_echo',
+    title: 'The Hall of Echoes',
+    text: 'The eared circle, carved again and again across every wall. Beneath it, the same three words in three old scripts: SMALL. CURIOUS. PATIENT.',
+  },
+  {
+    id: 'clue_keepers_1',
+    title: 'The Keepers',
+    text: 'The vault murals are clear at last. The keepers were cats. Every single one of them.',
+  },
+  {
+    id: 'clue_keepers_2',
+    title: 'The Last Panel',
+    text: 'A small cat, alone, following a trail of shiny things — all the way home.',
+  },
+];
+
+export const CLUES: Record<string, ClueDef> = Object.fromEntries(list.map((clue) => [clue.id, clue]));
+
+export const FIELD_NOTE_PAGES: ClueDef[] = list.filter((c) => c.page !== undefined).sort((a, b) => a.page! - b.page!);
 
 export function getClue(id: string): ClueDef | undefined {
   return CLUES[id];

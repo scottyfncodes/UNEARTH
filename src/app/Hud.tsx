@@ -7,7 +7,7 @@ export function Hud({ onOpenJournal }: { onOpenJournal: () => void }) {
   const state = useGameState();
   const map = MAPS[state.mapId]!;
   const reading = state.tool === 'detector' && state.detectorOn ? computeDetectorReading(map, state) : null;
-  const artifactCount = state.inventory.filter((id) => getItem(id)?.kind !== 'trinket').length;
+  const artifactCount = state.inventory.filter((id) => getItem(id)?.kind !== 'shiny').length;
 
   return (
     <div className="hud">

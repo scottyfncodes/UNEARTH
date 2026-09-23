@@ -21,6 +21,7 @@ export const room1 = buildMap({
       id: 'npc1',
       pos: { x: 1, y: 1 },
       name: 'Guide',
+      sprite: 'dad',
       lines: ['Hi there.', 'See you around.'],
       onCompleteFlag: 'metGuide',
       vanishesWhenFlag: 'metGuide',

@@ -83,7 +83,16 @@ describe('world content is internally consistent', () => {
         if (entity.kind !== 'door') continue;
         if (entity.requiresArtifact) expect(getItem(entity.requiresArtifact)).toBeDefined();
         if (entity.opensOnFlag) expect(allSwitchFlags.has(entity.opensOnFlag)).toBe(true);
-        expect(entity.requiresArtifact || entity.opensOnFlag, `${map.id}: ${entity.id} can never be opened`).toBeTruthy();
+        if (entity.opensWhenBlocksOn) {
+          const blocks = map.entities.filter((e) => e.kind === 'block').length;
+          expect(blocks, `${map.id}: ${entity.id} needs more blocks than the room has`).toBeGreaterThanOrEqual(
+            entity.opensWhenBlocksOn.length,
+          );
+        }
+        expect(
+          entity.requiresArtifact || entity.opensOnFlag || entity.opensWhenBlocksOn,
+          `${map.id}: ${entity.id} can never be opened`,
+        ).toBeTruthy();
       }
     }
   });
