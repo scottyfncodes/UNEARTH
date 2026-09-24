@@ -190,6 +190,10 @@ button {
   padding: 8px;
 }
 
+button.confirm--armed {
+  color: #e8836f;
+}
+
 /* ── game viewport ────────────────────────────────────────────────────── */
 .game-root {
   position: absolute;

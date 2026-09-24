@@ -3,6 +3,7 @@ import { progressOf, curiosityRank } from '@/content/progress';
 import { formatDuration, playSeconds } from '@/core/playtime';
 import { audio } from '@/engine/audio';
 import { Portrait } from './Sprite';
+import { ConfirmButton } from './ConfirmButton';
 
 /**
  * The credits card: the punchline, the numbers, and one last loose thread.
@@ -64,14 +65,12 @@ export function Ending({ onKeepExploring, onNewGame }: { onKeepExploring: () => 
           >
             {p.percent < 100 ? 'Keep exploring' : 'Wander a while'}
           </button>
-          <button
+          <ConfirmButton
             className="title-screen__reset"
-            onClick={() => {
-              if (confirm('Start a brand new game? This clears your current progress.')) onNewGame();
-            }}
-          >
-            New game
-          </button>
+            label="New game"
+            armedLabel="Tap again to erase progress"
+            onConfirm={onNewGame}
+          />
         </div>
       </div>
     </div>
