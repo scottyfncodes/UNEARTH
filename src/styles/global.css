@@ -267,7 +267,9 @@ button.confirm--armed {
 
 .hud__map-name {
   flex: 1;
+  min-width: 0;
   text-align: center;
+  line-height: 1.25;
   font-family: var(--serif);
   font-size: 13px;
   color: var(--muted);

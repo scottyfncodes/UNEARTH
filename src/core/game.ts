@@ -24,13 +24,28 @@ export function onGameEvent(listener: EventListener): () => void {
 }
 
 export function dispatch(action: Action): GameEvent[] {
-  const { state, events } = reduce(ctx, game.get(), action);
+  const before = game.get();
+  const { state, events } = reduce(ctx, before, action);
   game.set(state);
   for (const event of events) {
     for (const listener of [...eventListeners]) listener(event);
   }
-  if (events.length > 0) saveGame(state);
+  // Any change is saved — a plain step included, so a reload never loses ground.
+  if (state !== before) saveGame(state);
   return events;
+}
+
+/** Whether this save has any progress at all — decides Begin vs Continue. */
+export function hasProgress(): boolean {
+  const s = game.get();
+  const fresh = createInitialState();
+  return (
+    s.mapId !== fresh.mapId ||
+    s.player.pos.x !== fresh.player.pos.x ||
+    s.player.pos.y !== fresh.player.pos.y ||
+    Object.keys(s.flags).length > 0 ||
+    s.inventory.length > 0
+  );
 }
 
 export function resetSave(): void {

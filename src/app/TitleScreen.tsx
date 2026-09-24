@@ -1,11 +1,11 @@
 import { audio } from '@/engine/audio';
-import { resetSave, game } from '@/core/game';
+import { hasProgress, resetSave } from '@/core/game';
 import { resetPlaytime } from '@/core/playtime';
 import { Portrait } from './Sprite';
 import { ConfirmButton } from './ConfirmButton';
 
 export function TitleScreen({ onBegin }: { onBegin: () => void }) {
-  const started = Object.keys(game.get().flags).length > 0;
+  const started = hasProgress();
   return (
     <div className="title-screen">
       <div className="title-screen__stars" aria-hidden="true" />

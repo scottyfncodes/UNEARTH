@@ -68,7 +68,16 @@ export function App() {
       <div className="game-viewport">
         <GameCanvas />
       </div>
-      <Hud onOpenJournal={() => setJournalOpen(true)} />
+      <Hud
+        onOpenJournal={() => setJournalOpen(true)}
+        onHome={() => {
+          // Progress is already saved after every action; just step out.
+          audio.ui();
+          audio.music(null);
+          setJournalOpen(false);
+          setStarted(false);
+        }}
+      />
       {!state.dialogue && <Toast text={toast} />}
       <DialogueBox />
       <TouchControls />
