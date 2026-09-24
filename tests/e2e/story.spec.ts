@@ -95,19 +95,3 @@ test('a finished journey ends on Dad, the numbers, and the hum', async ({ page }
   await page.getByRole('button', { name: 'Keep exploring' }).click();
   await expect(ending).not.toBeVisible();
 });
-
-test('the home button returns to the title, and Continue picks up where CK left off', async ({ page }) => {
-  await page.goto('/?debug=1');
-  await page.evaluate(() => localStorage.clear());
-  await page.reload();
-  await page.getByRole('button', { name: 'Begin' }).click();
-  await press(page, 'Move down', 3);
-  const before = await pos(page);
-
-  await page.getByRole('button', { name: 'Back to title screen' }).click();
-  await expect(page.getByText('UNEARTH')).toBeVisible();
-  await page.getByRole('button', { name: 'Continue' }).click();
-
-  await expect(page.getByRole('button', { name: 'Back to title screen' })).toBeVisible();
-  expect(await pos(page)).toEqual(before);
-});

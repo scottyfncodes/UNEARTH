@@ -34,3 +34,25 @@ test('opens and closes the journal overlay', async ({ page }) => {
   await page.getByRole('button', { name: 'Close journal' }).click();
   await expect(page.getByText("CK's Journal")).not.toBeVisible();
 });
+
+test('ships a home-screen icon and an app manifest that actually load', async ({ page, request }) => {
+  await page.goto('/');
+  const touchIcon = await page.locator('link[rel="apple-touch-icon"]').getAttribute('href');
+  const manifestHref = await page.locator('link[rel="manifest"]').getAttribute('href');
+  expect(touchIcon).toBeTruthy();
+  expect(manifestHref).toBeTruthy();
+
+  const icon = await request.get(new URL(touchIcon!, page.url()).toString());
+  expect(icon.status()).toBe(200);
+  expect(icon.headers()['content-type']).toContain('image/png');
+
+  const manifest = await request.get(new URL(manifestHref!, page.url()).toString());
+  expect(manifest.status()).toBe(200);
+  const json = (await manifest.json()) as { name: string; display: string; icons: { src: string }[] };
+  expect(json.name).toBe('UNEARTH');
+  expect(json.display).toBe('standalone');
+  for (const i of json.icons) {
+    const res = await request.get(new URL(i.src, new URL(manifestHref!, page.url())).toString());
+    expect(res.status(), i.src).toBe(200);
+  }
+});

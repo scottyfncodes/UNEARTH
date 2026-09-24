@@ -5,7 +5,7 @@ import { computeDetectorReading } from '@/game/detector';
 import { progressOf } from '@/content/progress';
 import { audio } from '@/engine/audio';
 
-export function Hud({ onOpenJournal, onHome }: { onOpenJournal: () => void; onHome: () => void }) {
+export function Hud({ onOpenJournal }: { onOpenJournal: () => void }) {
   const state = useGameState();
   const [sound, setSound] = useState(audio.isEnabled());
   const map = MAPS[state.mapId]!;
@@ -16,9 +16,6 @@ export function Hud({ onOpenJournal, onHome }: { onOpenJournal: () => void; onHo
   return (
     <div className="hud">
       <div className="hud__top">
-        <button className="hud__icon-btn" onClick={onHome} aria-label="Back to title screen">
-          ⌂
-        </button>
         <div className="hud__hearts" aria-label={`${state.hearts} of ${state.maxHearts} hearts`}>
           {Array.from({ length: state.maxHearts }, (_, i) => (
             <span key={i} className={`heart ${i < state.hearts ? 'heart--full' : 'heart--empty'}`} />
