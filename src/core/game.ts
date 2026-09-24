@@ -31,7 +31,8 @@ export function dispatch(action: Action): GameEvent[] {
     for (const listener of [...eventListeners]) listener(event);
   }
   // Any change is saved — a plain step included, so a reload never loses ground.
-  if (state !== before) saveGame(state);
+  // Time passing on its own is only worth a save when something happened.
+  if (state !== before && (action.type !== 'tick' || events.length > 0)) saveGame(state);
   return events;
 }
 

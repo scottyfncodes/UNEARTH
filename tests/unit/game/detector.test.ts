@@ -22,7 +22,7 @@ describe('computeDetectorReading', () => {
   it('stops reading a buried source once it has been dug up', () => {
     const dug = baseState({
       player: { pos: { x: 3, y: 1 }, facing: 'right' },
-      mapStates: { room1: { dug: { '4,1': true }, takenItems: {}, openedDoors: {}, toggledSwitches: {}, movedBlocks: {}, disarmedTraps: {}, foundSecrets: {}, usedDecorations: {} } },
+      mapStates: { room1: { dug: { '4,1': true }, takenItems: {}, openedDoors: {}, toggledSwitches: {}, movedBlocks: {}, disarmedTraps: {}, foundSecrets: {}, usedDecorations: {}, movedDecorations: {}, collapsed: {} } },
     });
     const reading = computeDetectorReading(CTX.maps.room1!, dug);
     expect(reading.kind).not.toBe('buried');
@@ -31,7 +31,7 @@ describe('computeDetectorReading', () => {
   it('stops reading a trap once it has been disarmed', () => {
     const state = baseState({
       player: { pos: { x: 5, y: 4 }, facing: 'up' },
-      mapStates: { room1: { dug: {}, takenItems: {}, openedDoors: {}, toggledSwitches: {}, movedBlocks: {}, disarmedTraps: { trap1: true }, foundSecrets: {}, usedDecorations: {} } },
+      mapStates: { room1: { dug: {}, takenItems: {}, openedDoors: {}, toggledSwitches: {}, movedBlocks: {}, disarmedTraps: { trap1: true }, foundSecrets: {}, usedDecorations: {}, movedDecorations: {}, collapsed: {} } },
     });
     const reading = computeDetectorReading(CTX.maps.room1!, state);
     expect(reading.kind).not.toBe('mechanism');

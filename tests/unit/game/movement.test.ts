@@ -26,11 +26,11 @@ describe('attemptMove', () => {
     expect(events).toEqual([]);
   });
 
-  it('cannot walk through a diggable wall until it has been dug', () => {
+  it('walks straight over soft earth — nothing about it says "dig here"', () => {
     const state = baseState({ player: { pos: { x: 3, y: 1 }, facing: 'right' } });
     const { state: next, events } = attemptMove(CTX.maps, state, 'right');
-    expect(next.player.pos).toEqual({ x: 3, y: 1 });
-    expect(events).toEqual([{ type: 'bump' }]);
+    expect(next.player.pos).toEqual({ x: 4, y: 1 });
+    expect(events).toEqual([]);
   });
 
   it('picks up a free-standing item by walking onto its tile', () => {
@@ -47,7 +47,7 @@ describe('attemptMove', () => {
     expect(second.events).not.toContainEqual({ type: 'pickup', itemId: 'fragA' });
   });
 
-  const emptyMapState = { dug: {}, takenItems: {}, openedDoors: {}, toggledSwitches: {}, movedBlocks: {}, disarmedTraps: {}, foundSecrets: {}, usedDecorations: {} };
+  const emptyMapState = { dug: {}, takenItems: {}, openedDoors: {}, toggledSwitches: {}, movedBlocks: {}, disarmedTraps: {}, foundSecrets: {}, usedDecorations: {}, movedDecorations: {}, collapsed: {} };
 
   describe('movable blocks and pits', () => {
     it('pushes a block one tile when the space beyond is open', () => {

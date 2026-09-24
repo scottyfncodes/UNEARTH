@@ -8,8 +8,7 @@
  * chiptune score, one loop per region, sequenced a little ahead of time.
  */
 import type { Region } from '@/game/types';
-
-export type SignalKind = 'buried' | 'mechanism' | null;
+import type { DetectorReading } from '@/game/detector';
 
 const midi = (n: number) => 440 * Math.pow(2, (n - 69) / 12);
 
@@ -274,20 +273,106 @@ class AudioEngine {
   // ── the collar ──────────────────────────────────────────────────────────
 
   /**
-   * Called every frame with the current reading. Pings get faster and higher
-   * the closer CK gets; a mechanism (usually a trap) warbles low instead.
+   * Called every frame with the current reading. Distance sets the tempo —
+   * pings come faster the closer CK is, whichever way CK faces. Facing sets
+   * the voice — turned away it is a low, muffled blip; turned toward the
+   * source it brightens and rises. Locked on (the source is the very tile in
+   * front of CK) it chirps twice. Junk rings duller and buzzier than the
+   * real thing; a mechanism warbles low.
    */
-  detector(strength: number, kind: SignalKind): void {
-    if (!this.ctx || !this.master || !kind || strength <= 0) return;
+  detector(reading: DetectorReading): void {
+    if (!this.ctx || !this.master || !reading.kind || reading.strength <= 0) return;
     const now = this.ctx.currentTime;
     if (now < this.nextPingAt) return;
-    const interval = 1.1 - strength * 0.95;
+    const interval = 1.15 - reading.proximity * 0.95;
     this.nextPingAt = now + interval;
-    if (kind === 'buried') {
-      this.tone(760 + strength * 700, 0.05, 'square', 0.05 + strength * 0.07);
-    } else {
-      this.tone(260 - strength * 60, 0.09, 'triangle', 0.06 + strength * 0.08, 0, this.master, 180);
+    const { aim, proximity } = reading;
+    if (reading.kind === 'mechanism') {
+      this.tone(260 - proximity * 60, 0.09, 'triangle', 0.05 + proximity * 0.08, 0, this.master, 180);
+      return;
     }
+    const gain = 0.025 + proximity * (0.03 + aim * 0.08);
+    if (reading.junk) {
+      const f = 330 + aim * 260 + proximity * 80;
+      this.tone(f, 0.06, 'square', gain * 0.8);
+      this.tone(f * 1.06, 0.05, 'square', gain * 0.4);
+    } else {
+      const f = 520 + aim * 820 + proximity * 180;
+      this.tone(f, aim > 0.7 ? 0.07 : 0.05, aim > 0.5 ? 'triangle' : 'sine', gain);
+    }
+    if (reading.locked) {
+      const f = reading.junk ? 700 : 1760;
+      this.tone(f, 0.04, 'triangle', 0.08, now + 0.07);
+      this.tone(f * 1.25, 0.05, 'triangle', 0.08, now + 0.13);
+    }
+  }
+
+  // ── the hunt ────────────────────────────────────────────────────────────
+
+  scrape(i: number): void {
+    this.noise(0.1, 0.16 + (i % 2) * 0.05, 600 + i * 120);
+  }
+  clunk(): void {
+    this.tone(160, 0.12, 'square', 0.12);
+    this.tone(120, 0.14, 'square', 0.1, (this.ctx?.currentTime ?? 0) + 0.08);
+  }
+  hop(): void {
+    this.tone(420, 0.12, 'square', 0.08, 0, this.master, 820);
+  }
+  land(): void {
+    this.noise(0.05, 0.12, 600);
+  }
+  sniff(): void {
+    this.noise(0.05, 0.08, 2400);
+    this.noise(0.05, 0.08, 2400);
+  }
+  curio(bubble: string): void {
+    if (bubble === '!') this.arpeggio([76, 83], 0.06, 'square', 0.1, 0.1);
+    else if (bubble === '♥') this.arpeggio([72, 76, 79], 0.08, 'triangle', 0.1, 0.18);
+    else if (bubble === '♪') this.arpeggio([79, 84], 0.09, 'triangle', 0.1, 0.16);
+    else this.arpeggio([69, 74], 0.1, 'triangle', 0.08, 0.15);
+  }
+  /** The click under a paw that means "you have about half a second". */
+  click(): void {
+    this.tone(1400, 0.025, 'square', 0.16);
+    this.tone(900, 0.03, 'square', 0.12, (this.ctx?.currentTime ?? 0) + 0.03);
+  }
+  whoosh(): void {
+    this.noise(0.25, 0.2, 3000);
+    this.tone(1200, 0.2, 'sawtooth', 0.04, 0, this.master, 400);
+  }
+  trickle(): void {
+    this.noise(0.4, 0.08, 1800);
+  }
+  rumble(): void {
+    if (!this.ctx) return;
+    for (let i = 0; i < 4; i++) this.tone(48 + i * 3, 0.5, 'sawtooth', 0.12, this.ctx.currentTime + i * 0.25);
+    this.noise(1.2, 0.2, 180);
+  }
+  roll(): void {
+    this.noise(0.18, 0.14, 220);
+    this.tone(55, 0.18, 'triangle', 0.12);
+  }
+  crash(): void {
+    this.noise(0.8, 0.45, 500);
+    this.tone(70, 0.6, 'sawtooth', 0.14, 0, this.master, 35);
+  }
+  splat(): void {
+    this.tone(300, 0.2, 'square', 0.16, 0, this.master, 80);
+    this.noise(0.15, 0.2, 800);
+  }
+  crumble(): void {
+    this.noise(0.3, 0.22, 700);
+  }
+  creak(): void {
+    this.tone(180, 0.12, 'sawtooth', 0.05, 0, this.master, 140);
+  }
+  fall(): void {
+    this.tone(700, 0.45, 'square', 0.12, 0, this.master, 120);
+  }
+  spikes(): void {
+    this.tone(2200, 0.05, 'sawtooth', 0.08, 0, this.master, 900);
+    this.noise(0.08, 0.12, 4000);
   }
 
   // ── music ───────────────────────────────────────────────────────────────

@@ -3,11 +3,11 @@
  * inspect, depending on what CK is facing. One button reads as "paws" —
  * exactly the vocabulary a cat has for the world.
  */
-import type { DecorationEntity, DoorEntity, Entity, GameEvent, GameMap, GameState, MapRegistry, NpcEntity, SwitchEntity } from './types';
+import type { DecorationEntity, DoorEntity, Entity, GameEvent, GameMap, GameState, MapRegistry, NpcEntity, SwitchEntity, Vec2 } from './types';
 import { emptyMapState, step } from './types';
 import { addClue, addItem, setFlag } from './inventory';
-import { entitiesAt, isDoorOpen, mapStateOf } from './world';
-import { enterMap } from './movement';
+import { dressingAt, entitiesAt, isDoorOpen, mapStateOf, resolvedTerrainAt } from './world';
+import { armTrapsAt, enterMap } from './movement';
 
 function pickLines(npc: NpcEntity, state: GameState): string[] {
   for (const conditional of npc.flagLines ?? []) {
@@ -59,7 +59,55 @@ function pullSwitch(state: GameState, sw: SwitchEntity): { state: GameState; eve
   return { state: setFlag(state, sw.setsFlag), events: [{ type: 'switch-on', switchId: sw.id }] };
 }
 
-function inspectDecoration(state: GameState, map: GameMap, deco: DecorationEntity): { state: GameState; events: GameEvent[] } {
+function isTrapTrigger(map: GameMap, pos: Vec2): boolean {
+  return map.entities.some((e) => e.kind === 'trap' && !!e.triggers?.some((t) => t.x === pos.x && t.y === pos.y));
+}
+
+/**
+ * Bat a pebble and it skitters off in the direction CK is facing until
+ * something stops it: a wall, a solid thing, a pit (gone), or a trap's
+ * trigger — which it sets off, on itself. The cheapest way there is to
+ * find out whether those odd-looking bricks are what you think they are.
+ */
+function kickPebble(state: GameState, map: GameMap, deco: DecorationEntity, at: Vec2): { state: GameState; events: GameEvent[] } {
+  const dir = state.player.facing;
+  const mapState = mapStateOf(state, map.id);
+  let cur = at;
+  let to: Vec2 | null = at;
+  for (let i = 0; i < 12; i++) {
+    const nextPos = step(cur, dir);
+    const terrain = resolvedTerrainAt(map, mapState, nextPos);
+    if (terrain === 'hazard' && !entitiesAt(map, state, nextPos).some((e) => e.kind === 'block')) {
+      to = null;
+      break;
+    }
+    const stops =
+      terrain === null ||
+      terrain === 'wall' ||
+      terrain === 'water' ||
+      terrain === 'catGap' ||
+      terrain === 'exit' ||
+      !!dressingAt(map, nextPos)?.solid ||
+      entitiesAt(map, state, nextPos).some(
+        (e) => (e.kind === 'door' && !isDoorOpen(e, state, map)) || e.kind === 'npc' || e.kind === 'block' || (e.kind === 'decoration' && !e.walkable),
+      ) ||
+      (nextPos.x === state.player.pos.x && nextPos.y === state.player.pos.y);
+    if (stops) break;
+    cur = nextPos;
+    to = cur;
+    if (isTrapTrigger(map, cur)) break;
+  }
+  let next: GameState = {
+    ...state,
+    mapStates: { ...state.mapStates, [map.id]: { ...mapState, movedDecorations: { ...mapState.movedDecorations, [deco.id]: to } } },
+  };
+  const events: GameEvent[] = [{ type: 'kick', from: at, to }];
+  if (to) next = armTrapsAt(map, next, to, next.safe ?? next.player.pos, events);
+  return { state: next, events };
+}
+
+function inspectDecoration(state: GameState, map: GameMap, deco: DecorationEntity, at: Vec2): { state: GameState; events: GameEvent[] } {
+  if (deco.kick) return kickPebble(state, map, deco, at);
   const mapState = mapStateOf(state, map.id);
   const used = !!mapState.usedDecorations[deco.id];
   const oneShot = !!(deco.givesItem || deco.setsFlag || deco.warpTo);
@@ -100,7 +148,11 @@ export function attemptInteract(maps: MapRegistry, state: GameState): { state: G
   const map = maps[state.mapId]!;
   const ahead = step(state.player.pos, state.player.facing);
   let candidates: Entity[] = entitiesAt(map, state, ahead);
-  if (candidates.length === 0) candidates = entitiesAt(map, state, state.player.pos);
+  let at = ahead;
+  if (candidates.length === 0) {
+    candidates = entitiesAt(map, state, state.player.pos);
+    at = state.player.pos;
+  }
 
   const npc = candidates.find((e): e is NpcEntity => e.kind === 'npc');
   if (npc) return startDialogue(state, npc);
@@ -115,7 +167,10 @@ export function attemptInteract(maps: MapRegistry, state: GameState): { state: G
   if (clue) return { state: addClue(state, clue.clueId), events: [{ type: 'clue', clueId: clue.clueId }] };
 
   const deco = candidates.find((e): e is DecorationEntity => e.kind === 'decoration');
-  if (deco) return inspectDecoration(state, map, deco);
+  if (deco) return inspectDecoration(state, map, deco, at);
+
+  // Set dressing is scenery, not a puzzle: CK gives it a sniff and moves on.
+  if (dressingAt(map, ahead) || dressingAt(map, state.player.pos)) return { state, events: [{ type: 'sniff' }] };
 
   return { state, events: [] };
 }

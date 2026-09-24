@@ -16,6 +16,36 @@ function shadow(ctx: CanvasRenderingContext2D, px: number, py: number, w = 0.34)
 }
 
 function drawDoor(ctx: CanvasRenderingContext2D, entity: Extract<Entity, { kind: 'door' }>, px: number, py: number, open: boolean): void {
+  if (entity.look === 'crackedWall') {
+    if (open) {
+      // Smashed through: a ragged hole and a spill of broken stone.
+      ctx.fillStyle = '#1b1e22';
+      ctx.fillRect(px + T * 0.1, py + T * 0.05, T * 0.8, T * 0.9);
+      ctx.fillStyle = '#5f5c51';
+      for (const [dx, dy, r] of [[0.15, 0.85, 0.12], [0.5, 0.9, 0.1], [0.82, 0.8, 0.13]] as const) {
+        ctx.beginPath();
+        ctx.arc(px + T * dx, py + T * dy, T * r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      return;
+    }
+    // Indistinguishable from the wall around it — except for one long crack.
+    ctx.fillStyle = '#33383f';
+    ctx.fillRect(px, py, T, T);
+    ctx.fillStyle = '#454c55';
+    ctx.fillRect(px, py, T, T * 0.3);
+    ctx.fillStyle = 'rgba(0,0,0,0.3)';
+    for (const ry of [0.45, 0.65, 0.85]) ctx.fillRect(px, py + T * ry, T, 2);
+    ctx.strokeStyle = '#111317';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(px + T * 0.55, py);
+    ctx.lineTo(px + T * 0.42, py + T * 0.35);
+    ctx.lineTo(px + T * 0.6, py + T * 0.55);
+    ctx.lineTo(px + T * 0.45, py + T);
+    ctx.stroke();
+    return;
+  }
   if (open) {
     ctx.fillStyle = 'rgba(0,0,0,0.45)';
     ctx.fillRect(px + T * 0.12, py, T * 0.76, T);
@@ -133,17 +163,20 @@ export function drawEntity(ctx: CanvasRenderingContext2D, map: GameMap, entity: 
     }
     case 'trap': {
       if (entity.trapType === 'dart') {
-        // Dart holes in the wall — readable, if you look.
-        ctx.fillStyle = '#120c08';
-        for (let i = 0; i < 3; i++) ctx.fillRect(px + T * 0.3 + i * T * 0.16, py + T * 0.45, 3, 3);
-      } else {
-        // A cracked ceiling stone over a loose plate: pebbles on the floor.
+        // Small dark holes in the stonework — there if you look, easy to miss if you don't.
+        ctx.fillStyle = 'rgba(18,12,8,0.75)';
+        const vertical = terrainAt(map, { x: x - 1, y }) !== 'wall' || terrainAt(map, { x: x + 1, y }) !== 'wall';
+        for (let i = 0; i < 3; i++) {
+          if (vertical) ctx.fillRect(px + T * 0.45, py + T * 0.25 + i * T * 0.2, 2, 2);
+          else ctx.fillRect(px + T * 0.3 + i * T * 0.16, py + T * 0.5, 2, 2);
+        }
+      } else if (entity.triggerPlate) {
+        // Legacy plate rock: pebbles on the floor under a cracked ceiling stone.
         ctx.fillStyle = 'rgba(160,170,190,0.55)';
         for (const [dx, dy] of [
           [0.25, 0.3],
           [0.7, 0.25],
           [0.55, 0.72],
-          [0.2, 0.7],
         ] as const) {
           ctx.fillRect(px + T * dx, py + T * dy, 3, 2);
         }

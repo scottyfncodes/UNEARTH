@@ -40,7 +40,9 @@ export function Hud({ onOpenJournal }: { onOpenJournal: () => void }) {
 
       <div className="hud__status">
         <div className={`collar collar--${reading.kind ?? 'quiet'}`} aria-label="Collar signal">
-          <span className="collar__label">{reading.kind === 'mechanism' ? 'Careful' : reading.kind ? 'Collar' : 'Quiet'}</span>
+          <span className="collar__label">
+            {reading.kind === 'mechanism' ? 'Careful' : reading.locked ? 'Here!' : reading.kind ? (reading.aim > 0.6 ? 'Clear' : 'Faint') : 'Quiet'}
+          </span>
           <span className="collar__bars">
             {Array.from({ length: 5 }, (_, i) => (
               <i key={i} className={i < bars ? 'on' : ''} style={{ height: 4 + i * 3 }} />

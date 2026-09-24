@@ -37,28 +37,29 @@ test('the prologue: Dad leaves, the vase falls, the note is found, the door open
   await press(page, 'Move down', 2);
   await expect(page.getByRole('status')).toContainText('Where did Dad actually go');
 
-  // Knock the vase off the table: a find card for the first shiny.
-  await press(page, 'Move left', 2);
-  await press(page, 'Move up', 2);
+  // Knock the vase off the table: a find card for the first shiny. (A tap in a
+  // new direction turns CK on the spot first, so each turn costs one extra tap.)
+  await press(page, 'Move left', 3);
+  await press(page, 'Move up', 3);
   await press(page, 'Interact');
   const find = page.getByTestId('find-card');
   await expect(find).toContainText('Shiny Button');
-  await expect(find).toContainText('1 of 12');
+  await expect(find).toContainText('1 of 16');
   await find.click();
   await expect(find).not.toBeVisible();
 
   // Bat a book off the shelf: the old note.
-  await press(page, 'Move left', 3);
-  await press(page, 'Move up', 6);
+  await press(page, 'Move left', 4);
+  await press(page, 'Move up', 7);
   await press(page, 'Interact');
   const note = page.getByTestId('note-card');
   await expect(note).toContainText('Back soon');
   await note.click();
 
   // Now the front door leads out into the Meadow.
-  await press(page, 'Move down', 6);
-  await press(page, 'Move right', 5);
-  await press(page, 'Move down', 3);
+  await press(page, 'Move down', 7);
+  await press(page, 'Move right', 6);
+  await press(page, 'Move down', 4);
   await expect(page.getByText('The Meadow')).toBeVisible();
 });
 

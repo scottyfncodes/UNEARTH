@@ -41,6 +41,9 @@ let shake = 0;
 let flash: { color: string; t: number; duration: number } | null = null;
 let held: Held | null = null;
 let fadeIn = 0;
+let digging: { tile: Vec2; t: number; duration: number; soil: string; nextBurst: number } | null = null;
+let bubble: { char: string; t: number; duration: number } | null = null;
+const crashes: { at: Vec2; t: number }[] = [];
 
 const T = TILE_SIZE;
 
@@ -97,13 +100,59 @@ export const fx = {
     streaks.push({ from: center(from), to: center(to), t: 0 });
   },
   rock(at: Vec2): void {
-    rocks.push({ at: center(at), t: 0 });
+    // Most of the fall already happened while its shadow grew; this is the last instant of it.
+    rocks.push({ at: center(at), t: 0.3 });
   },
   hold(sprite: string, duration = 1.3): void {
     held = { sprite, t: 0, duration };
   },
   fade(): void {
     fadeIn = 1;
+  },
+  /** A proper dig: dirt flying in bursts and a hole opening up over `duration` seconds. */
+  startDig(tile: Vec2, soil: string, duration: number): void {
+    digging = { tile, t: 0, duration, soil, nextBurst: 0 };
+  },
+  isDigging(): boolean {
+    return !!digging;
+  },
+  bubble(char: string, duration = 1.6): void {
+    bubble = { char, t: 0, duration };
+  },
+  bubbleInfo(): { char: string; progress: number } | null {
+    return bubble ? { char: bubble.char, progress: bubble.t / bubble.duration } : null;
+  },
+  /** A volley of darts from the wall holes, across the whole lane. */
+  volley(from: Vec2, lane: Vec2[]): void {
+    if (lane.length === 0) return;
+    const far = lane.reduce((best, t) => (Math.abs(t.x - from.x) + Math.abs(t.y - from.y) > Math.abs(best.x - from.x) + Math.abs(best.y - from.y) ? t : best));
+    const dx = Math.sign(far.x - from.x);
+    const dy = Math.sign(far.y - from.y);
+    const end = { x: far.x + dx, y: far.y + dy };
+    for (let i = 0; i < 3; i++) {
+      const jitter = (i - 1) * 0.22;
+      streaks.push({
+        from: { x: center(from).x + dy * jitter * T, y: center(from).y + dx * jitter * T },
+        to: { x: center(end).x + dy * jitter * T, y: center(end).y + dx * jitter * T },
+        t: -i * 0.05,
+      });
+    }
+    burst(center(end), 6, ['#8a7e62', '#6a5a4a'], { speed: 40, max: 0.35, size: 2 });
+  },
+  /** The boulder hits the wall and the wall loses. */
+  crash(at: Vec2): void {
+    crashes.push({ at: center(at), t: 0 });
+    burst(center(at), 40, ['#6a6e62', '#8b8778', '#5f5c51', '#aaa594'], { speed: 160, up: 60, gravity: 260, max: 0.9, size: 4 });
+    shake = Math.max(shake, 12);
+  },
+  rumble(): void {
+    shake = Math.max(shake, 5);
+  },
+  crumble(tile: Vec2): void {
+    burst(center(tile), 14, ['#3f4a5c', '#58627a', '#2a303c'], { speed: 50, gravity: 200, max: 0.6, size: 3 });
+  },
+  click(tile: Vec2): void {
+    burst(center(tile), 5, ['#d8c8a8'], { speed: 20, max: 0.3, size: 2 });
   },
   heldSprite(): { sprite: string; progress: number } | null {
     return held ? { sprite: held.sprite, progress: held.t / held.duration } : null;
@@ -167,7 +216,7 @@ export function stepFx(dt: number, region: Region, w: number, h: number, dark: b
   }
   for (let i = streaks.length - 1; i >= 0; i--) {
     streaks[i]!.t += dt;
-    if (streaks[i]!.t > 0.25) streaks.splice(i, 1);
+    if (streaks[i]!.t > 0.3) streaks.splice(i, 1);
   }
   for (let i = rocks.length - 1; i >= 0; i--) {
     rocks[i]!.t += dt;
@@ -186,6 +235,40 @@ export function stepFx(dt: number, region: Region, w: number, h: number, dark: b
     if (held.t > held.duration) held = null;
   }
   fadeIn = Math.max(0, fadeIn - dt * 3);
+  if (digging) {
+    digging.t += dt;
+    if (digging.t >= digging.nextBurst) {
+      // Dirt flung back in little scoops, the way a cat actually digs.
+      const c = center(digging.tile);
+      burst(c, 8, [digging.soil, '#84603f', '#4a3220'], { speed: 70, up: 90, gravity: 380, max: 0.5, size: 3 });
+      shake = Math.max(shake, 1.2);
+      digging.nextBurst += 0.17;
+    }
+    if (digging.t >= digging.duration) digging = null;
+  }
+  if (bubble) {
+    bubble.t += dt;
+    if (bubble.t > bubble.duration) bubble = null;
+  }
+  for (let i = crashes.length - 1; i >= 0; i--) {
+    crashes[i]!.t += dt;
+    if (crashes[i]!.t > 0.5) crashes.splice(i, 1);
+  }
+}
+
+/** Ground-level effects under everything else: the hole opening up mid-dig. */
+export function drawFxGround(ctx: CanvasRenderingContext2D): void {
+  if (!digging) return;
+  const k = Math.min(1, digging.t / digging.duration);
+  const c = center(digging.tile);
+  ctx.fillStyle = digging.soil;
+  ctx.beginPath();
+  ctx.ellipse(c.x, c.y + T * 0.06, T * (0.12 + k * 0.3), T * (0.08 + k * 0.2), 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = 'rgba(20,12,6,0.85)';
+  ctx.beginPath();
+  ctx.ellipse(c.x, c.y + T * 0.1, T * k * 0.2, T * k * 0.12, 0, 0, Math.PI * 2);
+  ctx.fill();
 }
 
 export function shakeOffset(): Vec2 {
@@ -195,7 +278,14 @@ export function shakeOffset(): Vec2 {
 
 /** World-space effects, drawn over entities but under the darkness. */
 export function drawFxWorld(ctx: CanvasRenderingContext2D): void {
+  for (const c of crashes) {
+    ctx.fillStyle = `rgba(230,220,200,${0.5 - c.t})`;
+    ctx.beginPath();
+    ctx.arc(c.at.x, c.at.y, T * (0.4 + c.t * 2), 0, Math.PI * 2);
+    ctx.fill();
+  }
   for (const s of streaks) {
+    if (s.t < 0) continue;
     const k = Math.min(1, s.t / 0.12);
     const x = s.from.x + (s.to.x - s.from.x) * k;
     const y = s.from.y + (s.to.y - s.from.y) * k;

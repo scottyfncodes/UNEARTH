@@ -90,6 +90,10 @@ export interface CkPose {
   time: number;
   /** Arms-up "found it!" — always drawn facing the player. */
   holding?: boolean;
+  /** Head down, bum up, paws going. */
+  digging?: boolean;
+  /** Fur standing up: something nearby is a trap. */
+  bristling?: boolean;
 }
 
 export function drawCK(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, pose: CkPose): void {
@@ -112,9 +116,33 @@ export function drawCK(ctx: CanvasRenderingContext2D, x: number, y: number, size
       mirror = facing === 'left';
       break;
   }
+  if (pose.digging && !pose.holding) {
+    // Scrabbling: a fast squash-and-stretch, nose to the ground.
+    const beat = Math.floor(pose.time * 12) % 2 === 0;
+    const squash = beat ? 0.86 : 0.94;
+    ctx.save();
+    ctx.translate(x + size / 2, y + size);
+    ctx.scale(beat ? 1.06 : 1, squash);
+    blit(ctx, sprite, -size / 2, -size, size, mirror);
+    ctx.restore();
+    return;
+  }
   // A small hop on each step; a proud stretch when holding something up.
   const bob = pose.holding ? -size * 0.08 : step ? -size * 0.04 : 0;
   blit(ctx, sprite, x, y + bob, size, mirror);
+  if (pose.bristling && !pose.holding) {
+    // Three little tufts of standing-up fur.
+    const u = size / 16;
+    ctx.fillStyle = '#b8662a';
+    const twitch = Math.floor(pose.time * 6) % 2;
+    for (const [dx, dy] of [
+      [2, 3 + twitch],
+      [13, 3 + twitch],
+      [8, 1],
+    ] as const) {
+      ctx.fillRect(x + dx * u, y + bob + dy * u, u, 2 * u);
+    }
+  }
 }
 
 // ── the cast ──────────────────────────────────────────────────────────────
@@ -210,7 +238,28 @@ const MAGPIE = [
   '................',
 ];
 
+const MOLE_PAL: Record<string, string> = { k: '#1a1410', m: '#4a3a34', M: '#6a564c', p: '#ef9aa8', w: '#f4f1ea', d: '#6b4a2e', D: '#84603f' };
+const MOLE = [
+  '................',
+  '................',
+  '................',
+  '................',
+  '.....kkkkkk.....',
+  '....kmmmmmmk....',
+  '...kmMmmmmMmk...',
+  '...kmwkmmkwmk...',
+  '...kmmmppmmmk...',
+  '..kpkmmppmmkpk..',
+  '..kppkmmmmkppk..',
+  '...kkmMmmMmkk...',
+  '.ddddkmmmmkdddd.',
+  'dDDddddddddddDDd',
+  'ddDDddDDddDDdddd',
+  '................',
+];
+
 const NPCS: Record<string, { rows: string[]; pal: Record<string, string> }> = {
+  mole: { rows: MOLE, pal: MOLE_PAL },
   dad: { rows: DAD, pal: DAD_PAL },
   dadGroceries: { rows: DAD, pal: DAD_PAL },
   tortoise: { rows: TORTOISE, pal: TORTOISE_PAL },

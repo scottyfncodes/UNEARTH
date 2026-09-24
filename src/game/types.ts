@@ -42,8 +42,27 @@ export function step(pos: Vec2, dir: Direction): Vec2 {
  * terrain — they're entities that sit on top of an ordinary floor tile, so
  * their state (open/closed, pushed, disarmed) never has to fight the grid.
  */
-/** `path` is walkable floor drawn as a trodden track — purely visual. */
-export type TileType = 'floor' | 'path' | 'wall' | 'water' | 'diggable' | 'catGap' | 'plate' | 'hazard' | 'exit';
+/**
+ * `path` is walkable floor drawn as a trodden track — purely visual.
+ * `diggable` is soft, walkable earth: it looks like ordinary ground and most
+ * of it hides nothing at all. `trigger` is a floor brick that is very
+ * slightly wrong — the trigger strip of a delayed trap. `crumble` is a
+ * cracked tile that gives way shortly after CK stands on it. `spikes` is a
+ * floor studded with holes that a spike trap pushes blades up through.
+ */
+export type TileType =
+  | 'floor'
+  | 'path'
+  | 'wall'
+  | 'water'
+  | 'diggable'
+  | 'catGap'
+  | 'plate'
+  | 'hazard'
+  | 'exit'
+  | 'trigger'
+  | 'crumble'
+  | 'spikes';
 
 export interface ExitDef {
   /** Tile position on this map that triggers the transition when stepped on. */
@@ -57,6 +76,14 @@ export interface ExitDef {
   requiresItem?: string;
   /** Shown if the exit is gated and its requirement isn't met yet. */
   lockedMessage?: string;
+  /**
+   * A hidden exit: drawn as ordinary ground (with whatever dressing sits on
+   * it) rather than a threshold, so stepping on it is a surprise — a rotten
+   * tarp over an old trench, say.
+   */
+  hidden?: boolean;
+  /** Shown as CK drops through a hidden exit. */
+  fallMessage?: string;
 }
 
 export interface NpcEntity {
@@ -86,6 +113,8 @@ export interface ItemEntity {
   requiresFlag?: string;
   /** A treat: restores this many hearts on pickup instead of going in the satchel. */
   heals?: number;
+  /** Picking this up sets a story flag — e.g. lifting an idol off its pedestal. */
+  setsFlag?: string;
 }
 
 export interface DoorEntity {
@@ -99,6 +128,8 @@ export interface DoorEntity {
   /** Opens while a pushable block rests on every one of these tiles. */
   opensWhenBlocksOn?: Vec2[];
   lockedMessage?: string;
+  /** How a closed door reads: a crack in an otherwise ordinary wall, say. */
+  look?: 'crackedWall';
 }
 
 export interface SwitchEntity {
@@ -115,15 +146,77 @@ export interface BlockEntity {
   pos: Vec2;
 }
 
+export type TrapType = 'dart' | 'fallingRock' | 'spikes';
+
+/**
+ * A trap. `pos` is its mechanism — the dart holes in a wall, the loose
+ * ceiling stone, the spike housing — which is what the collar warbles at.
+ *
+ * Three ways a trap can go off:
+ *  - `triggerPlate` (legacy): stepping on that one tile fires instantly.
+ *  - `triggers` + `delayMs`: stepping on any trigger tile goes *click*, and
+ *    the trap strikes its `lane` a moment later. Whoever is still standing
+ *    in the lane when it does gets hit; whoever kept moving hears it hiss
+ *    past behind them. Hopping clean over a trigger never sets it off.
+ *  - `period` (spikes): blades rise through the `lane` on a fixed rhythm,
+ *    no trigger at all — a timing problem, not an observation one.
+ */
 export interface TrapEntity {
   kind: 'trap';
   id: string;
   pos: Vec2;
-  trapType: 'dart' | 'fallingRock';
-  /** Tile position of the plate that arms/fires this trap. */
-  triggerPlate: Vec2;
+  trapType: TrapType;
+  /** Legacy: the single plate that fires this trap instantly. */
+  triggerPlate?: Vec2;
+  /** Tiles that arm this trap when CK (or a kicked pebble) lands on them. */
+  triggers?: Vec2[];
+  /** Tiles the trap actually strikes. Defaults to the triggers themselves (or, for a rock, just the tile that set it off). */
+  lane?: Vec2[];
+  /** Milliseconds between the click and the strike. */
+  delayMs?: number;
+  /** Spikes: full cycle length, how long the blades stay up, and a phase offset. */
+  period?: number;
+  upMs?: number;
+  offsetMs?: number;
   /** The trap's metal mechanism shows up on the detector as a warning. */
   detectable?: boolean;
+}
+
+/**
+ * Something big that rolls along a fixed path once a flag is set — a boulder
+ * shaken loose by lifting an idol, say. It flattens anything it rolls over
+ * (comically, and never fatally), then shatters at the end of its path and
+ * sets `rolled:<id>`, which a cracked-wall door can open on.
+ */
+export interface RollerEntity {
+  kind: 'roller';
+  id: string;
+  /** Always path[0]. */
+  pos: Vec2;
+  path: Vec2[];
+  /** Milliseconds per tile once it is rolling. */
+  stepMs: number;
+  /** A beat of rumbling before it starts moving — the "oh no" moment. */
+  windupMs: number;
+  startsOnFlag: string;
+}
+
+/**
+ * An invisible spot that makes CK *notice* something the first time CK
+ * comes close: ears up, a little thought bubble, sometimes a line. Most are
+ * just curiosity — a beetle, a smell, a draught. Some are the first hint
+ * that something is buried nearby. Only CK's reaction gives any of it away.
+ */
+export interface CurioEntity {
+  kind: 'curio';
+  id: string;
+  pos: Vec2;
+  /** Chebyshev distance at which CK notices. Defaults to 1. */
+  radius?: number;
+  bubble: '?' | '!' | '…' | '♥' | '♪';
+  line?: string;
+  clueId?: string;
+  requiresFlag?: string;
 }
 
 export interface ClueNoteEntity {
@@ -158,6 +251,12 @@ export interface DecorationEntity {
   afterLine?: string;
   /** After interacting, CK is moved here — used for the story's one big time-skip. */
   warpTo?: { mapId: string; pos: Vec2; facing?: Direction };
+  /**
+   * A loose pebble: pawing it sends it skittering in CK's facing direction
+   * until something stops it. If it comes to rest on a trap trigger, the
+   * trap goes off — on the pebble, not on CK. Very cat, and very useful.
+   */
+  kick?: boolean;
 }
 
 export type Entity =
@@ -168,10 +267,28 @@ export type Entity =
   | BlockEntity
   | TrapEntity
   | ClueNoteEntity
-  | DecorationEntity;
+  | DecorationEntity
+  | RollerEntity
+  | CurioEntity;
 
-export interface BuriedItem {
-  itemId: string;
+/**
+ * What lies under a patch of soft ground. Most soft ground hides nothing;
+ * some hides junk — which the collar hears too, just duller — and a little
+ * of it hides something worth the dig.
+ */
+export type BuriedItem = { itemId: string; junk?: undefined } | { junk: string; itemId?: undefined; clueId?: string };
+
+/**
+ * Non-interactive set dressing: the pottery, rubble, roots and old tools
+ * that make a room feel like a real site. Solid dressing blocks movement;
+ * low dressing can be hopped over. Pawing it gets a sniff, nothing more —
+ * signal needs noise.
+ */
+export interface Dressing {
+  pos: Vec2;
+  sprite: string;
+  solid: boolean;
+  low: boolean;
 }
 
 export type MapRegistry = Record<string, GameMap>;
@@ -196,6 +313,12 @@ export interface GameMap {
   defaultSpawn: Vec2;
   /** Hidden nooks (keyed "x,y") that chime and count the first time CK steps in. */
   secrets: Record<string, true>;
+  /** Set dressing, drawn and collided with but never interacted with. */
+  dressing: Dressing[];
+  /** Outdoors: every plain floor and path tile is soft enough to dig. */
+  softGround?: boolean;
+  /** Tiles someone dug long ago — empty, weathered holes. */
+  oldHoles: Record<string, true>;
 }
 
 export type Region = 'home' | 'meadow' | 'temple' | 'well' | 'crypt' | 'vault';
@@ -208,8 +331,12 @@ export interface MapRuntimeState {
   movedBlocks: Record<string, Vec2>;
   disarmedTraps: Record<string, true>;
   foundSecrets: Record<string, true>;
-  /** Decorations CK has already knocked over / used. */
+  /** Decorations CK has already knocked over / used, and curios already noticed. */
   usedDecorations: Record<string, true>;
+  /** Kicked pebbles: where each came to rest, or null if it dropped into a pit. */
+  movedDecorations: Record<string, Vec2 | null>;
+  /** Crumbling tiles that have given way. Settles back when CK leaves or falls. */
+  collapsed: Record<string, true>;
 }
 
 export function emptyMapState(): MapRuntimeState {
@@ -222,6 +349,8 @@ export function emptyMapState(): MapRuntimeState {
     disarmedTraps: {},
     foundSecrets: {},
     usedDecorations: {},
+    movedDecorations: {},
+    collapsed: {},
   };
 }
 
@@ -231,6 +360,42 @@ export interface DialogueState {
   npcId: string;
   lines: string[];
   index: number;
+}
+
+/** A delayed trap that has clicked and is about to strike. */
+export interface PendingStrike {
+  trapId: string;
+  left: number;
+  /** Where CK stood before stepping onto the trigger — knocked back there on a hit. */
+  armedFrom: Vec2;
+  /** Tile that set it off (a falling rock lands there). */
+  at: Vec2;
+}
+
+export interface ActiveRoller {
+  id: string;
+  /** Index into the roller's path of the tile it currently occupies. */
+  index: number;
+  /** Milliseconds until it moves to the next tile. */
+  left: number;
+  /** Path index at which it last flattened CK, so one pass hits once. */
+  hitIndex?: number;
+}
+
+/**
+ * Everything happening *in time* in the current room. Cleared on every room
+ * change and never saved: timed hazards are moments, not progress.
+ */
+export interface TimedState {
+  strikes: PendingStrike[];
+  rollers: ActiveRoller[];
+  crumbling: { key: string; left: number }[];
+  /** Spike trap id → the cycle number it last hit CK on. */
+  spikeHits: Record<string, number>;
+}
+
+export function emptyTimed(): TimedState {
+  return { strikes: [], rollers: [], crumbling: [], spikeHits: {} };
 }
 
 export interface GameState {
@@ -246,17 +411,22 @@ export interface GameState {
   clues: string[];
   mapStates: Record<string, MapRuntimeState>;
   dialogue: DialogueState | null;
+  /** The last ordinary, trap-free tile CK stood on in this room — where a fall or a spike sends CK back to. */
+  safe?: Vec2;
+  timed?: TimedState;
 }
 
 export type GameEvent =
   | { type: 'bump' }
-  | { type: 'transition'; toMap: string; firstVisit: boolean }
+  | { type: 'transition'; toMap: string; firstVisit: boolean; fall?: string }
   | { type: 'secret' }
   | { type: 'heal'; itemId: string }
   | { type: 'knock'; itemId?: string }
   | { type: 'warp'; toMap: string }
   | { type: 'dig-empty' }
   | { type: 'dig-hard' }
+  | { type: 'dig-junk'; line: string }
+  | { type: 'dig-old' }
   | { type: 'reveal'; itemId: string }
   | { type: 'pickup'; itemId: string }
   | { type: 'assemble'; artifactId: string }
@@ -266,7 +436,21 @@ export type GameEvent =
   | { type: 'door-locked'; message: string }
   | { type: 'door-open'; doorId: string }
   | { type: 'push' }
-  | { type: 'trap-hit'; trapId: string; trapType: 'dart' | 'fallingRock'; from: Vec2; at: Vec2 }
+  | { type: 'trap-hit'; trapId: string; trapType: TrapType; from: Vec2; at: Vec2 }
+  | { type: 'trap-armed'; trapId: string; trapType: TrapType; at: Vec2 }
+  | { type: 'trap-fire'; trapId: string; trapType: TrapType; from: Vec2; lane: Vec2[] }
+  | { type: 'trap-miss'; trapId: string; trapType: TrapType }
+  | { type: 'crumble-start'; at: Vec2 }
+  | { type: 'crumble'; at: Vec2 }
+  | { type: 'fall' }
+  | { type: 'roller-start'; id: string }
+  | { type: 'roller-hit'; id: string }
+  | { type: 'roller-stop'; id: string; at: Vec2 }
+  | { type: 'jump'; from: Vec2; to: Vec2 }
+  | { type: 'jump-blocked' }
+  | { type: 'curio'; id: string; bubble: CurioEntity['bubble']; line?: string }
+  | { type: 'sniff' }
+  | { type: 'kick'; from: Vec2; to: Vec2 | null }
   | { type: 'knockout' }
   | { type: 'talk-start' }
   | { type: 'talk-end' }
@@ -275,6 +459,12 @@ export type GameEvent =
 
 export type Action =
   | { type: 'move'; direction: Direction }
+  /** Face a direction without stepping — how you sweep the collar around. */
+  | { type: 'turn'; direction: Direction }
+  /** Hop two tiles in the facing direction, clearing whatever is in between. */
+  | { type: 'jump' }
   | { type: 'interact' }
   | { type: 'dig' }
-  | { type: 'toggleTool' };
+  | { type: 'toggleTool' }
+  /** Time passing: `dt` since the last tick, `now` on the game clock (both ms). */
+  | { type: 'tick'; dt: number; now: number };

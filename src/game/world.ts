@@ -3,13 +3,15 @@
  * state (dug patches, taken items, opened doors, pushed blocks, disarmed
  * traps, story flags) is layered on top of a map's fixed terrain grid.
  */
-import { emptyMapState, key, vecEquals, type Entity, type GameMap, type GameState, type MapRuntimeState, type TileType, type Vec2 } from './types';
+import { emptyMapState, key, vecEquals, type Dressing, type Entity, type GameMap, type GameState, type MapRuntimeState, type TileType, type TrapEntity, type Vec2 } from './types';
 
 export function mapStateOf(state: GameState, mapId: string = state.mapId): MapRuntimeState {
   const stored = state.mapStates[mapId];
   if (!stored) return emptyMapState();
   // Tolerate a map state saved before a field existed.
-  return stored.foundSecrets && stored.usedDecorations ? stored : { ...emptyMapState(), ...stored };
+  return stored.foundSecrets && stored.usedDecorations && stored.movedDecorations && stored.collapsed
+    ? stored
+    : { ...emptyMapState(), ...stored };
 }
 
 export function inBounds(map: GameMap, pos: Vec2): boolean {
@@ -21,15 +23,63 @@ export function terrainAt(map: GameMap, pos: Vec2): TileType | null {
   return map.tiles[pos.y]![pos.x]!;
 }
 
-/** Terrain after runtime overrides — a dug patch of dirt reads as floor. */
+/** Terrain after runtime overrides — a crumbled tile is a pit now. */
 export function resolvedTerrainAt(map: GameMap, mapState: MapRuntimeState, pos: Vec2): TileType | null {
   const raw = terrainAt(map, pos);
-  if (raw === 'diggable' && mapState.dug[key(pos)]) return 'floor';
+  if (raw === 'crumble' && mapState.collapsed[key(pos)]) return 'hazard';
   return raw;
+}
+
+/** Whether the ground at `pos` is soft enough for paws — earth, or any open ground outdoors. */
+export function isSoftGround(map: GameMap, pos: Vec2): boolean {
+  const t = terrainAt(map, pos);
+  if (t === 'diggable') return true;
+  return !!map.softGround && (t === 'floor' || t === 'path');
+}
+
+/** Set dressing at a tile, if any. */
+export function dressingAt(map: GameMap, pos: Vec2): Dressing | undefined {
+  return map.dressing.find((d) => d.pos.x === pos.x && d.pos.y === pos.y);
+}
+
+const hazardCache = new WeakMap<GameMap, Set<string>>();
+
+/**
+ * Tiles that belong to some trap — its triggers, its lane, a crumbling or
+ * spiked floor. Standing on one is never "safe", so falls and spikes send CK
+ * back to the last tile that wasn't one of these.
+ */
+export function isHazardTile(map: GameMap, pos: Vec2): boolean {
+  let set = hazardCache.get(map);
+  if (!set) {
+    set = new Set();
+    for (const e of map.entities) {
+      if (e.kind !== 'trap') continue;
+      for (const p of [...(e.triggers ?? []), ...(e.lane ?? []), ...(e.triggerPlate ? [e.triggerPlate] : [])]) set.add(key(p));
+    }
+    for (let y = 0; y < map.height; y++) {
+      for (let x = 0; x < map.width; x++) {
+        const t = map.tiles[y]![x]!;
+        if (t === 'trigger' || t === 'crumble' || t === 'spikes') set.add(`${x},${y}`);
+      }
+    }
+    hazardCache.set(map, set);
+  }
+  return set.has(key(pos));
+}
+
+/** Tiles a trap strikes when it fires. */
+export function trapLane(trap: TrapEntity, at?: Vec2): Vec2[] {
+  if (trap.lane) return trap.lane;
+  if (trap.trapType === 'fallingRock' && at) return [at];
+  return trap.triggers ?? (trap.triggerPlate ? [trap.triggerPlate] : []);
 }
 
 function entityVisible(entity: Entity, state: GameState, mapState: MapRuntimeState): boolean {
   if ('requiresFlag' in entity && entity.requiresFlag && !state.flags[entity.requiresFlag]) return false;
+  // Curios and rollers are never "at" a tile: one is a feeling, the other is drawn from timed state.
+  if (entity.kind === 'curio' || entity.kind === 'roller') return false;
+  if (entity.kind === 'decoration' && mapState.movedDecorations[entity.id] === null) return false;
   if (entity.kind === 'item' && mapState.takenItems[entity.id]) return false;
   if (entity.kind === 'npc' && entity.vanishesWhenFlag && state.flags[entity.vanishesWhenFlag]) return false;
   return true;
@@ -37,6 +87,7 @@ function entityVisible(entity: Entity, state: GameState, mapState: MapRuntimeSta
 
 function entityPos(entity: Entity, mapState: MapRuntimeState): Vec2 {
   if (entity.kind === 'block') return mapState.movedBlocks[entity.id] ?? entity.pos;
+  if (entity.kind === 'decoration') return mapState.movedDecorations[entity.id] ?? entity.pos;
   return entity.pos;
 }
 
@@ -76,7 +127,7 @@ export function isBlocked(map: GameMap, state: GameState, pos: Vec2): boolean {
   const mapState = mapStateOf(state, map.id);
   const terrain = resolvedTerrainAt(map, mapState, pos);
   if (terrain === null) return true;
-  if (terrain === 'wall' || terrain === 'water' || terrain === 'diggable') return true;
+  if (terrain === 'wall' || terrain === 'water') return true;
 
   const entities = entitiesAt(map, state, pos, mapState);
   const blockHere = entities.some((e) => e.kind === 'block');
@@ -84,6 +135,7 @@ export function isBlocked(map: GameMap, state: GameState, pos: Vec2): boolean {
   // A pit is only safe once a pushed block bridges it; the block IS the floor there.
   if (terrain === 'hazard') return !blockHere;
   if (blockHere) return true;
+  if (dressingAt(map, pos)?.solid) return true;
 
   for (const entity of entities) {
     if (entity.kind === 'door' && !isDoorOpen(entity, state, map)) return true;

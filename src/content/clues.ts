@@ -91,6 +91,43 @@ const list: ClueDef[] = [
     title: 'The Last Panel',
     text: 'A small cat, alone, following a trail of shiny things — all the way home.',
   },
+
+  // ── the hunt: what the sites themselves give away ────────────────────
+  {
+    id: 'clue_dig_log',
+    title: "Dad's Dig Log",
+    text: 'Pinned to a board, curling at the edges: "Trench A — nothing. Trench B — nothing. Test pit by the tent — a tent peg (mine). Collar pinged LOUD by the leaning stone, on its sunrise side. Ran out of daylight. Back tomorrow for it!" Nobody came back tomorrow. A sapling has grown through the camp table.',
+  },
+  {
+    id: 'clue_guardian_gaze',
+    title: 'Floor Inscription',
+    text: 'Letters worn into the flagstones: "HALF WE GAVE TO THE EARTH, WHERE THE GUARDIAN KEEPS ITS EYES." The guardian statue stares, unblinking, straight down the hall.',
+  },
+  {
+    id: 'clue_leap_mural',
+    title: 'The Bricks Frieze',
+    text: 'Tall carved figures stride across a row of bricks while darts fly out of the wall at them. Behind them, a small eared figure sails over the very same bricks in a single bound, tail high. Nobody is firing at the small one.',
+  },
+  {
+    id: 'clue_boulder_mural',
+    title: 'A Warning, Probably',
+    text: 'A carved figure lifts a sun-disc off a pedestal. Behind it, a great round stone. In the next panel, everybody is running. In the last panel, the stone has gone straight through a wall.',
+  },
+  {
+    id: 'clue_moon_eye',
+    title: 'The Watching Moon',
+    text: 'A crescent moon carved high on the wall, with one open eye staring straight down at the floor beneath it. The keepers did not carve eyes for decoration.',
+  },
+  {
+    id: 'clue_bridge_scratch',
+    title: 'Scratched Into the Ledge',
+    text: 'In Dad\'s handwriting, gouged with a pocket knife: "DON\'T STOP ON THE BRIDGE. Also don\'t look down. (Looked down.) — A."',
+  },
+  {
+    id: 'clue_decoy_moons',
+    title: 'Decoy Moons',
+    text: 'Little carved stone crescents, buried all over the Hall of Echoes. Worthless — made to be dug up by the wrong people. The real piece rings clear. These only clunk.',
+  },
 ];
 
 export const CLUES: Record<string, ClueDef> = Object.fromEntries(list.map((clue) => [clue.id, clue]));

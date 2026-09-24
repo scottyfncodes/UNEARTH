@@ -5,7 +5,8 @@
  * regardless of whether the last one came from digging or a house pickup.
  */
 import type { Action, GameEvent, GameState, MapRegistry } from './types';
-import { attemptMove } from './movement';
+import { attemptJump, attemptMove, attemptTurn } from './movement';
+import { tick } from './hazards';
 import { attemptDig } from './dig';
 import { attemptInteract } from './interact';
 import { findAssembly, type ArtifactRecipe } from './artifacts';
@@ -30,6 +31,16 @@ export function reduce(ctx: EngineContext, state: GameState, action: Action): { 
   switch (action.type) {
     case 'move':
       result = attemptMove(ctx.maps, state, action.direction);
+      break;
+    case 'turn':
+      result = attemptTurn(state, action.direction);
+      break;
+    case 'jump':
+      result = attemptJump(ctx.maps, state);
+      break;
+    case 'tick':
+      result = tick(ctx.maps, state, action.dt, action.now);
+      if (result.state === state) return result;
       break;
     case 'dig':
       result = attemptDig(ctx.maps, state);

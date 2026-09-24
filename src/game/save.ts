@@ -7,17 +7,19 @@ import type { GameState } from './types';
 // v2: the world was rebuilt around CK's full journey; v1 positions no longer mean anything.
 const SAVE_KEY = 'unearth.save.v2';
 
-type Persisted = Omit<GameState, 'dialogue'>;
+type Persisted = Omit<GameState, 'dialogue' | 'timed'>;
 
+/** Dialogue and timed hazards are moments, not progress — neither is saved. */
 export function serialize(state: GameState): string {
-  const { dialogue: _dialogue, ...persisted } = state;
+  const { dialogue: _dialogue, timed: _timed, ...persisted } = state;
   return JSON.stringify(persisted);
 }
 
 export function deserialize(json: string, fallback: GameState): GameState {
   try {
-    const parsed = JSON.parse(json) as Partial<Persisted>;
-    return { ...fallback, ...parsed, dialogue: null };
+    const parsed = JSON.parse(json) as Partial<Persisted> & { timed?: unknown };
+    const { timed: _timed, ...rest } = parsed;
+    return { ...fallback, ...rest, dialogue: null };
   } catch {
     return fallback;
   }

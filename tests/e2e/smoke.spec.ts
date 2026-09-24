@@ -16,6 +16,8 @@ test('loads the title screen, begins the game, and moves CK with the touch d-pad
   await expect(canvas).toBeVisible();
   await expect(page.getByRole('button', { name: 'Open journal' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Move down' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Hop' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Dig' })).toBeVisible();
 
   const before = await page.evaluate(() => window.__unearth!.state().player.pos);
   await page.getByRole('button', { name: 'Move down' }).dispatchEvent('pointerdown');
@@ -55,4 +57,21 @@ test('ships a home-screen icon and an app manifest that actually load', async ({
     const res = await request.get(new URL(i.src, new URL(manifestHref!, page.url())).toString());
     expect(res.status(), i.src).toBe(200);
   }
+});
+
+test('a tap in a new direction turns CK on the spot before walking', async ({ page }) => {
+  await page.goto('/?debug=1');
+  await page.getByRole('button', { name: 'Begin' }).click();
+  const state = () => page.evaluate(() => (window as any).__unearth.state().player as { pos: { x: number; y: number }; facing: string });
+  const before = await state();
+  expect(before.facing).toBe('down');
+  const left = page.getByRole('button', { name: 'Move left' });
+  await left.dispatchEvent('pointerdown');
+  await left.dispatchEvent('pointerup');
+  const turned = await state();
+  expect(turned.facing).toBe('left');
+  expect(turned.pos).toEqual(before.pos);
+  await left.dispatchEvent('pointerdown');
+  await left.dispatchEvent('pointerup');
+  expect((await state()).pos).toEqual({ x: before.pos.x - 1, y: before.pos.y });
 });

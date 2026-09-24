@@ -4,6 +4,7 @@
  * find-card and in the satchel from these exact sprites.
  */
 import { baked, type Painter } from './pixel';
+import { DRESSING_ART } from './dressing';
 
 const K = '#1a140e';
 const GOLD = '#f2c14e';
@@ -174,6 +175,45 @@ const ITEM_ART: Record<string, (p: Painter) => void> = {
     p.disc(8, 9, 5, '#f5ecd2');
     p.line(8, 9, 8, 6, K);
     p.line(8, 9, 10, 10, K);
+  },
+  compass: (p) => {
+    p.disc(8, 8, 5.5, BRONZE_D);
+    p.disc(8, 8, 4.5, '#f4eedc');
+    p.rect(7, 1, 2, 2, BRONZE);
+    p.line(8, 8, 11, 5, '#c0392b');
+    p.line(8, 8, 5, 11, K);
+    p.px(8, 8, K);
+    p.px(6, 5, '#ffffff');
+  },
+  lens: (p) => {
+    p.ring(7, 7, 4.5, GOLD_D);
+    p.disc(7, 7, 3.6, '#bfe3f0');
+    p.px(5, 5, '#ffffff');
+    p.px(6, 5, '#ffffff');
+    p.line(10, 10, 14, 14, WOOD_D);
+    p.line(11, 10, 14, 13, WOOD);
+  },
+  scarab: (p) => {
+    p.disc(8, 9, 4.5, GOLD_D);
+    p.disc(8, 8.5, 3.8, GOLD);
+    p.rect(8, 5, 1, 8, GOLD_D);
+    p.disc(8, 4, 2, GOLD_D);
+    for (const y of [7, 9, 11]) {
+      p.px(3, y, GOLD_D);
+      p.px(12, y, GOLD_D);
+    }
+    p.px(6, 7, '#fff4c0');
+  },
+  star: (p) => {
+    const pts: [number, number][] = [];
+    for (let i = 0; i < 10; i++) {
+      const a = -Math.PI / 2 + (i * Math.PI) / 5;
+      const r = i % 2 === 0 ? 6.5 : 2.8;
+      pts.push([8 + Math.cos(a) * r, 8.5 + Math.sin(a) * r]);
+    }
+    for (let i = 0; i < 10; i++) p.line(pts[i]![0], pts[i]![1], pts[(i + 1) % 10]![0], pts[(i + 1) % 10]![1], SILVER_D);
+    p.disc(8, 8.5, 2.8, SILVER);
+    p.px(7, 7, '#ffffff');
   },
   glassEye: (p) => {
     p.disc(8, 8, 6, '#c8c4bc');
@@ -426,7 +466,9 @@ const PROP_ART: Record<string, (p: Painter, alt: boolean) => void> = {
 export function propSprite(spriteId: string, alt = false): HTMLCanvasElement {
   return baked(`prop:${spriteId}:${alt ? 1 : 0}`, (p) => {
     const art = PROP_ART[spriteId];
+    const dressing = DRESSING_ART[spriteId];
     if (art) art(p, alt);
+    else if (dressing) dressing(p);
     else {
       p.rect(4, 3, 8, 12, STONE_D);
       p.rect(5, 3, 6, 11, STONE);

@@ -5,10 +5,12 @@ import { cameraTarget, drawFrame } from '@/render/draw';
 import { stepFx } from '@/render/fx';
 import { audio } from '@/engine/audio';
 import { computeDetectorReading } from '@/game/detector';
+import { needsTick } from '@/game/hazards';
 import { dismissCard, isBlocking, ui } from '@/core/ui';
-import { createMotion, snapMotion, stepMotion } from '@/render/motion';
+import { createMotion, isHopping, snapMotion, stepHop, stepMotion } from '@/render/motion';
 import { TILE_SIZE } from '@/render/constants';
 import type { Direction } from '@/game/types';
+import { pressDig, pressDirection, pressInteract, pressJump, releaseDirection } from './controls';
 
 const KEY_DIRECTION: Record<string, Direction> = {
   ArrowUp: 'up',
@@ -20,6 +22,16 @@ const KEY_DIRECTION: Record<string, Direction> = {
   ArrowRight: 'right',
   KeyD: 'right',
 };
+
+/**
+ * The game clock, in ms. It only runs while nothing modal is on screen, so
+ * a find card or a conversation freezes every dart, stone and boulder in
+ * place — and spikes keep their rhythm exactly where they left off.
+ */
+let gameClock = 0;
+export function currentClock(): number {
+  return gameClock;
+}
 
 export function GameCanvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -42,6 +54,15 @@ export function GameCanvas() {
       const dt = Math.min(0.05, Math.max(0, (now - last) / 1000));
       last = now;
       const time = (now - start) / 1000;
+
+      // Time passes for traps only while the world is actually on screen.
+      const paused = isBlocking() || !!game.get().dialogue;
+      if (!paused) {
+        gameClock += dt * 1000;
+        const before = game.get();
+        if (needsTick(MAPS[before.mapId]!, before)) dispatch({ type: 'tick', dt: dt * 1000, now: gameClock });
+      }
+
       const state = game.get();
       const map = MAPS[state.mapId]!;
       // Size the window to the box the layout gives us: about eleven tiles
@@ -66,16 +87,17 @@ export function GameCanvas() {
       }
       const tile = `${state.player.pos.x},${state.player.pos.y}`;
       if (tile !== lastTile) {
-        if (lastTile) audio.step();
+        if (lastTile && !isHopping()) audio.step();
         lastTile = tile;
         lastMovedAt = time;
       }
       // The collar pings on its own clock whenever nothing modal is up.
-      if (!state.dialogue && !isBlocking()) {
+      if (!paused) {
         const reading = computeDetectorReading(map, state);
-        audio.detector(reading.strength, reading.kind);
+        audio.detector(reading);
       }
-      stepMotion(motion, state.player.pos.x, state.player.pos.y, dt);
+      const hop = isHopping() ? stepHop(motion, dt) : 0;
+      if (!hop) stepMotion(motion, state.player.pos.x, state.player.pos.y, dt);
 
       const aim = cameraTarget(map, motion, w, h);
       const ease = Math.min(1, dt * 8);
@@ -85,8 +107,8 @@ export function GameCanvas() {
       stepFx(dt, map.region, map.width * TILE_SIZE, map.height * TILE_SIZE, !!map.dark);
       // Keep the walk cycle going briefly after each step so held-down
       // movement reads as one continuous trot rather than a stutter.
-      const walking = time - lastMovedAt < 0.22;
-      drawFrame(ctx, map, state, { pos: { x: motion.x, y: motion.y }, walking, time, camera, width: w, height: h });
+      const walking = time - lastMovedAt < 0.22 && !hop;
+      drawFrame(ctx, map, state, { pos: { x: motion.x, y: motion.y }, walking, time, clock: gameClock, hop, camera, width: w, height: h });
       raf = requestAnimationFrame(frame);
     };
 
@@ -104,20 +126,34 @@ export function GameCanvas() {
         return;
       }
       if (game.get().dialogue) {
-        if (e.code === 'Space' || e.code === 'Enter') dispatch({ type: 'interact' });
+        if ((e.code === 'Space' || e.code === 'Enter') && !e.repeat) dispatch({ type: 'interact' });
         return;
       }
       const dir = KEY_DIRECTION[e.code];
       if (dir) {
-        dispatch({ type: 'move', direction: dir });
+        e.preventDefault();
+        // The controller runs its own steady walk; the OS key-repeat would only make CK skid.
+        if (!e.repeat) pressDirection(dir);
         return;
       }
-      if (e.code === 'Space' || e.code === 'Enter') dispatch({ type: 'interact' });
-      else if (e.code === 'KeyX' || e.code === 'ShiftLeft' || e.code === 'ShiftRight') dispatch({ type: 'dig' });
-
+      if (e.repeat) return;
+      if (e.code === 'Space' || e.code === 'Enter') pressInteract();
+      else if (e.code === 'KeyX' || e.code === 'ShiftLeft' || e.code === 'ShiftRight') pressDig();
+      else if (e.code === 'KeyZ' || e.code === 'KeyJ' || e.code === 'KeyC') pressJump();
     };
+    const onKeyUp = (e: KeyboardEvent) => {
+      const dir = KEY_DIRECTION[e.code];
+      if (dir) releaseDirection(dir);
+    };
+    const onBlur = () => releaseDirection();
     window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    window.addEventListener('keyup', onKeyUp);
+    window.addEventListener('blur', onBlur);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      window.removeEventListener('keyup', onKeyUp);
+      window.removeEventListener('blur', onBlur);
+    };
   }, []);
 
   return <canvas ref={canvasRef} className="game-canvas" role="img" aria-label="UNEARTH game view" />;

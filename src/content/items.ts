@@ -1,6 +1,6 @@
 /**
  * Display info for everything CK can pick up: fragments, the artifacts they
- * assemble into, relics, treats, and shinies — the twelve small glittering
+ * assemble into, relics, treats, and shinies — the sixteen small glittering
  * things hidden across the world that no archaeologist would ever catalogue
  * and no cat could ever ignore.
  */
@@ -178,6 +178,34 @@ const list: ItemDef[] = [
     description: 'It is still looking at something. CK has decided not to find out what.',
     kind: 'shiny',
     sprite: 'glassEye',
+  },
+  {
+    id: 'shiny_compass',
+    name: 'Brass Compass',
+    description: 'Dad lost this at his dig camp. The needle does not point north. It points, very firmly, at CK.',
+    kind: 'shiny',
+    sprite: 'compass',
+  },
+  {
+    id: 'shiny_lens',
+    name: 'Magnifying Lens',
+    description: "Found at the bottom of an old trench, right where somebody fell in. Through it, CK's paw looks enormous.",
+    kind: 'shiny',
+    sprite: 'lens',
+  },
+  {
+    id: 'shiny_scarab',
+    name: 'Gold Scarab',
+    description: 'Sealed behind a wall for centuries. It took one runaway boulder to get it out. Worth it.',
+    kind: 'shiny',
+    sprite: 'scarab',
+  },
+  {
+    id: 'shiny_star',
+    name: 'Tin Star',
+    description: 'Sitting on a pillar in the middle of a chasm, as if someone left it there as a dare.',
+    kind: 'shiny',
+    sprite: 'star',
   },
 ];
 

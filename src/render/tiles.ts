@@ -8,8 +8,9 @@
 import type { GameMap, MapRuntimeState, Region, TileType } from '@/game/types';
 import { key } from '@/game/types';
 import { TILE_SIZE } from './constants';
-import { hash } from './pixel';
+import { blit, hash } from './pixel';
 import { PALETTES, type RegionPalette } from './palette';
+import { propSprite } from './sprites';
 
 const A = TILE_SIZE / 16; // screen pixels per art pixel
 
@@ -168,30 +169,181 @@ function drawCatGap(ctx: CanvasRenderingContext2D, map: GameMap, region: Region,
 
 // ── everything else ───────────────────────────────────────────────────────
 
-function drawDiggable(ctx: CanvasRenderingContext2D, region: Region, pal: RegionPalette, x: number, y: number, dug: boolean): void {
+function isPit(map: GameMap, mapState: MapRuntimeState, x: number, y: number): boolean {
+  const t = tileAt(map, x, y);
+  return t === 'hazard' || (t === 'crumble' && !!mapState.collapsed[`${x},${y}`]);
+}
+
+function pitNeighbours(map: GameMap, mapState: MapRuntimeState, x: number, y: number) {
+  return {
+    up: isPit(map, mapState, x, y - 1),
+    down: isPit(map, mapState, x, y + 1),
+    left: isPit(map, mapState, x - 1, y),
+    right: isPit(map, mapState, x + 1, y),
+  };
+}
+
+function isEarth(map: GameMap, x: number, y: number): boolean {
+  const t = tileAt(map, x, y);
+  return t === 'diggable' || (t === 'exit' && isHiddenExit(map, x, y));
+}
+
+function isHiddenExit(map: GameMap, x: number, y: number): boolean {
+  return map.exits.some((e) => e.hidden && e.at.x === x && e.at.y === y);
+}
+
+/**
+ * Soft earth. Deliberately NOT a mound: just ground where the paving has
+ * gone, or a worked trench outdoors — big irregular patches of it, nearly
+ * all hiding nothing. Edges fray into whatever surrounds them.
+ */
+function drawEarth(ctx: CanvasRenderingContext2D, map: GameMap, region: Region, pal: RegionPalette, x: number, y: number): void {
+  const px = x * TILE_SIZE;
+  const py = y * TILE_SIZE;
+  rect(ctx, px, py, 0, 0, 16, 16, pal.diggable);
+  for (let i = 0; i < 7; i++) {
+    const sx = Math.floor(hash(x, y, i + 40) * 15);
+    const sy = Math.floor(hash(x, y, i + 50) * 15);
+    rect(ctx, px, py, sx, sy, i % 3 === 0 ? 2 : 1, 1, i % 2 ? pal.diggableSpeck : 'rgba(0,0,0,0.18)');
+  }
+  if (hash(x, y, 7) > 0.7) {
+    // A root, a pebble, a worm-cast — earth is never perfectly plain.
+    const rx = 2 + Math.floor(hash(x, y, 8) * 10);
+    rect(ctx, px, py, rx, 6, 4, 1, 'rgba(60,40,24,0.6)');
+    rect(ctx, px, py, rx + 3, 7, 1, 2, 'rgba(60,40,24,0.6)');
+  }
+  // Fray the edges into neighbouring ground so a patch has no hard outline.
+  const edge = region === 'meadow' ? '#5f9a45' : pal.floor;
+  const sides: [number, number, (i: number) => [number, number]][] = [
+    [0, -1, (i) => [i, 0]],
+    [0, 1, (i) => [i, 15]],
+    [-1, 0, (i) => [0, i]],
+    [1, 0, (i) => [15, i]],
+  ];
+  for (const [dx, dy, at] of sides) {
+    if (isEarth(map, x + dx, y + dy) || tileAt(map, x + dx, y + dy) === undefined || isWallish(tileAt(map, x + dx, y + dy))) continue;
+    for (let i = 0; i < 16; i++) {
+      const depth = Math.floor(hash(x * 3 + dx, y * 3 + dy, i) * 3);
+      const [ex, ey] = at(i);
+      for (let d = 0; d < depth; d++) {
+        rect(ctx, px, py, ex - dx * d, ey - dy * d, 1, 1, edge);
+      }
+    }
+  }
+}
+
+/** A hole CK dug: turned earth, a dark centre, a little spoil heap. */
+function drawHole(ctx: CanvasRenderingContext2D, pal: RegionPalette, x: number, y: number, old: boolean): void {
+  const px = x * TILE_SIZE;
+  const py = y * TILE_SIZE;
+  ctx.fillStyle = old ? 'rgba(40,28,16,0.5)' : '#2a1c10';
+  ctx.beginPath();
+  ctx.ellipse(px + 8 * A, py + 9 * A, 5 * A, 3.6 * A, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = old ? 'rgba(20,14,8,0.35)' : '#140c06';
+  ctx.beginPath();
+  ctx.ellipse(px + 8 * A, py + 9.6 * A, 3.2 * A, 2 * A, 0, 0, Math.PI * 2);
+  ctx.fill();
+  if (old) {
+    // Somebody else's hole, long ago: slumped in, grass creeping back.
+    rect(ctx, px, py, 4, 7, 1, 2, '#6fae5a');
+    rect(ctx, px, py, 11, 10, 1, 2, '#6fae5a');
+    return;
+  }
+  rect(ctx, px, py, 11, 4, 4, 3, pal.diggable);
+  rect(ctx, px, py, 12, 3, 2, 1, pal.diggableSpeck);
+  rect(ctx, px, py, 2, 12, 3, 2, pal.diggable);
+}
+
+/**
+ * The trigger strip: floor bricks that are just slightly wrong. Everywhere
+ * else the floor is big square slabs; here it is a course of narrow bricks,
+ * a shade warmer, with a hairline gap all round. Nothing glows, nothing is
+ * outlined — once you've seen one go off, you never stop seeing them.
+ */
+function drawTrigger(ctx: CanvasRenderingContext2D, region: Region, pal: RegionPalette, x: number, y: number): void {
+  const px = x * TILE_SIZE;
+  const py = y * TILE_SIZE;
+  rect(ctx, px, py, 0, 0, 16, 16, pal.floor);
+  rect(ctx, px, py, 0, 0, 16, 16, 'rgba(255,220,170,0.035)');
+  for (let row = 0; row < 4; row++) {
+    rect(ctx, px, py, 0, row * 4, 16, 1, pal.floorAccent);
+    const off = row % 2 === 0 ? 2 : 6;
+    for (let bx = off; bx < 16; bx += 8) rect(ctx, px, py, bx, row * 4, 1, 4, pal.floorAccent);
+  }
+  rect(ctx, px, py, 0, 0, 1, 16, 'rgba(0,0,0,0.12)');
+  if (region === 'temple' && hash(x, y) > 0.6) rect(ctx, px, py, 9, 9, 2, 1, 'rgba(0,0,0,0.15)');
+}
+
+function drawCrumble(ctx: CanvasRenderingContext2D, region: Region, pal: RegionPalette, x: number, y: number): void {
   drawFloor(ctx, region, pal, x, y);
   const px = x * TILE_SIZE;
   const py = y * TILE_SIZE;
-  if (dug) {
-    // A filled-in hole: turned earth and a little spoil heap.
-    rect(ctx, px, py, 3, 5, 10, 7, pal.diggable);
-    rect(ctx, px, py, 4, 6, 8, 5, 'rgba(0,0,0,0.3)');
-    rect(ctx, px, py, 11, 10, 4, 3, pal.diggableSpeck);
-    return;
+  const crack = 'rgba(0,0,0,0.55)';
+  rect(ctx, px, py, 0, 0, 16, 1, '#000000');
+  rect(ctx, px, py, 0, 15, 16, 1, '#000000');
+  rect(ctx, px, py, 3, 2, 1, 4, crack);
+  rect(ctx, px, py, 4, 5, 3, 1, crack);
+  rect(ctx, px, py, 7, 6, 1, 5, crack);
+  rect(ctx, px, py, 8, 10, 4, 1, crack);
+  rect(ctx, px, py, 12, 3, 1, 5, crack);
+  rect(ctx, px, py, 1, 11, 4, 1, crack);
+}
+
+function drawSpikeFloor(ctx: CanvasRenderingContext2D, region: Region, pal: RegionPalette, x: number, y: number): void {
+  drawFloor(ctx, region, pal, x, y);
+  const px = x * TILE_SIZE;
+  const py = y * TILE_SIZE;
+  for (const hy of [3, 8, 13]) {
+    for (const hx of [3, 8, 13]) rect(ctx, px, py, hx - 1, hy - 1, 2, 2, 'rgba(0,0,0,0.6)');
   }
-  // Soft, tilled dirt — soft enough that paws would sink in.
-  rect(ctx, px, py, 2, 3, 12, 10, pal.diggable);
-  rect(ctx, px, py, 1, 5, 14, 6, pal.diggable);
-  for (const [dx, dy] of [
-    [4, 5],
-    [9, 4],
-    [6, 8],
-    [11, 9],
-    [3, 10],
-  ] as const) {
-    rect(ctx, px, py, dx, dy, 2, 1, pal.diggableSpeck);
+}
+
+/**
+ * Scatter: the small stuff that fills a floor — pebbles, cracks, chips of
+ * pot, dust, a leaf, a tuft. Deterministic per tile, baked with the
+ * terrain, and there on trigger bricks and soft earth exactly as much as on
+ * anything else, so the floor as a whole is busy and nothing stands out
+ * just for having detail on it.
+ */
+function drawScatter(ctx: CanvasRenderingContext2D, region: Region, x: number, y: number): void {
+  if (region === 'home') return;
+  const roll = hash(x, y, 91);
+  if (roll > 0.42) return;
+  const px = x * TILE_SIZE;
+  const py = y * TILE_SIZE;
+  const sx = 2 + Math.floor(hash(x, y, 92) * 11);
+  const sy = 2 + Math.floor(hash(x, y, 93) * 11);
+  const kind = Math.floor(hash(x, y, 94) * 5);
+  const pebble = region === 'crypt' ? '#58627a' : region === 'vault' ? '#d8b070' : '#9a968a';
+  switch (kind) {
+    case 0:
+      rect(ctx, px, py, sx, sy, 2, 1, pebble);
+      rect(ctx, px, py, sx + 3, sy + 2, 1, 1, pebble);
+      rect(ctx, px, py, sx, sy + 1, 2, 1, 'rgba(0,0,0,0.25)');
+      break;
+    case 1:
+      rect(ctx, px, py, sx, sy, 1, 3, 'rgba(0,0,0,0.22)');
+      rect(ctx, px, py, sx + 1, sy + 2, 2, 1, 'rgba(0,0,0,0.22)');
+      break;
+    case 2:
+      if (region === 'meadow') {
+        rect(ctx, px, py, sx, sy, 1, 3, '#7fbf5a');
+        rect(ctx, px, py, sx + 2, sy + 1, 1, 2, '#7fbf5a');
+      } else if (region === 'well') {
+        rect(ctx, px, py, sx, sy, 3, 2, 'rgba(90,130,60,0.55)');
+      } else {
+        rect(ctx, px, py, sx, sy, 2, 1, '#a0643a');
+        rect(ctx, px, py, sx + 1, sy + 1, 1, 1, '#7a4024');
+      }
+      break;
+    case 3:
+      rect(ctx, px, py, sx, sy, 3, 1, region === 'crypt' ? 'rgba(220,215,200,0.35)' : 'rgba(200,190,160,0.25)');
+      break;
+    default:
+      rect(ctx, px, py, sx, sy, 1, 1, 'rgba(255,255,255,0.12)');
+      rect(ctx, px, py, sx + 4, sy - 1, 1, 1, 'rgba(0,0,0,0.2)');
   }
-  rect(ctx, px, py, 2, 12, 12, 1, 'rgba(0,0,0,0.25)');
 }
 
 function drawPlate(ctx: CanvasRenderingContext2D, region: Region, pal: RegionPalette, x: number, y: number): void {
@@ -204,13 +356,22 @@ function drawPlate(ctx: CanvasRenderingContext2D, region: Region, pal: RegionPal
   rect(ctx, px, py, 6, 6, 4, 4, 'rgba(0,0,0,0.18)');
 }
 
-function drawHazard(ctx: CanvasRenderingContext2D, region: Region, pal: RegionPalette, x: number, y: number): void {
+/**
+ * A pit. Neighbouring pits merge into one continuous drop, so a chasm reads
+ * as a chasm and not a tray of holes; only the lip against solid ground gets
+ * an edge. `open` says which sides continue into more pit.
+ */
+function drawHazard(ctx: CanvasRenderingContext2D, region: Region, pal: RegionPalette, x: number, y: number, open = { up: false, down: false, left: false, right: false }): void {
   drawFloor(ctx, region, pal, x, y);
   const px = x * TILE_SIZE;
   const py = y * TILE_SIZE;
-  rect(ctx, px, py, 1, 1, 14, 14, '#050505');
-  rect(ctx, px, py, 1, 1, 14, 2, pal.floorAccent);
-  rect(ctx, px, py, 3, 5, 10, 8, '#000000');
+  const l = open.left ? 0 : 1;
+  const r = open.right ? 16 : 15;
+  const t = open.up ? 0 : 1;
+  const b = open.down ? 16 : 15;
+  rect(ctx, px, py, l, t, r - l, b - t, '#050505');
+  if (!open.up) rect(ctx, px, py, l, t, r - l, 2, pal.floorAccent);
+  rect(ctx, px, py, l + 2, t + 4, r - l - 4, b - t - 6, '#000000');
 }
 
 function drawWater(ctx: CanvasRenderingContext2D, pal: RegionPalette, x: number, y: number): void {
@@ -277,22 +438,41 @@ export function renderTerrain(ctx: CanvasRenderingContext2D, map: GameMap, mapSt
           drawCatGap(ctx, map, region, pal, x, y);
           break;
         case 'diggable':
-          drawDiggable(ctx, region, pal, x, y, !!mapState.dug[key({ x, y })]);
+          drawEarth(ctx, map, region, pal, x, y);
+          break;
+        case 'trigger':
+          drawTrigger(ctx, region, pal, x, y);
+          break;
+        case 'crumble':
+          if (mapState.collapsed[key({ x, y })]) drawHazard(ctx, region, pal, x, y, pitNeighbours(map, mapState, x, y));
+          else drawCrumble(ctx, region, pal, x, y);
+          break;
+        case 'spikes':
+          drawSpikeFloor(ctx, region, pal, x, y);
           break;
         case 'plate':
           drawPlate(ctx, region, pal, x, y);
           break;
         case 'hazard':
-          drawHazard(ctx, region, pal, x, y);
+          drawHazard(ctx, region, pal, x, y, pitNeighbours(map, mapState, x, y));
           break;
         case 'water':
           drawWater(ctx, pal, x, y);
           break;
         case 'exit':
-          drawExit(ctx, map, region, pal, x, y);
+          if (isHiddenExit(map, x, y)) drawEarth(ctx, map, region, pal, x, y);
+          else drawExit(ctx, map, region, pal, x, y);
           break;
       }
+      if (tile === 'floor' || tile === 'path' || tile === 'diggable' || tile === 'trigger') drawScatter(ctx, region, x, y);
+      const k = key({ x, y });
+      if (mapState.dug[k]) drawHole(ctx, pal, x, y, false);
+      else if (map.oldHoles[k]) drawHole(ctx, pal, x, y, true);
     }
+  }
+  // Flat dressing — shards, roots, moss, tarps — is part of the ground.
+  for (const d of map.dressing) {
+    if (!d.solid) blit(ctx, propSprite(d.sprite), d.pos.x * TILE_SIZE, d.pos.y * TILE_SIZE, TILE_SIZE);
   }
 }
 

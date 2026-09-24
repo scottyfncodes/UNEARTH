@@ -3,16 +3,23 @@
  *
  *   Prologue — Home: Dad pops out. CK finds a note. CK draws conclusions.
  *   The Meadow — a tortoise who remembers everything a little wrong, a
- *     magpie with opinions, and two roads: south to the temple, east to a
- *     well that goes nowhere without a light.
+ *     magpie with opinions, and three roads: south to the temple, east to a
+ *     well that goes nowhere without a light, and west to Dad's old dig site.
  *   Chapter I — The Forgotten Temple: the bronze key, the Sunstone.
  *   The Old Well — the way down, once CK has something to see by.
  *   Chapter II — The Sunken Crypt: dark rooms, falling stones, a bat, the
  *     three pieces of the Moon Seal.
  *   Chapter III — The Hollow: where Dad stopped, and where CK doesn't.
  *
- * Legend: # wall · . floor · : path · ~ water · D soft dirt · g cat-only gap
- *         P pressure plate · ^ pit · > exit · s secret nook (floor)
+ * Terrain legend: # wall · . floor · : path · ~ water · , soft earth
+ *   g cat-only gap · P weighted plate · ^ pit · > exit · s secret nook (floor)
+ *   = trigger brick (a delayed trap's strip) · % crumbling stone · x spike floor
+ *
+ * The optional `props` layer is set dressing (see PROP_LEGEND in
+ * game/mapBuilder.ts): scenery to look at, walk round, or hop, never to
+ * "use". Outdoors (`softGround`), every open tile can be dug — which is
+ * the point: nothing on the ground says "dig here". The collar, the room
+ * and CK's nose do.
  */
 import { buildMap } from '@/game/mapBuilder';
 import type { GameMap } from '@/game/types';
@@ -127,24 +134,42 @@ const home = buildMap({
 });
 
 // ── The Meadow ─────────────────────────────────────────────────────────────
+// Every patch of grass here is diggable, and almost none of it is worth it.
+// The molehills look exactly like "dig here" and are exactly nothing.
 const meadow = buildMap({
   id: 'meadow',
   name: 'The Meadow',
   region: 'meadow',
+  softGround: true,
   rows: [
     '#######>########',
     '#~~~...:.......#',
     '#~s~...:.......#',
     '#~.~...:.......#',
-    '#......:....D..#',
+    '#......:.......#',
     '#......:.......#',
     '#......::::::::>',
     '#......:.......#',
-    '#..D...:..##...#',
     '#......:..##...#',
-    '#......:....D..#',
+    '>:::::::..##...#',
+    '#......:.......#',
     '#......:.......#',
     '#######>########',
+  ],
+  props: [
+    '................',
+    '....h.......b*h.',
+    '......r......*..',
+    '.........h...m..',
+    '.b..h......t..b.',
+    '...m.....*......',
+    '..r.............',
+    '....h.......L...',
+    '..b.m........*..',
+    '............f...',
+    '..h......m...r..',
+    '.....t.....b..h.',
+    '................',
   ],
   entities: [
     {
@@ -157,6 +182,7 @@ const meadow = buildMap({
         'Hm? Oh. A kitten. Hello, kitten.',
         'The tall human with the hat? He went south, toward the old temple.',
         '…Or was that a different time? When you\'re two hundred years old, everything was a while ago.',
+        'He had a camp, once. West, past the hedge. Dug a great many holes. Found a great many tent pegs.',
       ],
       flagLines: [
         {
@@ -170,7 +196,7 @@ const meadow = buildMap({
         {
           flag: 'visited:temple3',
           lines: [
-            'Your whiskers are singed. You went to the temple!',
+            'Your whiskers are singed. And is that… boulder dust? You went to the temple!',
             'That warm stone of yours… the old well, east of here, goes down into a dark nothing else can light.',
           ],
         },
@@ -184,8 +210,9 @@ const meadow = buildMap({
       sprite: 'magpie',
       lines: [
         'SHINY! You got shinies? Show! …No? Pff.',
-        'Tip, cat: that collar sings near buried things. Louder, louder — then DIG.',
-        'Soft dirt lies, though. Most of it is just dirt. Listen first!',
+        'I buried my BEST bottlecap. By the old stump, up north-east. Guard it with my life. Forgot which side.',
+        'That collar of yours ticks faster when you\'re close. But it only rings CLEAR when you\'re facing the thing. Turn round! Listen!',
+        'Molehills? Ha! Molehills are just moles. Everybody digs the molehills.',
       ],
     },
     { kind: 'decoration', id: 'deco_stone', pos: { x: 5, y: 3 }, spriteId: 'stone', clueId: 'clue_worn_stone', line: 'A flat stone, worn smooth.' },
@@ -194,19 +221,175 @@ const meadow = buildMap({
       id: 'deco_sign',
       pos: { x: 8, y: 7 },
       spriteId: 'sign',
-      line: 'A weathered signpost. SOUTH: The Old Temple. EAST: The Old Well (CLOSED). Someone has crossed out "closed".',
+      line: 'A weathered signpost. SOUTH: The Old Temple. EAST: The Old Well (CLOSED). WEST: Dig Site — PRIVATE, KEEP OUT, THIS MEANS YOU. — A. Someone has crossed out "closed".',
     },
     { kind: 'decoration', id: 'deco_flowers', pos: { x: 4, y: 10 }, spriteId: 'flowers', walkable: true, line: 'Flowers. CK sneezes.' },
     { kind: 'item', id: 'item_marble', pos: { x: 2, y: 2 }, itemId: 'shiny_marble' },
     { kind: 'item', id: 'treat_meadow', pos: { x: 1, y: 11 }, itemId: 'fish_treat', heals: 1 },
+    { kind: 'curio', id: 'curio_stump', pos: { x: 11, y: 4 }, bubble: '?', line: 'CK sniffs the old stump. Magpie. Definitely magpie. And, faintly, something tinny.' },
+    { kind: 'curio', id: 'curio_frog', pos: { x: 2, y: 4 }, bubble: '♪', line: 'A frog plops into the pond. CK pretends not to have flinched.' },
+    { kind: 'curio', id: 'curio_beetle', pos: { x: 10, y: 11 }, bubble: '…', line: 'A beetle trundles past, busy with beetle business.' },
+    { kind: 'curio', id: 'curio_hedge', pos: { x: 1, y: 8 }, bubble: '?', line: 'Voices of old tarps flapping, somewhere west. Somebody camped out there once.' },
   ],
-  buried: { '12,4': { itemId: 'shiny_bottlecap' } },
+  buried: {
+    '12,4': { itemId: 'shiny_bottlecap' },
+    '9,4': { junk: 'A bent nail. The collar was very excited about a bent nail.' },
+    '3,8': { junk: 'A rusted ring-pull. Not a shiny. Not even close.' },
+  },
   exits: [
     { at: { x: 7, y: 0 }, toMap: 'home', spawn: { x: 7, y: 9 }, spawnFacing: 'up' },
     { at: { x: 7, y: 12 }, toMap: 'temple1', spawn: { x: 7, y: 1 }, spawnFacing: 'down' },
     { at: { x: 15, y: 6 }, toMap: 'well', spawn: { x: 1, y: 6 }, spawnFacing: 'right' },
+    { at: { x: 0, y: 9 }, toMap: 'digsite', spawn: { x: 16, y: 7 }, spawnFacing: 'left' },
   ],
   defaultSpawn: { x: 7, y: 1 },
+});
+
+// ── Dad's Old Dig Site ─────────────────────────────────────────────────────
+// Optional, and the best place to learn how to hunt: Dad's abandoned camp,
+// his neat grid of trenches (every one of them empty), a log that points at
+// the one find he never came back for, junk everywhere, a mole with views,
+// and a tarp that is not holding anything up any more.
+const digsite = buildMap({
+  id: 'digsite',
+  name: "Dad's Old Dig Site",
+  region: 'meadow',
+  softGround: true,
+  rows: [
+    '##################',
+    '#s#..............#',
+    '#.g..........,,,.#',
+    '###..........,,,.#',
+    '#............,,,.#',
+    '#....,,,,,,,,....#',
+    '#....,,,,,,,,....#',
+    '#....,,,,,,,,....>',
+    '#....,,,,,,,,....#',
+    '#.,,.............#',
+    '#.,,.............#',
+    '#.,>.............#',
+    '#.,,.............#',
+    '##################',
+  ],
+  props: [
+    '..................',
+    '...b..........nnc.',
+    '........T.......k.',
+    '.....s..........Y.',
+    '....+....h...+....',
+    '..............B...',
+    '...............K..',
+    '..h...............',
+    '....+........+....',
+    '........m.....h...',
+    '...Q.......m....b.',
+    '...Q..y.....m.....',
+    '...Q..........l...',
+    '..................',
+  ],
+  oldHoles: ['13,2', '15,3', '14,4', '6,6', '9,5', '11,8', '7,8', '12,6'],
+  entities: [
+    {
+      kind: 'npc',
+      id: 'npc_mole',
+      pos: { x: 10, y: 10 },
+      name: 'Mortimer the Mole',
+      sprite: 'mole',
+      lines: [
+        'Oi! Watch where you\'re diggin\'. This is MY field. Has been for ages.',
+        'That jangly thing on your neck — the big hat fella\'s gadget, innit? He waved it about all day.',
+        'Here\'s a free tip, fuzzball. It ticks faster the closer you get. But it only goes all bright and clear when you\'re FACING the thing.',
+        'So stop. Turn on the spot. Listen. When it chirps twice, it\'s right under your nose.',
+        'And the dull, clunky ones? Junk. Tins and pegs. Your hat fella dug up a hundred of \'em.',
+      ],
+      flagLines: [
+        {
+          flag: 'visited:trench',
+          lines: ['Fell in the old trench, did ya? HA. So did he. Twice.', 'Turn on the spot, listen for the clear ring, dig where it chirps twice. Now get off my lawn.'],
+        },
+      ],
+    },
+    { kind: 'decoration', id: 'deco_board', pos: { x: 12, y: 1 }, spriteId: 'sign', clueId: 'clue_dig_log', line: 'A notice board.' },
+    {
+      kind: 'decoration',
+      id: 'deco_camp_table',
+      pos: { x: 11, y: 2 },
+      spriteId: 'table',
+      line: 'A folding camp table. A sapling has grown straight up through the middle of it and is now, frankly, a small tree. How long ago WAS this?',
+    },
+    {
+      kind: 'decoration',
+      id: 'deco_camp_mug',
+      pos: { x: 15, y: 2 },
+      spriteId: 'bowl',
+      line: 'A tin mug with "WORLD\'S OKAYEST ARCHAEOLOGIST" on it. Full of rainwater and one very content snail.',
+    },
+    { kind: 'item', id: 'treat_digsite', pos: { x: 1, y: 2 }, itemId: 'fish_treat', heals: 1 },
+    { kind: 'curio', id: 'curio_stone', pos: { x: 5, y: 3 }, bubble: '?', line: 'The leaning stone throws a long shadow west. Its east face is warm from the morning sun.' },
+    { kind: 'curio', id: 'curio_trench', pos: { x: 8, y: 7 }, bubble: '…', line: 'Neat, straight trenches. Dug with enormous care. Every single one of them empty.' },
+    { kind: 'curio', id: 'curio_tarp', pos: { x: 2, y: 11 }, bubble: '?', radius: 1, line: 'The tarp sags in the middle. Like there\'s nothing under it at all.' },
+  ],
+  buried: {
+    '6,3': { itemId: 'shiny_compass' },
+    '5,4': { junk: 'A bottle cap. Not even a good one. The collar clunked about it.' },
+    '13,3': { junk: 'A tent peg, bent into a sad little question mark. Dad\'s, probably.' },
+    '10,6': { junk: 'A sardine tin. Empty. CK checks. CK checks again.' },
+    '5,8': { junk: 'A rusty trowel. Scratched into the handle: "A." Dad lost EVERYTHING out here.' },
+    '15,9': { junk: 'A key ring with no keys on it. Very on brand.' },
+  },
+  exits: [
+    { at: { x: 17, y: 7 }, toMap: 'meadow', spawn: { x: 1, y: 9 }, spawnFacing: 'right' },
+    {
+      at: { x: 3, y: 11 },
+      toMap: 'trench',
+      spawn: { x: 2, y: 2 },
+      spawnFacing: 'down',
+      hidden: true,
+      fallMessage: 'The old tarp sags… creaks… and gives way. WHUMP! CK tumbles into a forgotten trench.',
+    },
+  ],
+  defaultSpawn: { x: 16, y: 7 },
+});
+
+// A trench under a rotten tarp. Nobody meant for anybody to fall in. Dad did.
+const trench = buildMap({
+  id: 'trench',
+  name: 'The Old Trench',
+  region: 'well',
+  rows: [
+    '##########>#',
+    '#,,,,,,,,,,#',
+    '#,,,,,,,,,,#',
+    '##,,,##,,,,#',
+    '#,,,,,,,,,,#',
+    '#,,,,,,,,,,#',
+    '############',
+  ],
+  props: [
+    '............',
+    '.v...M.....',
+    '......N..v..',
+    '..w.........',
+    '.....e...M..',
+    '.M.....y....',
+    '............',
+  ].map((r) => r.padEnd(12, '.')),
+  entities: [
+    {
+      kind: 'decoration',
+      id: 'deco_thermos',
+      pos: { x: 5, y: 1 },
+      spriteId: 'lantern',
+      line: "Dad's thermos. Someone fell in here once and sat a while, drinking terrible coffee, waiting to feel less silly.",
+    },
+    { kind: 'item', id: 'item_lens', pos: { x: 2, y: 5 }, itemId: 'shiny_lens' },
+    { kind: 'curio', id: 'curio_ladder', pos: { x: 10, y: 1 }, bubble: '♥', line: "A rope ladder, tied off with Dad's knots. Twenty years on, they still hold. Knots are Dad's one true talent." },
+  ],
+  buried: {
+    '8,5': { junk: 'A tin mug. Dad\'s initials, again. He really did lose everything down here.' },
+  },
+  exits: [{ at: { x: 10, y: 0 }, toMap: 'digsite', spawn: { x: 4, y: 10 }, spawnFacing: 'right' }],
+  defaultSpawn: { x: 2, y: 2 },
 });
 
 // ── The Old Well ───────────────────────────────────────────────────────────
@@ -217,16 +400,30 @@ const well = buildMap({
   rows: [
     '################',
     '#..........#s..#',
-    '#..D.......#...#',
-    '#..........#g###',
-    '#..............#',
-    '#.......>......#',
-    '>..............#',
-    '#..............#',
-    '#...##.........#',
-    '#...#..D.......#',
-    '#..............#',
+    '#.,,.......#...#',
+    '#.,,,......#g###',
+    '#..,.....,.....#',
+    '#.......>,,....#',
+    '>.......,,,....#',
+    '#....,.........#',
+    '#...##..,,.....#',
+    '#...#.,,,,,....#',
+    '#.....,,,......#',
     '################',
+  ],
+  props: [
+    '................',
+    '...M.....w......',
+    '..........u.....',
+    '......r.........',
+    '.M..............',
+    '...p......N.....',
+    '.........v...o..',
+    '..h.......L.....',
+    '..........M..u..',
+    '..r...........w.',
+    '.M.........e..V.',
+    '................',
   ],
   entities: [
     { kind: 'clueNote', id: 'note_field3', pos: { x: 6, y: 4 }, clueId: 'clue_field_notes_3' },
@@ -235,12 +432,18 @@ const well = buildMap({
       id: 'deco_well_statue',
       pos: { x: 12, y: 7 },
       spriteId: 'catStatue',
-      line: 'A weathered statue of… a cat? A very dignified cat, gazing at the well.',
+      line: 'A weathered statue of a very dignified cat. Its stone stare is fixed on one patch of earth, off to the south-west. Cats only stare like that at something.',
     },
     { kind: 'item', id: 'item_spoon', pos: { x: 14, y: 1 }, itemId: 'shiny_spoon' },
     { kind: 'item', id: 'treat_well', pos: { x: 14, y: 2 }, itemId: 'fish_treat', heals: 1 },
+    { kind: 'curio', id: 'curio_stare', pos: { x: 10, y: 8 }, radius: 1, bubble: '?', line: 'CK follows the statue\'s stare, down and to the left. Cats recognise a meaningful stare.' },
+    { kind: 'curio', id: 'curio_well_draught', pos: { x: 8, y: 4 }, bubble: '…', line: 'Cold air breathes up out of the well. It smells of stone, and of a very long way down.' },
   ],
-  buried: { '7,9': { itemId: 'shiny_jingle' } },
+  buried: {
+    '7,9': { itemId: 'shiny_jingle' },
+    '3,2': { junk: 'A rusted bucket handle. The bucket is long gone.' },
+    '9,6': { junk: 'An old iron key. It fits nothing. It never did.' },
+  },
   exits: [
     { at: { x: 0, y: 6 }, toMap: 'meadow', spawn: { x: 14, y: 6 }, spawnFacing: 'left' },
     {
@@ -256,6 +459,10 @@ const well = buildMap({
 });
 
 // ── Chapter I: The Forgotten Temple ────────────────────────────────────────
+// The entry hall teaches the temple's two languages. The guardian's stare
+// and the floor inscription say where half the key is buried. The frieze,
+// the whiff of oil and a loose pebble say what the slightly-wrong bricks in
+// the south corridor do — and that a small, bouncy someone can just go over.
 const temple1 = buildMap({
   id: 'temple1',
   name: 'Forgotten Temple — Entry Hall',
@@ -264,37 +471,81 @@ const temple1 = buildMap({
   rows: [
     '#######>########',
     '#..............#',
-    '#..............#',
-    '#...D.......####',
-    '#...........#s.#',
+    '#.,,...........#',
+    '#.,,,.......####',
+    '#..,........#s.#',
     '#...........g..#',
-    '#...........####',
-    '#..D...........#',
-    '#..............#',
-    '#....P.........#',
-    '#..............#',
-    '#..............#',
+    '#.........,,####',
+    '#..,,......,,..#',
+    '#..,,,.....,...#',
+    '######...#######',
+    '######...#######',
+    '######===#######',
+    '######...#######',
+    '#..,,.......,,.#',
+    '#.,,,.......,..#',
     '#######>########',
+  ],
+  props: [
+    '................',
+    '.o............u.',
+    '.....p.....I....',
+    '..........j.....',
+    '.I..............',
+    '....U...C.......',
+    '.v.......p......',
+    '.......o........',
+    '.u.........M..a.',
+    '................',
+    '................',
+    '................',
+    '......d.........',
+    '.p...o....I...u.',
+    '.....v....U.....',
+    '................',
   ],
   entities: [
     { kind: 'clueNote', id: 'note_field1', pos: { x: 6, y: 3 }, clueId: 'clue_field_notes_1' },
-    { kind: 'decoration', id: 'deco_statue1', pos: { x: 11, y: 4 }, spriteId: 'statue', clueId: 'clue_statue_crack', line: 'A stern stone guardian.' },
+    { kind: 'decoration', id: 'deco_statue1', pos: { x: 11, y: 4 }, spriteId: 'statue', clueId: 'clue_statue_crack', line: 'A stern stone guardian, staring straight down the hall.' },
+    { kind: 'decoration', id: 'deco_glyph1', pos: { x: 9, y: 4 }, spriteId: 'glyph', walkable: true, clueId: 'clue_guardian_gaze', line: 'Worn letters in the floor.' },
+    { kind: 'decoration', id: 'deco_leap_mural', pos: { x: 10, y: 8 }, spriteId: 'leapMural', clueId: 'clue_leap_mural', line: 'A carved frieze.' },
+    { kind: 'decoration', id: 'deco_pebble1', pos: { x: 7, y: 9 }, spriteId: 'pebble', walkable: true, kick: true },
     { kind: 'item', id: 'item_fragment_b', pos: { x: 14, y: 5 }, itemId: 'fragment_bronze_blade' },
-    { kind: 'trap', id: 'trap_entry', pos: { x: 0, y: 9 }, trapType: 'dart', triggerPlate: { x: 5, y: 9 }, detectable: true },
-    { kind: 'decoration', id: 'deco_scorch1', pos: { x: 6, y: 9 }, spriteId: 'scorch', walkable: true, line: 'Scorch marks and a scatter of tiny darts. Something in these walls still works.' },
-    { kind: 'item', id: 'treat_temple1', pos: { x: 1, y: 11 }, itemId: 'fish_treat', heals: 1 },
+    {
+      kind: 'trap',
+      id: 'darts_entry',
+      pos: { x: 5, y: 11 },
+      trapType: 'dart',
+      triggers: [
+        { x: 6, y: 11 },
+        { x: 7, y: 11 },
+        { x: 8, y: 11 },
+      ],
+      delayMs: 420,
+      detectable: true,
+    },
+    { kind: 'item', id: 'treat_temple1', pos: { x: 1, y: 14 }, itemId: 'fish_treat', heals: 1 },
+    { kind: 'curio', id: 'curio_oil', pos: { x: 7, y: 10 }, bubble: '!', line: "CK's whiskers twitch. This corridor smells of old oil and metal." },
+    { kind: 'curio', id: 'curio_gaze', pos: { x: 11, y: 6 }, bubble: '?', line: 'CK stares where the guardian stares. Cats respect a good stare.' },
   ],
   buried: {
-    '4,3': { itemId: 'fragment_bronze_handle' },
-    '3,7': { itemId: 'shiny_ring' },
+    '11,7': { itemId: 'fragment_bronze_handle' },
+    '12,7': { junk: 'A green-crusted nail. The keepers had nails too, apparently.' },
+    '4,8': { itemId: 'shiny_ring' },
+    '3,7': { junk: 'A handful of bent bronze pins. Old, but still just pins.' },
+    '2,3': { junk: 'A corroded buckle. Somebody lost their belt in here.' },
   },
   exits: [
     { at: { x: 7, y: 0 }, toMap: 'meadow', spawn: { x: 7, y: 11 }, spawnFacing: 'up' },
-    { at: { x: 7, y: 12 }, toMap: 'temple2', spawn: { x: 7, y: 1 }, spawnFacing: 'down' },
+    { at: { x: 7, y: 15 }, toMap: 'temple2', spawn: { x: 7, y: 1 }, spawnFacing: 'down' },
   ],
   defaultSpawn: { x: 7, y: 1 },
 });
 
+// The puzzle chamber: a pit only a pushed block can bridge (the block
+// cannot be hopped — it IS the thing in the way), grit sifting down where
+// the ceiling is loose, and a trigger strip right across the room in front
+// of the door. The obvious way through is the dangerous one.
 const temple2 = buildMap({
   id: 'temple2',
   name: 'Forgotten Temple — Puzzle Chamber',
@@ -302,25 +553,61 @@ const temple2 = buildMap({
   rows: [
     '#######>########',
     '#####..........#',
+    '#####....,,....#',
+    '#####....,,,...#',
+    '#...##.........#',
+    '#...^..........#',
+    '#...##.........#',
     '#####..........#',
-    '#####..........#',
-    '#....#.........#',
-    '#....^..P......#',
-    '#....#.........#',
-    '#####..........#',
-    '##s#...P.......#',
-    '##.g...........#',
-    '#####..........#',
+    '##s#...........#',
+    '##.g===========#',
+    '#####.,,.......#',
     '#####..........#',
     '#######>########',
   ],
+  props: [
+    '................',
+    '......u....I....',
+    '.........p......',
+    '..............a.',
+    '..M.....o.......',
+    '..............U.',
+    '.v..........j...',
+    '......C.........',
+    '.....e......u...',
+    '................',
+    '.....d....p.....',
+    '........I.......',
+    '................',
+  ],
   entities: [
-    { kind: 'block', id: 'block_1', pos: { x: 6, y: 5 } },
-    { kind: 'trap', id: 'trap_dart1', pos: { x: 15, y: 5 }, trapType: 'dart', triggerPlate: { x: 8, y: 5 }, detectable: true },
-    { kind: 'trap', id: 'trap_dart2', pos: { x: 15, y: 8 }, trapType: 'dart', triggerPlate: { x: 7, y: 8 }, detectable: true },
-    { kind: 'decoration', id: 'deco_scorch2', pos: { x: 9, y: 8 }, spriteId: 'scorch', walkable: true, line: 'More scorch marks. The obvious way through is the dangerous one.' },
+    { kind: 'block', id: 'block_1', pos: { x: 5, y: 5 } },
+    {
+      kind: 'trap',
+      id: 'darts_door',
+      pos: { x: 15, y: 9 },
+      trapType: 'dart',
+      triggers: [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14].map((x) => ({ x, y: 9 })),
+      delayMs: 400,
+      detectable: true,
+    },
+    {
+      kind: 'trap',
+      id: 'loose_ceiling',
+      pos: { x: 10, y: 6 },
+      trapType: 'fallingRock',
+      triggers: [
+        { x: 9, y: 6 },
+        { x: 10, y: 6 },
+        { x: 11, y: 6 },
+      ],
+      delayMs: 650,
+      detectable: true,
+    },
     { kind: 'switch', id: 'switch_shortcut', pos: { x: 2, y: 5 }, setsFlag: 'sanctumUnlockedByShortcut' },
     { kind: 'item', id: 'item_coin', pos: { x: 2, y: 8 }, itemId: 'shiny_coin' },
+    { kind: 'decoration', id: 'deco_pebble2', pos: { x: 12, y: 8 }, spriteId: 'pebble', walkable: true, kick: true },
+    { kind: 'curio', id: 'curio_grit', pos: { x: 10, y: 5 }, bubble: '…', line: 'Grit sifts down from the ceiling and lands on CK\'s nose. Achoo.' },
     {
       kind: 'door',
       id: 'door_sanctum',
@@ -330,40 +617,102 @@ const temple2 = buildMap({
       lockedMessage: 'The bronze fittings hum faintly. This door wants its key — or another way in.',
     },
   ],
+  buried: {
+    '10,3': { junk: 'A cracked clay lamp. The keepers read in the dark, apparently.' },
+  },
   exits: [
-    { at: { x: 7, y: 0 }, toMap: 'temple1', spawn: { x: 7, y: 11 }, spawnFacing: 'up' },
+    { at: { x: 7, y: 0 }, toMap: 'temple1', spawn: { x: 7, y: 14 }, spawnFacing: 'up' },
     { at: { x: 7, y: 12 }, toMap: 'temple3', spawn: { x: 7, y: 1 }, spawnFacing: 'down' },
   ],
   defaultSpawn: { x: 7, y: 1 },
 });
 
+// The sanctum: lift the Sunstone and the temple has opinions about it. A
+// boulder drops out of the west wall, rolls the length of the chamber, up
+// the one narrow corridor out, and straight through a cracked wall at the
+// top — so run, or duck into an alcove, and then go and see what it broke.
 const temple3 = buildMap({
   id: 'temple3',
   name: 'Forgotten Temple — Inner Sanctum',
   region: 'temple',
   rows: [
     '#######>########',
+    '#...........####',
+    '#...........#s.#',
     '#..............#',
+    '#...........####',
+    '#...........####',
+    '#######.########',
+    '#######.########',
+    '#######.########',
+    '######..########',
+    '#######.########',
+    '#######..#######',
+    '#######.########',
     '#..............#',
-    '#..............#',
-    '#..............#',
-    '#..............#',
-    '#..............#',
-    '#..............#',
-    '#..............#',
-    '#...D..........#',
-    '#..............#',
+    '#...,.....,,,..#',
+    '#..........,,,.#',
+    '#.,,,......,,,.#',
     '################',
   ],
-  entities: [
-    { kind: 'decoration', id: 'deco_pedestal', pos: { x: 7, y: 6 }, spriteId: 'pedestal', clueId: 'clue_inscription', line: 'A worn stone pedestal.' },
-    { kind: 'item', id: 'item_idol', pos: { x: 7, y: 5 }, itemId: 'idol_sunstone' },
-    { kind: 'clueNote', id: 'note_field2', pos: { x: 4, y: 6 }, clueId: 'clue_field_notes_2' },
-    { kind: 'decoration', id: 'deco_mural', pos: { x: 3, y: 2 }, spriteId: 'mural', clueId: 'clue_mural_cats', line: 'A faded mural.' },
-    { kind: 'decoration', id: 'deco_brazier_l', pos: { x: 5, y: 3 }, spriteId: 'brazier', line: 'A cold brazier.' },
-    { kind: 'decoration', id: 'deco_brazier_r', pos: { x: 9, y: 3 }, spriteId: 'brazier', line: 'A cold brazier.' },
+  props: [
+    '................',
+    '.u.........I....',
+    '..p......C......',
+    '................',
+    '.M.......p......',
+    '..o.............',
+    '................',
+    '................',
+    '................',
+    '................',
+    '................',
+    '................',
+    '................',
+    '................',
+    '.o..........u...',
+    '..C.......C.....',
+    '...e.........q..',
+    '................',
   ],
-  buried: { '4,9': { itemId: 'shiny_tooth' } },
+  entities: [
+    { kind: 'decoration', id: 'deco_mural', pos: { x: 3, y: 1 }, spriteId: 'mural', clueId: 'clue_mural_cats', line: 'A faded mural.' },
+    { kind: 'decoration', id: 'deco_brazier_l', pos: { x: 5, y: 1 }, spriteId: 'brazier', line: 'A brazier.' },
+    { kind: 'decoration', id: 'deco_brazier_r', pos: { x: 9, y: 1 }, spriteId: 'brazier', line: 'A brazier.' },
+    { kind: 'decoration', id: 'deco_boulder_mural', pos: { x: 10, y: 5 }, spriteId: 'boulderMural', clueId: 'clue_boulder_mural', line: 'Another carving.' },
+    { kind: 'decoration', id: 'deco_pedestal', pos: { x: 7, y: 15 }, spriteId: 'pedestal', clueId: 'clue_inscription', line: 'A worn stone pedestal.' },
+    { kind: 'item', id: 'item_idol', pos: { x: 7, y: 14 }, itemId: 'idol_sunstone', setsFlag: 'tookSunstone' },
+    { kind: 'clueNote', id: 'note_field2', pos: { x: 3, y: 14 }, clueId: 'clue_field_notes_2' },
+    {
+      kind: 'roller',
+      id: 'boulder_sanctum',
+      pos: { x: 1, y: 13 },
+      path: [
+        ...[1, 2, 3, 4, 5, 6, 7].map((x) => ({ x, y: 13 })),
+        ...[12, 11, 10, 9, 8, 7, 6, 5, 4, 3].map((y) => ({ x: 7, y })),
+        ...[8, 9, 10, 11, 12].map((x) => ({ x, y: 3 })),
+      ],
+      stepMs: 175,
+      windupMs: 1000,
+      startsOnFlag: 'tookSunstone',
+    },
+    {
+      kind: 'door',
+      id: 'door_cracked',
+      pos: { x: 12, y: 3 },
+      look: 'crackedWall',
+      opensOnFlag: 'rolled:boulder_sanctum',
+      lockedMessage: 'A long crack runs up this wall. Solid, though. It would take something enormous to go through it.',
+    },
+    { kind: 'item', id: 'item_scarab', pos: { x: 14, y: 3 }, itemId: 'shiny_scarab' },
+    { kind: 'curio', id: 'curio_skull', pos: { x: 13, y: 16 }, bubble: '?', line: 'A carved stone skull, grinning. It is missing a tooth. It is missing a GOLD tooth.' },
+    { kind: 'curio', id: 'curio_hole', pos: { x: 1, y: 13 }, bubble: '!', line: 'A perfectly round hole in the wall, big as a cart wheel. Something big lives in there. Or rolls in there.' },
+  ],
+  buried: {
+    '12,16': { itemId: 'shiny_tooth' },
+    '2,16': { junk: 'A bronze bell clapper. No bell. Just the clapper.' },
+    '13,15': { junk: 'A chip of painted plaster. Pretty, but not shiny.' },
+  },
   exits: [{ at: { x: 7, y: 0 }, toMap: 'temple2', spawn: { x: 7, y: 11 }, spawnFacing: 'up' }],
   defaultSpawn: { x: 7, y: 1 },
 });
@@ -377,18 +726,33 @@ const crypt1 = buildMap({
   chapter: { number: 'Chapter II', title: 'The Sunken Crypt' },
   rows: [
     '#######>########',
-    '#......:.......#',
+    '#......:.....,,#',
     '#.####.:.####..#',
     '#.#....:....#..#',
-    '#.#.P..:..P.#..#',
-    '#.#....:....#.D#',
-    '#......P.......#',
+    '#.#....:....#.,#',
+    '#.#....:....#,,#',
+    '#......:.......#',
     '###.######.#####',
-    '#......#.......#',
-    '#.D....#.......#',
-    '#..............#',
-    '#..............#',
+    '#,,....#.......#',
+    '#,,....#..,,...#',
+    '#.,,....,,,....#',
+    '#......,,,..,,.#',
     '#######>########',
+  ],
+  props: [
+    '................',
+    '.z..........z...',
+    '................',
+    '...e............',
+    '................',
+    '................',
+    '.q...........M..',
+    '................',
+    '....o.....u.....',
+    '................',
+    '.......C........',
+    '..v........e....',
+    '................',
   ],
   entities: [
     {
@@ -401,22 +765,80 @@ const crypt1 = buildMap({
         'Squeak! A CAT! …A cat with a LIGHT. Oh, that\'s actually lovely.',
         'The tall one with the hat? Oh, he came down here once. Years and years ago.',
         'His lamp kept going out. He bumped into EVERYTHING. Very funny. Squeak.',
-        'Mind the loose floor stones. Rocks come down. Bonk.',
+        'He dropped something pale and moony up by the east wall. It went down between the stones. I\'d have fetched it, but — no hands.',
+        'And mind the ceiling. When it starts to trickle, MOVE. Bonk.',
       ],
     },
-    { kind: 'trap', id: 'rock_a', pos: { x: 4, y: 4 }, trapType: 'fallingRock', triggerPlate: { x: 4, y: 4 }, detectable: true },
-    { kind: 'trap', id: 'rock_b', pos: { x: 10, y: 4 }, trapType: 'fallingRock', triggerPlate: { x: 10, y: 4 }, detectable: true },
-    { kind: 'trap', id: 'rock_c', pos: { x: 7, y: 6 }, trapType: 'fallingRock', triggerPlate: { x: 7, y: 6 }, detectable: true },
+    { kind: 'trap', id: 'rock_a', pos: { x: 4, y: 4 }, trapType: 'fallingRock', triggers: [{ x: 4, y: 4 }], delayMs: 600, detectable: true },
+    { kind: 'trap', id: 'rock_b', pos: { x: 10, y: 4 }, trapType: 'fallingRock', triggers: [{ x: 10, y: 4 }], delayMs: 600, detectable: true },
+    { kind: 'trap', id: 'rock_c', pos: { x: 7, y: 6 }, trapType: 'fallingRock', triggers: [{ x: 7, y: 6 }], delayMs: 550, detectable: true },
     { kind: 'decoration', id: 'deco_bones', pos: { x: 13, y: 3 }, spriteId: 'bones', walkable: true, line: 'Old fish bones. Someone has been snacking down here. Pip, probably.' },
     { kind: 'item', id: 'treat_crypt1', pos: { x: 1, y: 11 }, itemId: 'fish_treat', heals: 1 },
+    { kind: 'curio', id: 'curio_rolled', pos: { x: 2, y: 8 }, bubble: '?', line: 'Everything that ever rolled down those stairs ended up in this corner. CK can smell pearls. Probably.' },
   ],
   buried: {
     '14,5': { itemId: 'moon_crescent' },
+    '13,5': { junk: 'A bent iron hook. Something used to hang from it. Something heavy.' },
     '2,9': { itemId: 'shiny_earring' },
+    '1,8': { junk: 'A tarnished button. Not shiny enough to count. CK has standards.' },
   },
   exits: [
     { at: { x: 7, y: 0 }, toMap: 'well', spawn: { x: 8, y: 6 }, spawnFacing: 'down' },
-    { at: { x: 7, y: 12 }, toMap: 'crypt2', spawn: { x: 7, y: 1 }, spawnFacing: 'down' },
+    { at: { x: 7, y: 12 }, toMap: 'chasm', spawn: { x: 7, y: 1 }, spawnFacing: 'down' },
+  ],
+  defaultSpawn: { x: 7, y: 1 },
+});
+
+// The Crumbling Span: a bridge of cracked stones over nothing, two missing
+// stones to hop, and a very firm instruction from Dad scratched at the top.
+// Every stone holds long enough to cross. None of them holds long enough to
+// stand on. A tin star sits out on the pillar island for the brave.
+const chasm = buildMap({
+  id: 'chasm',
+  name: 'Sunken Crypt — The Crumbling Span',
+  region: 'crypt',
+  dark: true,
+  rows: [
+    '#######>########',
+    '#..............#',
+    '#..............#',
+    '#^^^^^^%^^^^^^^#',
+    '#^^^^^^%^^^^^^^#',
+    '#^^^^^^^^^^^^^^#',
+    '#^^^^^^%^^^..^^#',
+    '#^^^^^^%%%^..^^#',
+    '#^^^^^^^^%^^%^^#',
+    '#^^^^^^^^^^^%^^#',
+    '#^^^^^^^^%^^%^^#',
+    '#..............#',
+    '#..............#',
+    '#######>########',
+  ],
+  props: [
+    '................',
+    '.o...z....u..e..',
+    '..........C..N..',
+    '................',
+    '................',
+    '................',
+    '................',
+    '................',
+    '................',
+    '................',
+    '................',
+    '.e.....M....v...',
+    '...o......u.z...',
+    '................',
+  ],
+  entities: [
+    { kind: 'decoration', id: 'deco_scratch', pos: { x: 4, y: 2 }, spriteId: 'glyph', walkable: true, clueId: 'clue_bridge_scratch', line: 'Scratches in the ledge.' },
+    { kind: 'item', id: 'treat_chasm', pos: { x: 1, y: 2 }, itemId: 'fish_treat', heals: 1 },
+    { kind: 'item', id: 'item_star', pos: { x: 12, y: 6 }, itemId: 'shiny_star' },
+    { kind: 'curio', id: 'curio_bridge', pos: { x: 7, y: 2 }, radius: 0, bubble: '!', line: 'The first bridge stone shifts under CK\'s paw with a gritty little crunch. The whole span creaks like an old floorboard.' },
+  ],
+  exits: [
+    { at: { x: 7, y: 0 }, toMap: 'crypt1', spawn: { x: 7, y: 11 }, spawnFacing: 'up' },
+    { at: { x: 7, y: 13 }, toMap: 'crypt2', spawn: { x: 7, y: 1 }, spawnFacing: 'down' },
   ],
   defaultSpawn: { x: 7, y: 1 },
 });
@@ -437,9 +859,24 @@ const crypt2 = buildMap({
     '#..P.......P...#',
     '#..............#',
     '#######.########',
-    '#s.g...........#',
+    '#s.gxxx........#',
     '###............#',
     '#######>########',
+  ],
+  props: [
+    '................',
+    '.C..........z...',
+    '................',
+    '................',
+    '.............u..',
+    '..............q.',
+    '.e..............',
+    '......M.........',
+    '..o.........o...',
+    '................',
+    '................',
+    '....e......N....',
+    '................',
   ],
   entities: [
     { kind: 'block', id: 'block_west', pos: { x: 3, y: 5 } },
@@ -454,17 +891,35 @@ const crypt2 = buildMap({
       ],
       lockedMessage: 'A heavy stone door. Two worn plates flank the hall — and two heavy blocks sit nearby, doing nothing useful.',
     },
+    {
+      kind: 'trap',
+      id: 'spikes_alcove',
+      pos: { x: 5, y: 10 },
+      trapType: 'spikes',
+      lane: [
+        { x: 4, y: 10 },
+        { x: 5, y: 10 },
+        { x: 6, y: 10 },
+      ],
+      period: 2000,
+      upMs: 800,
+      detectable: true,
+    },
     { kind: 'item', id: 'item_moon_face', pos: { x: 2, y: 10 }, itemId: 'moon_face' },
     { kind: 'item', id: 'item_watch', pos: { x: 1, y: 10 }, itemId: 'shiny_watch' },
     { kind: 'clueNote', id: 'note_field4', pos: { x: 13, y: 11 }, clueId: 'clue_field_notes_4' },
+    { kind: 'curio', id: 'curio_heartbeat', pos: { x: 7, y: 10 }, bubble: '…', line: 'Click… click… SHNK. Click… click… SHNK. The floor over there has a heartbeat.' },
   ],
   exits: [
-    { at: { x: 7, y: 0 }, toMap: 'crypt1', spawn: { x: 7, y: 11 }, spawnFacing: 'up' },
+    { at: { x: 7, y: 0 }, toMap: 'chasm', spawn: { x: 7, y: 12 }, spawnFacing: 'up' },
     { at: { x: 7, y: 12 }, toMap: 'crypt3', spawn: { x: 7, y: 1 }, spawnFacing: 'down' },
   ],
   defaultSpawn: { x: 7, y: 1 },
 });
 
+// The Hall of Echoes: earth everywhere, and the keepers buried decoy moons
+// all through it to waste a grave robber's night. They clunk. The real rim
+// rings clear, under the one carving with its eye open.
 const crypt3 = buildMap({
   id: 'crypt3',
   name: 'Sunken Crypt — Hall of Echoes',
@@ -472,23 +927,39 @@ const crypt3 = buildMap({
   dark: true,
   rows: [
     '#######>########',
-    '#..............#',
-    '#.D..D....D..D.#',
-    '#..............#',
+    '#..,,......,,..#',
+    '#.,,,,....,,,,.#',
+    '#..,,......,...#',
     '#...##....##...#',
     '#...##....##...#',
-    '#.D..........D.#',
-    '#.....P..P.....#',
-    '#..D.......D...#',
+    '#.,,.........,.#',
+    '#.,...........,#',
+    '#.,,.......,,,.#',
     '#..............#',
     '#..............#',
     '#..............#',
     '#######>########',
   ],
+  props: [
+    '................',
+    '.C...........C..',
+    '................',
+    '......e..q......',
+    '.u..............',
+    '.............u..',
+    '.....z....o.....',
+    '................',
+    '................',
+    '..M.........v...',
+    '.p.........C....',
+    '...e.......z....',
+    '................',
+  ],
   entities: [
     { kind: 'decoration', id: 'deco_echo', pos: { x: 7, y: 4 }, spriteId: 'carving', clueId: 'clue_echo', line: 'Carvings, everywhere.' },
-    { kind: 'trap', id: 'rock_d', pos: { x: 6, y: 7 }, trapType: 'fallingRock', triggerPlate: { x: 6, y: 7 }, detectable: true },
-    { kind: 'trap', id: 'rock_e', pos: { x: 9, y: 7 }, trapType: 'fallingRock', triggerPlate: { x: 9, y: 7 }, detectable: true },
+    { kind: 'decoration', id: 'deco_moon_eye', pos: { x: 10, y: 1 }, spriteId: 'moonCarving', clueId: 'clue_moon_eye', line: 'A carving of the moon.' },
+    { kind: 'trap', id: 'rock_d', pos: { x: 6, y: 7 }, trapType: 'fallingRock', triggers: [{ x: 6, y: 7 }], delayMs: 600, detectable: true },
+    { kind: 'trap', id: 'rock_e', pos: { x: 9, y: 7 }, trapType: 'fallingRock', triggers: [{ x: 9, y: 7 }], delayMs: 600, detectable: true },
     { kind: 'item', id: 'treat_crypt3', pos: { x: 14, y: 11 }, itemId: 'fish_treat', heals: 1 },
     {
       kind: 'door',
@@ -497,10 +968,15 @@ const crypt3 = buildMap({
       requiresArtifact: 'moon_seal',
       lockedMessage: 'A round stone door with a moon-shaped socket. It wants the whole moon, not a piece of one.',
     },
+    { kind: 'curio', id: 'curio_glass', pos: { x: 2, y: 8 }, bubble: '!', line: 'CK freezes. Something down there is looking back. CK is almost sure of it.' },
   ],
   buried: {
     '10,2': { itemId: 'moon_rim' },
+    '12,2': { junk: 'A tiny carved stone crescent. A decoy — the keepers buried dozens.', clueId: 'clue_decoy_moons' },
+    '4,2': { junk: 'Another decoy crescent. The keepers really committed to the bit.', clueId: 'clue_decoy_moons' },
+    '13,6': { junk: 'A decoy crescent, chipped. Someone else dug this one up once and threw it back.', clueId: 'clue_decoy_moons' },
     '3,8': { itemId: 'shiny_glasseye' },
+    '12,8': { junk: 'A corroded bronze pin.' },
   },
   exits: [
     { at: { x: 7, y: 0 }, toMap: 'crypt2', spawn: { x: 7, y: 11 }, spawnFacing: 'up' },
@@ -522,6 +998,15 @@ const passage = buildMap({
     '#######g########',
     '#######.########',
     '#######>########',
+  ],
+  props: [
+    '................',
+    '.z........q..z..',
+    '..e......M......',
+    '.o.........u....',
+    '................',
+    '................',
+    '................',
   ],
   entities: [
     { kind: 'clueNote', id: 'note_field5', pos: { x: 5, y: 3 }, clueId: 'clue_field_notes_5' },
@@ -555,6 +1040,20 @@ const vault = buildMap({
     '#..............#',
     '################',
   ],
+  props: [
+    '................',
+    '..C.........C...',
+    '................',
+    '..........M.....',
+    '.M............M.',
+    '................',
+    '................',
+    '...p............',
+    '................',
+    '...L......p.....',
+    '.C............C.',
+    '................',
+  ],
   entities: [
     { kind: 'decoration', id: 'deco_mural_l', pos: { x: 1, y: 5 }, spriteId: 'catMural', clueId: 'clue_keepers_1', line: 'A mural of cats.' },
     { kind: 'decoration', id: 'deco_mural_r', pos: { x: 14, y: 5 }, spriteId: 'catMural', clueId: 'clue_keepers_2', line: 'The final mural.' },
@@ -574,4 +1073,19 @@ const vault = buildMap({
   defaultSpawn: { x: 7, y: 1 },
 });
 
-export const MAPS: Record<string, GameMap> = { home, meadow, well, temple1, temple2, temple3, crypt1, crypt2, crypt3, passage, vault };
+export const MAPS: Record<string, GameMap> = {
+  home,
+  meadow,
+  digsite,
+  trench,
+  well,
+  temple1,
+  temple2,
+  temple3,
+  crypt1,
+  chasm,
+  crypt2,
+  crypt3,
+  passage,
+  vault,
+};
