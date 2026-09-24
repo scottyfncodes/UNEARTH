@@ -1,6 +1,7 @@
 import { useRef } from 'react';
 import { dispatch } from '@/core/game';
 import { audio } from '@/engine/audio';
+import { isBlocking } from '@/core/ui';
 import type { Direction } from '@/game/types';
 
 function useHoldRepeat(onFire: () => void) {
@@ -17,9 +18,12 @@ function useHoldRepeat(onFire: () => void) {
   const start = (e: React.PointerEvent) => {
     e.preventDefault();
     audio.unlock();
+    if (isBlocking()) return;
     onFire();
     timeoutRef.current = setTimeout(() => {
-      intervalRef.current = setInterval(onFire, 140);
+      intervalRef.current = setInterval(() => {
+        if (!isBlocking()) onFire();
+      }, 140);
     }, 260);
   };
 
@@ -43,6 +47,7 @@ function TapButton({ onTap, label, className, ariaLabel }: { onTap: () => void; 
       onPointerDown={(e) => {
         e.preventDefault();
         audio.unlock();
+        if (isBlocking()) return;
         onTap();
       }}
     >
@@ -61,16 +66,10 @@ export function TouchControls() {
         <DirButton direction="down" label="▼" className="dpad__btn--down" />
       </div>
       <div className="action-cluster">
-        <TapButton
-          onTap={() => dispatch({ type: 'toggleTool' })}
-          label="🔁"
-          className="action-btn action-btn--tool"
-          ariaLabel="Switch tool"
-        />
-        <TapButton onTap={() => dispatch({ type: 'dig' })} label="⛏" className="action-btn action-btn--dig" ariaLabel="Dig" />
+        <TapButton onTap={() => dispatch({ type: 'dig' })} label="Dig" className="action-btn action-btn--dig" ariaLabel="Dig" />
         <TapButton
           onTap={() => dispatch({ type: 'interact' })}
-          label="✋"
+          label="Paw"
           className="action-btn action-btn--interact"
           ariaLabel="Interact"
         />

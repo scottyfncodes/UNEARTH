@@ -256,6 +256,7 @@ export type GameEvent =
   | { type: 'knock'; itemId?: string }
   | { type: 'warp'; toMap: string }
   | { type: 'dig-empty' }
+  | { type: 'dig-hard' }
   | { type: 'reveal'; itemId: string }
   | { type: 'pickup'; itemId: string }
   | { type: 'assemble'; artifactId: string }
@@ -265,7 +266,7 @@ export type GameEvent =
   | { type: 'door-locked'; message: string }
   | { type: 'door-open'; doorId: string }
   | { type: 'push' }
-  | { type: 'trap-hit' }
+  | { type: 'trap-hit'; trapId: string; trapType: 'dart' | 'fallingRock'; from: Vec2; at: Vec2 }
   | { type: 'knockout' }
   | { type: 'talk-start' }
   | { type: 'talk-end' }

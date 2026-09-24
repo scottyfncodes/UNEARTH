@@ -15,9 +15,8 @@ export function attemptDig(maps: MapRegistry, state: GameState): { state: GameSt
   const mapState = mapStateOf(state, map.id);
   const tileKey = key(target);
 
-  if (terrain !== 'diggable' || mapState.dug[tileKey]) {
-    return { state, events: [{ type: 'dig-empty' }] };
-  }
+  if (terrain !== 'diggable') return { state, events: [{ type: 'dig-hard' }] };
+  if (mapState.dug[tileKey]) return { state, events: [{ type: 'dig-empty' }] };
 
   const dug = { ...mapState.dug, [tileKey]: true as const };
   let next: GameState = { ...state, mapStates: { ...state.mapStates, [map.id]: { ...mapState, dug } } };

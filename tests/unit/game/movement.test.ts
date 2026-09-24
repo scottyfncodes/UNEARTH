@@ -96,7 +96,7 @@ describe('attemptMove', () => {
       const { state: next, events } = attemptMove(CTX.maps, state, 'right');
       expect(next.player.pos).toEqual({ x: 4, y: 3 });
       expect(next.hearts).toBe(2);
-      expect(events).toContainEqual({ type: 'trap-hit' });
+      expect(events).toContainEqual({ type: 'trap-hit', trapId: 'trap1', trapType: 'dart', from: { x: 5, y: 3 }, at: { x: 5, y: 3 } });
     });
 
     it('resets hearts and respawns CK at the map default spawn on the last heart', () => {

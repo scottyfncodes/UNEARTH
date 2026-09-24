@@ -171,7 +171,7 @@ export function attemptMove(maps: MapRegistry, state: GameState, direction: Dire
     if (trap) {
       const { state: hurt, knockedOut } = applyTrapDamage(next, from, map.defaultSpawn);
       next = hurt;
-      events.push({ type: 'trap-hit' });
+      events.push({ type: 'trap-hit', trapId: trap.id, trapType: trap.trapType, from: trap.pos, at: to });
       if (knockedOut) events.push({ type: 'knockout' });
     }
   }

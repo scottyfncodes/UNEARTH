@@ -15,7 +15,7 @@ describe('attemptDig', () => {
     const state = baseState({ player: { pos: { x: 1, y: 4 }, facing: 'up' } });
     const { state: next, events } = attemptDig(CTX.maps, state);
     expect(next).toBe(state);
-    expect(events).toEqual([{ type: 'dig-empty' }]);
+    expect(events).toEqual([{ type: 'dig-hard' }]);
   });
 
   it('digging an already-dug tile does not re-reveal the fragment', () => {

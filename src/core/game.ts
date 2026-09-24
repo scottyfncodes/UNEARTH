@@ -34,5 +34,7 @@ export function dispatch(action: Action): GameEvent[] {
 }
 
 export function resetSave(): void {
-  game.set(createInitialState());
+  const fresh = createInitialState();
+  game.set(fresh);
+  saveGame(fresh);
 }

@@ -1,13 +1,17 @@
+import { useState } from 'react';
 import { useGameState } from './useGameState';
 import { MAPS } from '@/content/maps';
 import { computeDetectorReading } from '@/game/detector';
-import { getItem } from '@/content/items';
+import { progressOf } from '@/content/progress';
+import { audio } from '@/engine/audio';
 
 export function Hud({ onOpenJournal }: { onOpenJournal: () => void }) {
   const state = useGameState();
+  const [sound, setSound] = useState(audio.isEnabled());
   const map = MAPS[state.mapId]!;
-  const reading = state.tool === 'detector' && state.detectorOn ? computeDetectorReading(map, state) : null;
-  const artifactCount = state.inventory.filter((id) => getItem(id)?.kind !== 'shiny').length;
+  const reading = computeDetectorReading(map, state);
+  const progress = progressOf(state);
+  const bars = reading.kind ? Math.max(1, Math.round(reading.strength * 5)) : 0;
 
   return (
     <div className="hud">
@@ -18,25 +22,35 @@ export function Hud({ onOpenJournal }: { onOpenJournal: () => void }) {
           ))}
         </div>
         <div className="hud__map-name">{map.name}</div>
-        <button className="hud__journal" onClick={onOpenJournal} aria-label="Open journal">
+        <button
+          className="hud__icon-btn"
+          onClick={() => {
+            audio.unlock();
+            audio.setEnabled(!sound);
+            setSound(!sound);
+          }}
+          aria-label={sound ? 'Mute sound' : 'Unmute sound'}
+        >
+          {sound ? '♪' : '✕'}
+        </button>
+        <button className="hud__icon-btn hud__journal" onClick={onOpenJournal} aria-label="Open journal">
           📖
         </button>
       </div>
 
-      <div className="hud__bottom-left">
-        <div className={`hud__tool hud__tool--${state.tool}`}>{state.tool === 'detector' ? '📡 Collar' : '🐾 Paws'}</div>
-        {state.tool === 'detector' && (
-          <div className="meter meter--detector" role="presentation">
-            <div
-              className="meter__fill"
-              style={{
-                width: `${(reading?.strength ?? 0) * 100}%`,
-                background: reading?.kind === 'mechanism' ? 'var(--danger)' : 'var(--gold)',
-              }}
-            />
-          </div>
-        )}
-        <div className="hud__inventory">🏺 {artifactCount}</div>
+      <div className="hud__status">
+        <div className={`collar collar--${reading.kind ?? 'quiet'}`} aria-label="Collar signal">
+          <span className="collar__label">{reading.kind === 'mechanism' ? 'Careful' : reading.kind ? 'Collar' : 'Quiet'}</span>
+          <span className="collar__bars">
+            {Array.from({ length: 5 }, (_, i) => (
+              <i key={i} className={i < bars ? 'on' : ''} style={{ height: 4 + i * 3 }} />
+            ))}
+          </span>
+        </div>
+        <div className="hud__counts">
+          <span title="Shinies">✦ {progress.shinies}/{progress.shiniesTotal}</span>
+          <span title="Dad's field notes">✎ {progress.pages}/{progress.pagesTotal}</span>
+        </div>
       </div>
     </div>
   );

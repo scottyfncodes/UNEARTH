@@ -1,66 +1,237 @@
 /**
- * CK, drawn as a small blocky pixel-grid sprite rather than an image asset —
- * cheap, crisp at any scale, and easy to keep consistent across the four
- * facings. Left is the right-facing grid mirrored at draw time.
+ * CK — a small orange tabby with a teal collar and a brass tag — plus the
+ * cast CK meets along the way. Authored as 16×16 text rows so each frame is
+ * readable and diffable here, then baked once.
  */
 import type { Direction } from '@/game/types';
+import { baked, blit } from './pixel';
 
-const CK_PALETTE: Record<string, string> = {
-  F: '#d99a4e',
-  S: '#7a4a24',
-  W: '#f4ead9',
-  E: '#1b1f1c',
-  P: '#c96a63',
+const CK: Record<string, string> = {
+  k: '#2a1a10',
+  o: '#e8964a',
+  O: '#b8662a',
+  w: '#fbf0dc',
+  p: '#ef8f95',
+  e: '#1b1f1c',
+  W: '#ffffff',
+  c: '#2fa39a',
+  y: '#f2c14e',
 };
 
-const DOWN = ['.S....S.', '.SFFFFS.', '.FFFFFF.', '.FEFFEF.', '.FFPPFF.', '.SFFFFS.', '.FFWWFF.', '.S....S.'];
-const DOWN_ALT = ['.S....S.', '.SFFFFS.', '.FFFFFF.', '.FEFFEF.', '.FFPPFF.', '.SFFFFS.', '.FFWWFF.', '..S..S..'];
-const UP = ['.S....S.', '.SFFFFS.', '.FFFFFF.', '.FFSSFF.', '.FFFFFF.', '.SFFFFS.', '.FFSSFF.', '...SS...'];
-const UP_ALT = ['.S....S.', '.SFFFFS.', '.FFFFFF.', '.FFSSFF.', '.FFFFFF.', '.SFFFFS.', '.FFSSFF.', '..S..S..'];
-const RIGHT = ['.S....S.', '.SFFFFS.', '.FFFFFF.', '.FFFFEF.', '.FFFPFF.', '.SFFFFS.', 'SFFWWFF.', '.S....S.'];
-const RIGHT_ALT = ['.S....S.', '.SFFFFS.', '.FFFFFF.', '.FFFFEF.', '.FFFPFF.', '.SFFFFS.', '.FFWWFFS', '..S..S..'];
+const DOWN = [
+  '................',
+  '..kk........kk..',
+  '..kok......kok..',
+  '..kpokkkkkkopk..',
+  '.koooOoOOoOoook.',
+  '.kooooooooooook.',
+  '.koWeooooooWeok.',
+  '.koeeooooooeeok.',
+  '.kwwoooppooowwk.',
+  '..kwwwwkkwwwwk..',
+  '...kkcccycckk...',
+  '...kooooooook...',
+  '..kooOwwwwOook..',
+  '..koowwwwwwook..',
+  '..kowwkkkkwwok..',
+  '...kkk....kkk...',
+];
+const DOWN_STEP = [...DOWN.slice(0, 14), '..kowwk..kwwok..', '..kkk......kkk..'];
+const DOWN_BLINK = [...DOWN.slice(0, 6), '.kooooooooooook.', '.kokkooooookkok.', ...DOWN.slice(8)];
 
-function framesFor(facing: Direction): { a: string[]; b: string[]; mirror: boolean } {
-  switch (facing) {
-    case 'down':
-      return { a: DOWN, b: DOWN_ALT, mirror: false };
-    case 'up':
-      return { a: UP, b: UP_ALT, mirror: false };
-    case 'right':
-      return { a: RIGHT, b: RIGHT_ALT, mirror: false };
-    case 'left':
-      return { a: RIGHT, b: RIGHT_ALT, mirror: true };
-  }
+const UP = [
+  '................',
+  '..kk........kk..',
+  '..kok......kok..',
+  '..kookkkkkkook..',
+  '.koooOoOOoOoook.',
+  '.kooooOooOooook.',
+  '.kooOooooooOook.',
+  '.koooOooooOoook.',
+  '.kooooooooooook.',
+  '..kooooooooook..',
+  '...kkcccccckk...',
+  '...kooOooOook...',
+  '..kooOooooOook..',
+  '..kooooOOooook..',
+  '..kook....kook..',
+  '...kkk....kkk...',
+];
+const UP_STEP = [...UP.slice(0, 14), '..kook...kook...', '..kkk.....kkk...'];
+
+const RIGHT = [
+  '................',
+  '.........kk..kk.',
+  '.........kokkok.',
+  '........kpooopok',
+  '........koOoOook',
+  '.......koooooWek',
+  '.......koooooeek',
+  '.......koooowwpk',
+  '.ko.....kowwwwk.',
+  '.kokkkkkkcccyk..',
+  '.koOooOooOooook.',
+  '..kooooooooowwk.',
+  '..kowwwwwwwwwwk.',
+  '..kook....kook..',
+  '..kook....kook..',
+  '..kkkk....kkkk..',
+];
+const RIGHT_STEP = [...RIGHT.slice(0, 13), '..kook...kook...', '.kook.....kook..', '.kkkk.....kkkk..'];
+
+function frame(id: string, rows: string[]): HTMLCanvasElement {
+  return baked(`ck:${id}`, (p) => p.rows(rows, CK));
 }
 
-export function drawCK(
-  ctx: CanvasRenderingContext2D,
-  px: number,
-  py: number,
-  size: number,
-  facing: Direction,
-  walkToggle: boolean,
-): void {
-  const { a, b, mirror } = framesFor(facing);
-  const grid = walkToggle ? b : a;
-  const cell = size / 8;
+export interface CkPose {
+  facing: Direction;
+  walking: boolean;
+  /** Seconds, for the walk cycle and the idle blink. */
+  time: number;
+  /** Arms-up "found it!" — always drawn facing the player. */
+  holding?: boolean;
+}
 
-  ctx.save();
-  if (mirror) {
-    ctx.translate(px + size, py);
-    ctx.scale(-1, 1);
-  } else {
-    ctx.translate(px, py);
+export function drawCK(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, pose: CkPose): void {
+  const step = pose.walking && Math.floor(pose.time * 7) % 2 === 1;
+  // A slow blink every few seconds while idle — the cheapest way to make a sprite feel alive.
+  const blink = !pose.walking && pose.time % 3.7 < 0.13;
+  const facing = pose.holding ? 'down' : pose.facing;
+  let sprite: HTMLCanvasElement;
+  let mirror = false;
+  switch (facing) {
+    case 'down':
+      sprite = blink ? frame('down-blink', DOWN_BLINK) : step ? frame('down-step', DOWN_STEP) : frame('down', DOWN);
+      break;
+    case 'up':
+      sprite = step ? frame('up-step', UP_STEP) : frame('up', UP);
+      break;
+    case 'right':
+    case 'left':
+      sprite = step ? frame('right-step', RIGHT_STEP) : frame('right', RIGHT);
+      mirror = facing === 'left';
+      break;
   }
+  // A small hop on each step; a proud stretch when holding something up.
+  const bob = pose.holding ? -size * 0.08 : step ? -size * 0.04 : 0;
+  blit(ctx, sprite, x, y + bob, size, mirror);
+}
 
-  for (let row = 0; row < 8; row++) {
-    const line = grid[row]!;
-    for (let col = 0; col < 8; col++) {
-      const ch = line[col]!;
-      if (ch === '.') continue;
-      ctx.fillStyle = CK_PALETTE[ch] ?? '#000';
-      ctx.fillRect(col * cell, row * cell, cell + 0.5, cell + 0.5);
+// ── the cast ──────────────────────────────────────────────────────────────
+
+const DAD_PAL: Record<string, string> = {
+  k: '#231a12',
+  h: '#c49a5c',
+  H: '#6b4226',
+  s: '#f0c49a',
+  e: '#1b1f1c',
+  b: '#7a5132',
+  g: '#c9b27a',
+  G: '#a38e5a',
+  p: '#4f607a',
+  n: '#8a6a3a',
+};
+const DAD = [
+  '.....kkkkkk.....',
+  '....khhhhhhk....',
+  '...khhhhhhhhk...',
+  '..kkHHHHHHHHkk..',
+  '.khhhhhhhhhhhhk.',
+  '..kkssssssssk...',
+  '....ksesssesk...',
+  '....ksssssssk...',
+  '....kbsbbbsbk...',
+  '.....kbbbbbk....',
+  '...kgggGgggggk..',
+  '..kggggGggggggk.',
+  '..ksgggGgggggsk.',
+  '...kppppppppk...',
+  '...kpppk.kpppk..',
+  '...kkkkk.kkkkk..',
+];
+
+const TORTOISE_PAL: Record<string, string> = { k: '#1f2a18', g: '#6f9a52', G: '#46703a', y: '#d6c08a', s: '#a3b872', e: '#1b1f1c' };
+const TORTOISE = [
+  '................',
+  '................',
+  '................',
+  '......kkkk......',
+  '....kkgGGgkk....',
+  '...kgGgggggGk...',
+  '..kgggGgGgGggk..',
+  '..kgGggggggGgk..',
+  '..kggGgGgGgggk..',
+  '.kyyyyyyyyyyyyk.',
+  '.kssk.ksssk.kssk',
+  '..kk..kesek..kk.',
+  '......ksssk.....',
+  '.......kkk......',
+  '................',
+  '................',
+];
+
+const BAT_PAL: Record<string, string> = { k: '#150f1c', b: '#7a6a8e', B: '#4a3c5e', y: '#f2c14e', p: '#ef8f95' };
+const BAT = [
+  '................',
+  '................',
+  '................',
+  '.....k....k.....',
+  '.....kbkkbk.....',
+  'k...kbbbbbbk...k',
+  'kk.kbybbbbybk.kk',
+  'kBkkbbbppbbbkkBk',
+  'kBBBbbbbbbbbBBBk',
+  'kBBkBbbbbbbBkBBk',
+  'kBk.kBbbbbBk.kBk',
+  'kk...kBbbBk...kk',
+  'k.....kkkk.....k',
+  '................',
+  '................',
+  '................',
+];
+
+const MAGPIE_PAL: Record<string, string> = { k: '#111316', w: '#f4f1ea', W: '#ffffff', b: '#2c3e7a', y: '#d9a441' };
+const MAGPIE = [
+  '................',
+  '................',
+  '................',
+  '......kkk.......',
+  '.....kkkkk......',
+  '.....kWkkkyy....',
+  '.....kkkkk......',
+  '....kkwwwkk.....',
+  '...kbkwwwwkk....',
+  '..kbbkwwwwwk....',
+  '.kbbbkkwwwkk....',
+  'kbbb..kkkkk.....',
+  'kbb....y..y.....',
+  'k......y..y.....',
+  '................',
+  '................',
+];
+
+const NPCS: Record<string, { rows: string[]; pal: Record<string, string> }> = {
+  dad: { rows: DAD, pal: DAD_PAL },
+  dadGroceries: { rows: DAD, pal: DAD_PAL },
+  tortoise: { rows: TORTOISE, pal: TORTOISE_PAL },
+  bat: { rows: BAT, pal: BAT_PAL },
+  magpie: { rows: MAGPIE, pal: MAGPIE_PAL },
+};
+
+export function drawNpc(ctx: CanvasRenderingContext2D, sprite: string, x: number, y: number, size: number, time: number): void {
+  const def = NPCS[sprite] ?? NPCS.dad!;
+  const img = baked(`npc:${sprite}`, (p) => {
+    p.rows(def.rows, def.pal);
+    if (sprite === 'dadGroceries') {
+      // A paper grocery bag with a leek sticking out, tucked under one arm.
+      p.rect(12, 9, 4, 5, '#b98c55');
+      p.rect(12, 9, 4, 1, '#8a6436');
+      p.rect(13, 6, 1, 3, '#6fae4a');
+      p.rect(14, 5, 1, 4, '#8fcf5f');
     }
-  }
-  ctx.restore();
+  });
+  // Everyone breathes a little; the bat flaps and hovers.
+  const bob =
+    sprite === 'bat' ? Math.sin(time * 5) * size * 0.08 : sprite === 'magpie' ? (Math.floor(time * 2) % 3 === 0 ? -size * 0.04 : 0) : Math.sin(time * 1.6) * size * 0.015;
+  blit(ctx, img, x, y + bob, size);
 }
