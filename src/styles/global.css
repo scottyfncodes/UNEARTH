@@ -1091,3 +1091,208 @@ button.confirm--armed {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ── contextual action buttons ────────────────────────────────────────── */
+.action-btn {
+  transition:
+    opacity 0.18s ease,
+    border-color 0.18s ease,
+    background 0.18s ease,
+    box-shadow 0.25s ease,
+    transform 0.08s ease;
+}
+
+.action-btn:active {
+  transform: scale(0.94);
+}
+
+.action-btn__label {
+  display: inline-block;
+  animation: labelIn 0.18s ease both;
+}
+
+@keyframes labelIn {
+  from {
+    opacity: 0;
+    transform: translateY(3px);
+  }
+}
+
+/* Nothing to do here right now — still pressable, just stepped back. */
+.action-btn--quiet {
+  opacity: 0.5;
+}
+
+/* Paw would do something real. */
+.action-btn--interact.action-btn--ready {
+  background: rgba(217, 164, 65, 0.26);
+  border-color: var(--gold);
+  color: #fff1cc;
+}
+
+/* …and something new. */
+.action-btn--interact.action-btn--fresh {
+  animation: pawFresh 1.6s ease-in-out infinite;
+}
+
+@keyframes pawFresh {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(242, 193, 78, 0.0), 0 4px 18px rgba(217, 164, 65, 0.25);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(242, 193, 78, 0.18), 0 4px 26px rgba(217, 164, 65, 0.5);
+  }
+}
+
+/* The collar is locked on the very tile CK is facing. */
+.action-btn--dig.action-btn--hot {
+  background: rgba(242, 193, 78, 0.3);
+  border-color: #f2c14e;
+  color: #fff4d0;
+  animation: digHot 0.9s ease-in-out infinite;
+}
+
+@keyframes digHot {
+  50% {
+    box-shadow: 0 0 22px rgba(242, 193, 78, 0.6);
+    transform: scale(1.05);
+  }
+}
+
+/* ── HUD reactions ────────────────────────────────────────────────────── */
+.hud__hearts--hurt {
+  animation: heartsHurt 0.45s ease both;
+}
+
+@keyframes heartsHurt {
+  0% { transform: translateX(0); }
+  20% { transform: translateX(-5px); }
+  40% { transform: translateX(5px); }
+  60% { transform: translateX(-3px); }
+  80% { transform: translateX(2px); }
+  100% { transform: translateX(0); }
+}
+
+.heart--pop {
+  animation: heartPop 0.45s cubic-bezier(0.2, 1.6, 0.4, 1) both;
+}
+
+@keyframes heartPop {
+  from {
+    transform: scale(0.3);
+  }
+}
+
+.collar--locked .collar__label {
+  animation: collarLocked 0.5s ease-in-out infinite alternate;
+}
+
+@keyframes collarLocked {
+  to {
+    color: #fff4d0;
+    text-shadow: 0 0 10px rgba(242, 193, 78, 0.9);
+  }
+}
+
+/* ── journal map ──────────────────────────────────────────────────────── */
+.world-map {
+  padding: 4px 0 8px;
+}
+
+.world-map__summary,
+.world-map__legend {
+  font-size: 12px;
+  color: var(--muted);
+  margin: 2px 0 10px;
+  text-align: center;
+}
+
+.world-map__legend {
+  margin-top: 10px;
+  color: var(--faint);
+}
+
+.world-map__svg {
+  display: block;
+  max-width: 380px;
+  margin: 0 auto;
+  overflow: visible;
+}
+
+.world-map__link {
+  stroke: rgba(217, 164, 65, 0.55);
+  stroke-width: 2;
+}
+
+.world-map__link--faint {
+  stroke: rgba(233, 226, 208, 0.18);
+  stroke-dasharray: 3 4;
+}
+
+.world-map__room rect {
+  fill: #1f2620;
+  stroke: rgba(233, 226, 208, 0.22);
+  stroke-width: 1;
+}
+
+.world-map__room--here rect {
+  stroke: var(--gold);
+  stroke-width: 2;
+  fill: #2a2a1c;
+}
+
+.world-map__room--done rect {
+  fill: #1c2a1c;
+  stroke: rgba(127, 166, 80, 0.6);
+}
+
+.world-map__room--unknown rect {
+  fill: transparent;
+  stroke: rgba(233, 226, 208, 0.25);
+  stroke-dasharray: 4 4;
+}
+
+.world-map__room--unknown text {
+  fill: var(--faint);
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.world-map__name {
+  fill: var(--text);
+  font-family: var(--serif);
+  font-size: 12.5px;
+}
+
+.world-map__counts {
+  fill: var(--muted);
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
+}
+
+.world-map__you {
+  fill: #f2c14e;
+  animation: youPulse 1.2s ease-in-out infinite alternate;
+}
+
+@keyframes youPulse {
+  to {
+    opacity: 0.35;
+  }
+}
+
+.world-map__check {
+  fill: var(--good);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .action-btn--interact.action-btn--fresh,
+  .action-btn--dig.action-btn--hot,
+  .collar--locked .collar__label,
+  .world-map__you {
+    animation: none;
+  }
+}

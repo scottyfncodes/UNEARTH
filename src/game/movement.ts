@@ -314,13 +314,21 @@ function canHopOver(map: GameMap, state: GameState, pos: Vec2): boolean {
  * distrust. It never clears a wall, and it never lands anywhere CK couldn't
  * have walked — no precision, no fall damage, just a cat being a cat.
  */
-export function attemptJump(maps: MapRegistry, state: GameState): { state: GameState; events: GameEvent[] } {
+/** Where a hop from here would land, or null if it can't be made. Shared by the hop itself and the UI's affordances. */
+export function jumpLanding(maps: MapRegistry, state: GameState): Vec2 | null {
   const map = maps[state.mapId]!;
+  const dir = state.player.facing;
+  const mid = step(state.player.pos, dir);
+  const land = step(mid, dir);
+  if (!canHopOver(map, state, mid) || gatedExitAt(map, state, land) || isBlocked(map, state, land)) return null;
+  return land;
+}
+
+export function attemptJump(maps: MapRegistry, state: GameState): { state: GameState; events: GameEvent[] } {
   const from = state.player.pos;
   const dir = state.player.facing;
-  const mid = step(from, dir);
-  const land = step(mid, dir);
-  if (!canHopOver(map, state, mid) || gatedExitAt(map, state, land) || isBlocked(map, state, land)) {
+  const land = jumpLanding(maps, state);
+  if (!land) {
     return { state, events: [{ type: 'jump-blocked' }] };
   }
   const events: GameEvent[] = [{ type: 'jump', from, to: land }];

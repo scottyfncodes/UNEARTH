@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useGameState } from './useGameState';
 import { MAPS } from '@/content/maps';
 import { computeDetectorReading } from '@/game/detector';
@@ -13,12 +13,26 @@ export function Hud({ onOpenJournal }: { onOpenJournal: () => void }) {
   const progress = progressOf(state);
   const bars = reading.kind ? Math.max(1, Math.round(reading.strength * 5)) : 0;
 
+  // Hearts react: a jolt when one is lost, a pop when one comes back.
+  const prevHearts = useRef(state.hearts);
+  const [heartFx, setHeartFx] = useState<{ kind: 'hurt' | 'heal'; key: number } | null>(null);
+  useEffect(() => {
+    if (state.hearts !== prevHearts.current) {
+      setHeartFx({ kind: state.hearts < prevHearts.current ? 'hurt' : 'heal', key: Date.now() });
+      prevHearts.current = state.hearts;
+    }
+  }, [state.hearts]);
+
   return (
     <div className="hud">
       <div className="hud__top">
-        <div className="hud__hearts" aria-label={`${state.hearts} of ${state.maxHearts} hearts`}>
+        <div
+          className={`hud__hearts ${heartFx ? `hud__hearts--${heartFx.kind}` : ''}`}
+          key={heartFx?.key ?? 0}
+          aria-label={`${state.hearts} of ${state.maxHearts} hearts`}
+        >
           {Array.from({ length: state.maxHearts }, (_, i) => (
-            <span key={i} className={`heart ${i < state.hearts ? 'heart--full' : 'heart--empty'}`} />
+            <span key={i} className={`heart ${i < state.hearts ? 'heart--full' : 'heart--empty'} ${heartFx?.kind === 'heal' && i === state.hearts - 1 ? 'heart--pop' : ''}`} />
           ))}
         </div>
         <div className="hud__map-name">{map.name}</div>
@@ -39,7 +53,7 @@ export function Hud({ onOpenJournal }: { onOpenJournal: () => void }) {
       </div>
 
       <div className="hud__status">
-        <div className={`collar collar--${reading.kind ?? 'quiet'}`} aria-label="Collar signal">
+        <div className={`collar collar--${reading.kind ?? 'quiet'} ${reading.locked ? 'collar--locked' : ''}`} aria-label="Collar signal">
           <span className="collar__label">
             {reading.kind === 'mechanism' ? 'Careful' : reading.locked ? 'Here!' : reading.kind ? (reading.aim > 0.6 ? 'Clear' : 'Faint') : 'Quiet'}
           </span>

@@ -17,7 +17,11 @@ import { drawEntity } from './entities';
 import { drawCK } from './ck';
 import { blit } from './pixel';
 import { itemSprite } from './sprites';
-import { drawFxGround, drawFxWorld, drawOverlays, drawParticles, fx, shakeOffset } from './fx';
+import { drawFxGround, drawFxWorld, drawIrisAndBanner, drawOverlays, drawParticles, fx, shakeOffset } from './fx';
+import { drawSurround } from './surround';
+import { drawRoomLight, drawVignette } from './atmosphere';
+import { pawAffordance } from '@/game/affordance';
+import { MAPS } from '@/content/maps';
 
 const T = TILE_SIZE;
 
@@ -166,6 +170,7 @@ export function drawFrame(ctx: CanvasRenderingContext2D, map: GameMap, state: Ga
   ctx.save();
   ctx.translate(Math.round(shake.x - view.camera.x), Math.round(shake.y - view.camera.y));
 
+  drawSurround(ctx, map, view.camera, view.width, view.height);
   ctx.drawImage(terrainFor(map, state), 0, 0);
   drawAnimatedTiles(ctx, map, view.time);
 
@@ -213,6 +218,16 @@ export function drawFrame(ctx: CanvasRenderingContext2D, map: GameMap, state: Ga
       ctx.fill();
     }
     const lift = view.hop * T * 0.55;
+    // Squash and stretch, pivoting on CK's feet: long in the air, wide on landing.
+    const land = fx.squashScale();
+    const sx = land.sx * (1 - view.hop * 0.1);
+    const sy = land.sy * (1 + view.hop * 0.14);
+    const footX = view.pos.x * T + T / 2;
+    const footY = view.pos.y * T + T - lift;
+    ctx.save();
+    ctx.translate(footX, footY);
+    ctx.scale(sx, sy);
+    ctx.translate(-footX, -footY);
     drawCK(ctx, view.pos.x * T, view.pos.y * T - lift, T, {
       facing: state.player.facing,
       walking: view.walking,
@@ -221,6 +236,7 @@ export function drawFrame(ctx: CanvasRenderingContext2D, map: GameMap, state: Ga
       digging: fx.isDigging(),
       bristling: bristling(map, state),
     });
+    ctx.restore();
     const held = fx.heldSprite();
     if (held) {
       // The classic: hold the find up over your head.
@@ -247,6 +263,8 @@ export function drawFrame(ctx: CanvasRenderingContext2D, map: GameMap, state: Ga
   if (!ckDrawn) drawPlayer();
 
   drawSpikes(ctx, map, view);
+  drawRoomLight(ctx, map, view.time);
+  drawFocusMarker(ctx, state, view);
   drawBubble(ctx, view);
   drawFxWorld(ctx);
   drawParticles(ctx, false);
@@ -286,7 +304,50 @@ export function drawFrame(ctx: CanvasRenderingContext2D, map: GameMap, state: Ga
   }
 
   ctx.restore();
+  drawVignette(ctx, map, view.width, view.height);
   drawOverlays(ctx, view.width, view.height);
+  drawIrisAndBanner(
+    ctx,
+    view.width,
+    view.height,
+    { x: view.pos.x * T + T / 2 - view.camera.x, y: view.pos.y * T + T / 2 - view.camera.y },
+    T,
+  );
+}
+
+/**
+ * A small marker over whatever Paw would touch: bright gold and bobbing for
+ * something CK hasn't had from it yet, a faint tick for the rest. Scenery
+ * that would only get a sniff gets nothing — the marker means "this does
+ * something".
+ */
+function drawFocusMarker(ctx: CanvasRenderingContext2D, state: GameState, view: View): void {
+  if (view.hop > 0 || fx.isHolding() || fx.isDigging()) return;
+  const aff = pawAffordance(MAPS, state);
+  if (!aff || aff.verb === 'Sniff') return;
+  if (aff.at.x === state.player.pos.x && aff.at.y === state.player.pos.y) return;
+  const cx = aff.at.x * T + T / 2;
+  const bob = Math.sin(view.time * 5) * 2;
+  const y = aff.at.y * T - T * 0.12 + bob;
+  const s = aff.fresh ? 5 : 3.5;
+  if (aff.fresh) {
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.fillStyle = 'rgba(255,215,120,0.25)';
+    ctx.beginPath();
+    ctx.arc(cx, y - s * 0.3, s * 2.1, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalCompositeOperation = 'source-over';
+  }
+  ctx.fillStyle = aff.fresh ? '#f2c14e' : 'rgba(250,245,230,0.6)';
+  ctx.strokeStyle = 'rgba(30,18,8,0.85)';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(cx - s, y - s);
+  ctx.lineTo(cx + s, y - s);
+  ctx.lineTo(cx, y + s * 0.4);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
 }
 
 /** For the UI: the sprite id an item draws with. */

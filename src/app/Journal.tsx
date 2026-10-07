@@ -5,8 +5,9 @@ import { getItem, SHINY_IDS } from '@/content/items';
 import { progressOf, curiosityRank } from '@/content/progress';
 import { audio } from '@/engine/audio';
 import { ItemIcon } from './Sprite';
+import { WorldMap } from './WorldMap';
 
-type Tab = 'satchel' | 'notes' | 'trail';
+type Tab = 'satchel' | 'map' | 'notes' | 'trail';
 
 export function Journal({ onClose }: { onClose: () => void }) {
   const state = useGameState();
@@ -39,7 +40,8 @@ export function Journal({ onClose }: { onClose: () => void }) {
           {(
             [
               ['satchel', 'Satchel'],
-              ['notes', `Dad's Notes ${progress.pages}/${progress.pagesTotal}`],
+              ['map', 'Map'],
+              ['notes', `Notes ${progress.pages}/${progress.pagesTotal}`],
               ['trail', 'The Trail'],
             ] as const
           ).map(([id, label]) => (
@@ -103,6 +105,8 @@ export function Journal({ onClose }: { onClose: () => void }) {
               )}
             </>
           ) : null}
+
+          {tab === 'map' ? <WorldMap state={state} /> : null}
 
           {tab === 'notes' ? (
             <ul className="journal__list">

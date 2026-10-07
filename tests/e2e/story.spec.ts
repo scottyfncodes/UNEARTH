@@ -96,3 +96,21 @@ test('a finished journey ends on Dad, the numbers, and the hum', async ({ page }
   await page.getByRole('button', { name: 'Keep exploring' }).click();
   await expect(ending).not.toBeVisible();
 });
+
+test('the buttons say what they would do, and the journal maps where CK has been', async ({ page }) => {
+  await page.goto('/?debug=1');
+  await page.getByRole('button', { name: 'Begin' }).click();
+  const paw = page.getByRole('button', { name: 'Interact', exact: true });
+  await expect(paw).toHaveText('Paw');
+
+  // Walk down to Dad: facing him, Paw becomes Talk.
+  await press(page, 'Move down', 7);
+  await expect(paw).toHaveText('Talk');
+  await expect(paw).toHaveClass(/action-btn--fresh/);
+
+  // The journal's map shows home, where CK is, and what's still there.
+  await page.getByRole('button', { name: 'Open journal' }).click();
+  await page.getByRole('tab', { name: 'Map' }).click();
+  await expect(page.getByRole('img', { name: 'Map of the places CK has been' })).toBeVisible();
+  await expect(page.getByText(/1 of \d+ places visited/)).toBeVisible();
+});
