@@ -74,6 +74,7 @@ export function useGameEvents(): string | null {
 
     const found = (itemId: string, big = false) => {
       const item = getItem(itemId);
+      fx.squash(0.9, 1.14, 0.25);
       fx.hold(item?.sprite ?? 'coin', 1.3);
       fx.sparkle(game.get().player.pos, big);
       if (item?.kind === 'shiny') audio.shiny();
@@ -86,6 +87,7 @@ export function useGameEvents(): string | null {
       switch (event.type) {
         case 'bump':
           audio.bump();
+          fx.squash(0.92, 1.06, 0.12);
           break;
         case 'push':
           audio.push();
@@ -93,9 +95,10 @@ export function useGameEvents(): string | null {
           haptics.tap();
           break;
         case 'transition': {
-          fx.fade();
+          fx.iris();
           const map = MAPS[event.toMap]!;
           audio.music(map.region);
+          if (event.firstVisit && !map.chapter) fx.banner(map.name);
           if (event.fall) {
             audio.fall();
             fx.hurt();
@@ -108,7 +111,7 @@ export function useGameEvents(): string | null {
           break;
         }
         case 'warp': {
-          fx.fade();
+          fx.iris();
           audio.music(MAPS[event.toMap]!.region);
           void showInterlude('Some time later…', 3400);
           break;
@@ -138,9 +141,11 @@ export function useGameEvents(): string | null {
           audio.hop();
           startHop(event.from, event.to, HOP_MS / 1000);
           lockFor(HOP_MS - 40);
+          fx.squash(0.86, 1.16, 0.12);
           setTimeout(() => {
             audio.land();
             fx.dust(event.to);
+            fx.squash(1.24, 0.78, 0.2);
           }, HOP_MS - 30);
           break;
         }
@@ -217,6 +222,8 @@ export function useGameEvents(): string | null {
           rolling();
           break;
         case 'roller-hit':
+          fx.hitStop(140);
+          fx.squash(1.6, 0.4, 0.5);
           audio.splat();
           fx.hurt();
           haptics.danger();
@@ -289,6 +296,7 @@ export function useGameEvents(): string | null {
           } else if (event.trapType === 'spikes') {
             audio.spikes();
           }
+          fx.hitStop(110);
           setTimeout(() => {
             audio.hurt();
             fx.hurt();

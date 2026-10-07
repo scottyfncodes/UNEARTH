@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import { dispatch, game } from '@/core/game';
 import { MAPS } from '@/content/maps';
 import { cameraTarget, drawFrame } from '@/render/draw';
-import { stepFx } from '@/render/fx';
+import { fx, stepFx } from '@/render/fx';
 import { audio } from '@/engine/audio';
 import { computeDetectorReading } from '@/game/detector';
 import { needsTick } from '@/game/hazards';
@@ -23,6 +23,23 @@ const KEY_DIRECTION: Record<string, Direction> = {
   KeyD: 'right',
 };
 
+const LOOK: Record<Direction, { x: number; y: number }> = {
+  up: { x: 0, y: -1 },
+  down: { x: 0, y: 1 },
+  left: { x: -1, y: 0 },
+  right: { x: 1, y: 0 },
+};
+
+/** The colour of the little kick of dust behind CK's paws, by region. */
+const PUFF: Record<string, string> = {
+  home: 'rgba(230,210,180,0.5)',
+  meadow: 'rgba(200,220,160,0.55)',
+  well: 'rgba(190,190,160,0.5)',
+  temple: 'rgba(200,196,184,0.55)',
+  crypt: 'rgba(150,164,190,0.45)',
+  vault: 'rgba(240,210,150,0.6)',
+};
+
 /**
  * The game clock, in ms. It only runs while nothing modal is on screen, so
  * a find card or a conversation freezes every dart, stone and boulder in
@@ -38,6 +55,7 @@ export function GameCanvas() {
   const motionRef = useRef(createMotion(0, 0));
   const lastMapRef = useRef<string | null>(null);
   const cameraRef = useRef({ x: 0, y: 0 });
+  const leadRef = useRef({ x: 0, y: 0 });
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -49,15 +67,19 @@ export function GameCanvas() {
     const start = last;
     let lastMovedAt = -1;
     let lastTile = '';
+    let lastMap = '';
 
+    const lead = leadRef.current;
     const frame = (now: number) => {
       const dt = Math.min(0.05, Math.max(0, (now - last) / 1000));
       last = now;
       const time = (now - start) / 1000;
 
-      // Time passes for traps only while the world is actually on screen.
+      // Time passes for traps only while the world is actually on screen —
+      // and holds for a beat on a hit, so an impact lands.
+      const frozen = fx.isFrozen();
       const paused = isBlocking() || !!game.get().dialogue;
-      if (!paused) {
+      if (!paused && !frozen) {
         gameClock += dt * 1000;
         const before = game.get();
         if (needsTick(MAPS[before.mapId]!, before)) dispatch({ type: 'tick', dt: dt * 1000, now: gameClock });
@@ -65,10 +87,14 @@ export function GameCanvas() {
 
       const state = game.get();
       const map = MAPS[state.mapId]!;
-      // Size the window to the box the layout gives us: about eleven tiles
-      // across on a phone, fewer rows than a room so the camera has to follow.
+      // Size the window to the box the layout gives us. A room should fill
+      // the play area top to bottom where it can — a phone is tall — while
+      // showing between nine and eleven tiles across, so the art stays big
+      // and the camera still has somewhere to follow CK. Whatever is left
+      // over past the room's edges is drawn as the region carrying on.
       const box = canvas.parentElement!.getBoundingClientRect();
-      const tilePx = Math.max(8, Math.min(box.width / 11, box.height / 8.5));
+      const fillHeight = box.height / map.height;
+      const tilePx = Math.max(8, Math.min(box.width / 9, Math.max(box.width / 11, fillHeight)));
       const w = Math.round((box.width / tilePx) * TILE_SIZE);
       const h = Math.round((box.height / tilePx) * TILE_SIZE);
       if (canvas.width !== w || canvas.height !== h) {
@@ -81,14 +107,22 @@ export function GameCanvas() {
       if (lastMapRef.current !== state.mapId) {
         lastMapRef.current = state.mapId;
         snapMotion(motion, state.player.pos.x, state.player.pos.y);
-        const snap = cameraTarget(map, state.player.pos, w, h);
+        const f = LOOK[state.player.facing];
+        lead.x = f.x * 0.9;
+        lead.y = f.y * 0.9;
+        const snap = cameraTarget(map, { x: state.player.pos.x + lead.x, y: state.player.pos.y + lead.y }, w, h);
         camera.x = snap.x;
         camera.y = snap.y;
       }
       const tile = `${state.player.pos.x},${state.player.pos.y}`;
       if (tile !== lastTile) {
-        if (lastTile && !isHopping()) audio.step();
+        if (lastTile && !isHopping() && lastMap === state.mapId) {
+          audio.step(map.region);
+          const [px, py] = lastTile.split(',').map(Number) as [number, number];
+          fx.puff({ x: px, y: py }, PUFF[map.region]);
+        }
         lastTile = tile;
+        lastMap = state.mapId;
         lastMovedAt = time;
       }
       // The collar pings on its own clock whenever nothing modal is up.
@@ -96,15 +130,21 @@ export function GameCanvas() {
         const reading = computeDetectorReading(map, state);
         audio.detector(reading);
       }
-      const hop = isHopping() ? stepHop(motion, dt) : 0;
-      if (!hop) stepMotion(motion, state.player.pos.x, state.player.pos.y, dt);
+      const sdt = frozen ? 0 : dt;
+      const hop = isHopping() ? stepHop(motion, sdt) : 0;
+      if (!hop) stepMotion(motion, state.player.pos.x, state.player.pos.y, sdt);
 
-      const aim = cameraTarget(map, motion, w, h);
+      // The camera leads a little in the direction CK is facing, so you see
+      // more of where you're going than where you've been.
+      const facing = LOOK[state.player.facing];
+      lead.x += (facing.x * 0.9 - lead.x) * Math.min(1, dt * 3);
+      lead.y += (facing.y * 0.9 - lead.y) * Math.min(1, dt * 3);
+      const aim = cameraTarget(map, { x: motion.x + lead.x, y: motion.y + lead.y }, w, h);
       const ease = Math.min(1, dt * 8);
       camera.x += (aim.x - camera.x) * ease;
       camera.y += (aim.y - camera.y) * ease;
 
-      stepFx(dt, map.region, map.width * TILE_SIZE, map.height * TILE_SIZE, !!map.dark);
+      stepFx(sdt, map.region, map.width * TILE_SIZE, map.height * TILE_SIZE, !!map.dark);
       // Keep the walk cycle going briefly after each step so held-down
       // movement reads as one continuous trot rather than a stutter.
       const walking = time - lastMovedAt < 0.22 && !hop;

@@ -44,6 +44,12 @@ let fadeIn = 0;
 let digging: { tile: Vec2; t: number; duration: number; soil: string; nextBurst: number } | null = null;
 let bubble: { char: string; t: number; duration: number } | null = null;
 const crashes: { at: Vec2; t: number }[] = [];
+/** The room-entry iris: 0 = closed, 1 = fully open. */
+let iris = 1;
+let banner: { text: string; t: number; duration: number } | null = null;
+let squash: { t: number; duration: number; sx: number; sy: number } | null = null;
+/** Wall-clock ms until which the world holds still — a beat of impact. */
+let frozenUntil = 0;
 
 const T = TILE_SIZE;
 
@@ -108,6 +114,51 @@ export const fx = {
   },
   fade(): void {
     fadeIn = 1;
+  },
+  /** Arriving in a room: the view opens out of black in a circle around CK. */
+  iris(): void {
+    iris = 0;
+    fadeIn = 0;
+  },
+  /** A small title naming the place, the first time CK gets there. */
+  banner(text: string): void {
+    banner = { text, t: 0, duration: 2.8 };
+  },
+  /** Squash on landing (wide and low), stretch on take-off. */
+  squash(sx = 1.22, sy = 0.8, duration = 0.18): void {
+    squash = { t: 0, duration, sx, sy };
+  },
+  /** Hold the world still for a moment so an impact lands. */
+  hitStop(ms = 90): void {
+    frozenUntil = Math.max(frozenUntil, performance.now() + ms);
+  },
+  isFrozen(): boolean {
+    return performance.now() < frozenUntil;
+  },
+  /** A small kick of dust from CK's back paws on each trotting step. */
+  puff(tile: Vec2, color = '#c8b894'): void {
+    const c = center(tile);
+    for (let i = 0; i < 3; i++) {
+      particles.push({
+        x: c.x + (Math.random() - 0.5) * T * 0.4,
+        y: c.y + T * 0.35,
+        vx: (Math.random() - 0.5) * 18,
+        vy: -6 - Math.random() * 8,
+        life: 0,
+        max: 0.35 + Math.random() * 0.2,
+        color,
+        size: 2,
+        gravity: 10,
+      });
+    }
+  },
+  squashScale(): { sx: number; sy: number } {
+    if (!squash) return { sx: 1, sy: 1 };
+    const k = squash.t / squash.duration;
+    const e = 1 - Math.pow(1 - Math.min(1, k), 2);
+    // Overshoot slightly on the way back, the way a body settles.
+    const wob = Math.sin(e * Math.PI) * 0.06;
+    return { sx: squash.sx + (1 - squash.sx) * e - wob * (squash.sx > 1 ? 1 : -1), sy: squash.sy + (1 - squash.sy) * e + wob * (squash.sy < 1 ? 1 : -1) };
   },
   /** A proper dig: dirt flying in bursts and a hole opening up over `duration` seconds. */
   startDig(tile: Vec2, soil: string, duration: number): void {
@@ -235,6 +286,15 @@ export function stepFx(dt: number, region: Region, w: number, h: number, dark: b
     if (held.t > held.duration) held = null;
   }
   fadeIn = Math.max(0, fadeIn - dt * 3);
+  iris = Math.min(1, iris + dt / 0.5);
+  if (banner) {
+    banner.t += dt;
+    if (banner.t > banner.duration) banner = null;
+  }
+  if (squash) {
+    squash.t += dt;
+    if (squash.t > squash.duration) squash = null;
+  }
   if (digging) {
     digging.t += dt;
     if (digging.t >= digging.nextBurst) {
@@ -320,6 +380,44 @@ export function drawParticles(ctx: CanvasRenderingContext2D, glowOnly: boolean):
     ctx.fillRect(Math.round(p.x - p.size / 2), Math.round(p.y - p.size / 2), p.size, p.size);
   }
   ctx.globalAlpha = 1;
+}
+
+/**
+ * The classic room-entry iris, centred on CK's spot on screen, and the area
+ * banner the first time CK reaches somewhere new.
+ */
+export function drawIrisAndBanner(ctx: CanvasRenderingContext2D, w: number, h: number, focus: Vec2, tile: number): void {
+  if (iris < 1) {
+    const e = iris * iris * (3 - 2 * iris);
+    const r = Math.hypot(w, h) * e;
+    ctx.fillStyle = '#000';
+    ctx.beginPath();
+    ctx.rect(0, 0, w, h);
+    ctx.arc(focus.x, focus.y, Math.max(0.1, r), 0, Math.PI * 2);
+    ctx.fill('evenodd');
+  }
+  if (banner) {
+    const k = banner.t / banner.duration;
+    const inK = Math.min(1, banner.t / 0.35);
+    const outK = k > 0.8 ? 1 - (k - 0.8) / 0.2 : 1;
+    const a = Math.min(inK, outK);
+    const y = h * 0.16 + (1 - inK) * -tile * 0.4;
+    const fontPx = Math.round(tile * 0.42);
+    ctx.font = `bold ${fontPx}px 'Iowan Old Style', Palatino, Georgia, serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const text = banner.text.toUpperCase();
+    const tw = ctx.measureText(text).width + tile * 1.4;
+    ctx.globalAlpha = a;
+    ctx.fillStyle = 'rgba(10,10,8,0.72)';
+    ctx.fillRect(w / 2 - tw / 2, y - tile * 0.42, tw, tile * 0.84);
+    ctx.fillStyle = '#d9a441';
+    ctx.fillRect(w / 2 - tw / 2, y - tile * 0.42, tw, 2);
+    ctx.fillRect(w / 2 - tw / 2, y + tile * 0.42 - 2, tw, 2);
+    ctx.fillStyle = '#f1e8d2';
+    ctx.fillText(text.split('').join(String.fromCharCode(8202)), w / 2, y + 1);
+    ctx.globalAlpha = 1;
+  }
 }
 
 /** Screen-space overlays: the hurt/gold flash and the room fade-in. */

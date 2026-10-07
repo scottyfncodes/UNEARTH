@@ -49,7 +49,11 @@ npm run e2e        # end-to-end smoke test at a phone viewport
 
 Everything is rendered on a `<canvas>` at runtime — no image or audio assets,
 no engine dependency. The whole game is React + a hand-rolled 2D tile
-renderer; gzipped the bundle is well under 100 kB.
+renderer; gzipped the bundle is about 120 kB.
+
+Rooms are zoomed to fill a phone's play area top to bottom (between nine
+and eleven tiles across), the camera leads a little in the direction CK is
+facing, and footsteps sound like the ground they land on.
 
 ## How it plays
 
@@ -86,6 +90,14 @@ renderer; gzipped the bundle is well under 100 kB.
 - **Paw** (Space / Enter) does whatever makes sense: talk, read, pull a
   lever, open a door, inspect a carving, knock something off a shelf, bat a
   pebble — or, for the scenery, give it a sniff.
+- **The buttons say what they'd do.** There is no tutorial screen; the
+  controls teach themselves. Paw reads *Talk* in front of someone, *Read* in
+  front of a carving, *Open*, *Pull*, *Knock*, *Bat* or *Look* — and glows
+  when there's something there CK hasn't had yet, with a small gold marker
+  bobbing over it in the world. Hop steps back when there's nothing to hop.
+  Dig warms up and pulses when the collar is locked on the soft ground right
+  in front of CK. Every rule mirrors the real action, and a test walks every
+  tile of every room to hold them together.
 - **Traps have a language, and each one wants something different:**
   - *Dart strips* — a course of narrow bricks, a shade off, right across a
     corridor, with small holes in the wall. Step on one: *click* — and the
@@ -101,6 +113,10 @@ renderer; gzipped the bundle is well under 100 kB.
   A hit costs a heart and sends CK back to the last safe tile; losing every
   heart just sends CK to the room's entrance. Falling from the bridge lets
   it settle back.
+- **The journal has a map.** Every room CK has been to, laid out the way the
+  journey goes down, with shinies and secret nooks found versus total in
+  each — so going back somewhere is a decision, not a guess. Rooms not yet
+  reached show only as a "?" beside somewhere CK has been.
 - **Finds** get held up overhead with a fanfare and a card. **Fragments
   assemble themselves** the instant CK carries the whole set.
 - **Puzzles** use pushable blocks: into a pit to make a bridge, or onto
@@ -119,6 +135,8 @@ src/
                           (items, nooks, curios, trigger strips, crumbling stone, exits)
     dig.ts                 dig the soft tile ahead: a find, junk, dirt, or somebody's old hole
     detector.ts            the directional collar: proximity, aim, walls, lock-on, junk vs. treasure
+    affordance.ts          what each button would do right now — Paw's verb, whether Hop goes
+                           anywhere, whether Dig is "hot" — without doing it
     hazards.ts             time: delayed strikes, crumbling floors, spike rhythms, rolling boulders
     interact.ts            the one contextual action: talk, unlock, pull, read, inspect
     artifacts.ts            fragment → artifact assembly recipes
@@ -131,6 +149,7 @@ src/
     clues.ts                Dad's field-note pages and everything CK noticed
     recipes.ts              the bronze key and the Moon Seal
     progress.ts             shinies/pages/secrets/relics → a curiosity %
+    worldMap.ts             the journal map's layout, room links and per-room found/total counts
     initialState.ts         fresh save + engine context wiring
   render/           canvas 2D presentation — no game logic
     pixel.ts              a tiny pixel-art toolkit: 16×16 sprites baked once
@@ -139,8 +158,14 @@ src/
     tiles.ts               per-region terrain with auto-tiled walls, frayed earth, trigger
                            bricks, floor scatter and flat dressing, baked per room
     dressing.ts            ~45 pieces of set dressing: pottery, rubble, roots, old tools…
-    fx.ts                  particles, shake, flashes, darts, rocks, ambient life
-    draw.ts                camera, depth sorting, darkness and the Sunstone's light
+    fx.ts                  particles, shake, flashes, darts, rocks, ambient life, the room-entry
+                           iris, area banners, squash-and-stretch, hit-stop and trot dust
+    surround.ts            the region carrying on past a room's edge — canopy, bedrock — so a
+                           tall phone never shows black bars around the play area
+    atmosphere.ts          light for lit rooms (cloud shadows, temple shafts, window light)
+                           and a region-tinted vignette
+    draw.ts                camera, depth sorting, darkness and the Sunstone's light, and the
+                           marker over whatever Paw would touch
   app/controls.ts   turn-then-walk, the timed dig and the hop — shared by touch and keyboard
   app/              React shell: canvas, HUD, controls, dialogue, find/note
                     cards, chapter titles, journal, title and ending screens

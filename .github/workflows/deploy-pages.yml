@@ -2,9 +2,9 @@ name: Deploy to GitHub Pages
 
 on:
   push:
+    # Only main publishes. Older working branches (including the abandoned
+    # metal-detecting build) must never overwrite the live game.
     branches:
-      - claude/unearth-game-build-eftvze
-      - claude/unearth-8bit-adventure-6jyx0d
       - main
   workflow_dispatch:
 
@@ -32,8 +32,8 @@ jobs:
       - name: Install
         run: npm ci
 
-      # The unit suite gates the deploy: a broken signal model or save
-      # migration should never reach the published game.
+      # The unit suite gates the deploy: a broken engine rule or content
+      # reference should never reach the published game.
       - name: Unit tests
         run: npm test
 

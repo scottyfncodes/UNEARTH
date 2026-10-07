@@ -207,8 +207,32 @@ class AudioEngine {
   bump(): void {
     this.tone(110, 0.06, 'square', 0.1);
   }
-  step(): void {
-    this.noise(0.03, 0.05, 900);
+  /** A footfall that sounds like the ground it lands on. */
+  step(region: Region | null = null): void {
+    if (!this.ctx || !this.master) return;
+    const t = this.ctx.currentTime;
+    const v = 0.85 + Math.random() * 0.3;
+    switch (region) {
+      case 'meadow':
+        // Grass: a soft brush, no knock at all.
+        this.noise(0.05, 0.05 * v, 1400);
+        break;
+      case 'home':
+        // Floorboards: a tiny hollow tock.
+        this.noise(0.03, 0.04 * v, 900);
+        this.tone(170 * v, 0.04, 'triangle', 0.035, t);
+        break;
+      case 'temple':
+      case 'crypt':
+      case 'vault':
+        // Stone: a light, dry tick that the room gives back.
+        this.noise(0.025, 0.05 * v, 2600);
+        this.tone(1100 * v, 0.018, 'square', 0.012, t);
+        this.noise(0.04, 0.012, 1800);
+        break;
+      default:
+        this.noise(0.03, 0.05 * v, 900);
+    }
   }
   push(): void {
     this.noise(0.18, 0.18, 400);
