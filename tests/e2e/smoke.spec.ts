@@ -28,6 +28,28 @@ test('loads the title screen, begins the game, and moves CK with the touch d-pad
   expect(after).not.toEqual(before);
 });
 
+test('the opening shows CK, says what you do, and remembers where CK got to', async ({ page }) => {
+  await page.goto('/?debug=1');
+  // A cat in the grass you can say hello to — and it doesn't start the game.
+  const ck = page.getByRole('button', { name: 'Say hello to CK' });
+  await expect(ck).toBeVisible();
+  await ck.click();
+  await expect(page.getByRole('button', { name: 'Begin' })).toBeVisible();
+  const verbs = page.getByRole('list', { name: 'How to play' });
+  for (const verb of ['Paw', 'Dig', 'Hop']) await expect(verbs).toContainText(verb);
+
+  // Come back later: the title says where CK is and what has been found.
+  await page.getByRole('button', { name: 'Begin' }).click();
+  await page.getByRole('button', { name: 'Move down' }).dispatchEvent('pointerdown');
+  await page.waitForTimeout(80);
+  await page.getByRole('button', { name: 'Move down' }).dispatchEvent('pointerup');
+  await page.waitForTimeout(200);
+  await page.reload();
+  await expect(page.getByRole('button', { name: 'Continue' })).toBeVisible();
+  await expect(page.getByTestId('title-progress')).toContainText("CK is in CK's Home");
+  await expect(page.getByTestId('title-progress')).toContainText('0/16 shinies');
+});
+
 test('opens and closes the journal overlay', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('button', { name: 'Begin' }).click();

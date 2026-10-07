@@ -1,14 +1,15 @@
 import { useEffect, useRef } from 'react';
-import { dispatch, game } from '@/core/game';
+import { dispatch, game, onGameEvent } from '@/core/game';
 import { MAPS } from '@/content/maps';
 import { cameraTarget, drawFrame } from '@/render/draw';
 import { fx, stepFx } from '@/render/fx';
 import { audio } from '@/engine/audio';
-import { computeDetectorReading } from '@/game/detector';
+import { computeCollarReading } from '@/game/collar';
 import { needsTick } from '@/game/hazards';
 import { dismissCard, isBlocking, ui } from '@/core/ui';
 import { createMotion, isHopping, snapMotion, stepHop, stepMotion } from '@/render/motion';
 import { TILE_SIZE } from '@/render/constants';
+import { NAP_AFTER } from '@/render/ck';
 import type { Direction } from '@/game/types';
 import { pressDig, pressDirection, pressInteract, pressJump, releaseDirection } from './controls';
 
@@ -68,6 +69,19 @@ export function GameCanvas() {
     let lastMovedAt = -1;
     let lastTile = '';
     let lastMap = '';
+    // Left alone, CK sits, washes, and eventually naps. Anything at all —
+    // a step, a turn, a sound in the room, a card on screen — wakes CK up.
+    let lastActiveAt = 0;
+    let lastFacing = '';
+    let poked = false;
+    let napping = false;
+    // The moment the collar locks on, CK does what any cat does before a
+    // pounce: drops low and wiggles. Junk gets the same wiggle — the ears
+    // can't tell yet; only the collar's voice can.
+    let wasLocked = false;
+    const offEvents = onGameEvent(() => {
+      poked = true;
+    });
 
     const lead = leadRef.current;
     const frame = (now: number) => {
@@ -127,9 +141,33 @@ export function GameCanvas() {
       }
       // The collar pings on its own clock whenever nothing modal is up.
       if (!paused) {
-        const reading = computeDetectorReading(map, state);
-        audio.detector(reading);
+        const reading = computeCollarReading(map, state);
+        audio.collar(reading);
+        const locked = reading.locked && reading.kind === 'buried';
+        if (locked && !wasLocked && !isHopping() && !fx.isDigging()) {
+          fx.squash(1.12, 0.86, 0.14);
+          setTimeout(() => fx.squash(1.1, 0.88, 0.14), 170);
+        }
+        wasLocked = locked;
       }
+      const nudged = poked || state.player.facing !== lastFacing || lastMovedAt === time;
+      if (nudged || paused || isHopping() || fx.isDigging() || fx.isHolding() || time - lastMovedAt < 0.25) {
+        if (napping && nudged) {
+          // Startled awake, and a little indignant about it.
+          fx.bubble('!', 0.6);
+          audio.mrrp();
+        }
+        napping = false;
+        lastActiveAt = time;
+      } else if (!napping && time - lastActiveAt >= NAP_AFTER) {
+        napping = true;
+        audio.yawn();
+        setTimeout(() => {
+          if (napping) audio.purr(1.6);
+        }, 900);
+      }
+      poked = false;
+      lastFacing = state.player.facing;
       const sdt = frozen ? 0 : dt;
       const hop = isHopping() ? stepHop(motion, sdt) : 0;
       if (!hop) stepMotion(motion, state.player.pos.x, state.player.pos.y, sdt);
@@ -148,12 +186,15 @@ export function GameCanvas() {
       // Keep the walk cycle going briefly after each step so held-down
       // movement reads as one continuous trot rather than a stutter.
       const walking = time - lastMovedAt < 0.22 && !hop;
-      drawFrame(ctx, map, state, { pos: { x: motion.x, y: motion.y }, walking, time, clock: gameClock, hop, camera, width: w, height: h });
+      drawFrame(ctx, map, state, { pos: { x: motion.x, y: motion.y }, walking, time, clock: gameClock, hop, idle: time - lastActiveAt, camera, width: w, height: h });
       raf = requestAnimationFrame(frame);
     };
 
     raf = requestAnimationFrame(frame);
-    return () => cancelAnimationFrame(raf);
+    return () => {
+      cancelAnimationFrame(raf);
+      offEvents();
+    };
   }, []);
 
   useEffect(() => {

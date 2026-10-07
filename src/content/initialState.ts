@@ -10,8 +10,6 @@ export function createInitialState(): GameState {
     player: { pos: home.defaultSpawn, facing: 'down' },
     hearts: 3,
     maxHearts: 3,
-    tool: 'detector',
-    detectorOn: true,
     inventory: [],
     flags: {},
     clues: [],

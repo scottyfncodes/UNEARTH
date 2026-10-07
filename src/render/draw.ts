@@ -1,11 +1,11 @@
 /**
  * Composes one frame: the baked terrain, animated tiles, depth-sorted
  * entities with CK among them, effects, the darkness of unlit rooms (only
- * CK's Sunstone glow pushes it back), the collar's detector pulse, and the
+ * CK's Sunstone glow pushes it back), the collar's pulse, and the
  * screen-space flashes and fades.
  */
 import type { GameMap, GameState, TrapEntity, Vec2 } from '@/game/types';
-import { computeDetectorReading } from '@/game/detector';
+import { computeCollarReading } from '@/game/collar';
 import { mapStateOf, visibleEntities } from '@/game/world';
 import { rollerPosition, spikesUp } from '@/game/hazards';
 import { propSprite } from './sprites';
@@ -14,7 +14,7 @@ import { TILE_SIZE } from './constants';
 import { PALETTES } from './palette';
 import { drawAnimatedTiles, renderTerrain } from './tiles';
 import { drawEntity } from './entities';
-import { drawCK } from './ck';
+import { drawCK, NAP_AFTER } from './ck';
 import { blit } from './pixel';
 import { itemSprite } from './sprites';
 import { drawFxGround, drawFxWorld, drawIrisAndBanner, drawOverlays, drawParticles, fx, shakeOffset } from './fx';
@@ -34,6 +34,8 @@ export interface View {
   clock: number;
   /** 0..1 height of CK's hop, if mid-air. */
   hop: number;
+  /** Seconds since CK last did anything — drives sitting, washing and napping. */
+  idle: number;
   /** Top-left of the visible window, in world pixels. */
   camera: Vec2;
   /** Size of the visible window (the canvas), in world pixels. */
@@ -235,8 +237,10 @@ export function drawFrame(ctx: CanvasRenderingContext2D, map: GameMap, state: Ga
       holding: fx.isHolding(),
       digging: fx.isDigging(),
       bristling: bristling(map, state),
+      idle: view.idle,
     });
     ctx.restore();
+    if (view.idle >= NAP_AFTER && !fx.isHolding()) drawSnooze(ctx, view);
     const held = fx.heldSprite();
     if (held) {
       // The classic: hold the find up over your head.
@@ -275,8 +279,8 @@ export function drawFrame(ctx: CanvasRenderingContext2D, map: GameMap, state: Ga
   // The collar: a ring that pulses faster the closer CK is, and sharper the
   // more squarely CK faces the source. Facing away it is a soft smudge;
   // locked on, it tightens and flashes. It never points.
-  if (state.tool === 'detector' && state.detectorOn) {
-    const reading = computeDetectorReading(map, state);
+  {
+    const reading = computeCollarReading(map, state);
     if (reading.kind) {
       const cx = view.pos.x * T + T / 2;
       const cy = view.pos.y * T + T / 2 - view.hop * T * 0.55;
@@ -360,7 +364,7 @@ export function spriteOf(itemId: string): string {
 /** CK's fur stands up near a live mechanism — a cat's own trap sense. */
 function bristling(map: GameMap, state: GameState): boolean {
   if ((state.timed?.strikes.length ?? 0) > 0 || (state.timed?.crumbling.length ?? 0) > 0) return true;
-  const reading = computeDetectorReading(map, state);
+  const reading = computeCollarReading(map, state);
   return reading.kind === 'mechanism' && reading.proximity > 0.6;
 }
 
@@ -468,6 +472,27 @@ function drawBoulder(ctx: CanvasRenderingContext2D, at: Vec2, windingUp: boolean
     ctx.arc(cx, cy - T * 0.1, r * 0.55, a, a + 0.9);
     ctx.stroke();
   }
+}
+
+/** Small z's drifting up off a sleeping cat. */
+function drawSnooze(ctx: CanvasRenderingContext2D, view: View): void {
+  const asleep = view.idle - NAP_AFTER;
+  for (let i = 0; i < 3; i++) {
+    const age = asleep * 0.45 - i / 3;
+    if (age < 0) continue;
+    const k = age % 1;
+    const x = view.pos.x * T + T * (0.72 + k * 0.35 + Math.sin((k + i) * 6) * 0.05);
+    const y = view.pos.y * T + T * (0.35 - k * 0.9);
+    const s = Math.round(T * (0.3 + k * 0.18));
+    ctx.globalAlpha = Math.min(1, (1 - k) * 1.6) * 0.85;
+    ctx.fillStyle = '#f4ead2';
+    ctx.font = `bold ${s}px monospace`;
+    ctx.strokeStyle = 'rgba(20,14,8,0.75)';
+    ctx.lineWidth = 2;
+    ctx.strokeText('z', x, y);
+    ctx.fillText('z', x, y);
+  }
+  ctx.globalAlpha = 1;
 }
 
 /** CK's little thought bubble — "?" at a curiosity, "!" at a surprise, "…" at a sniff. */

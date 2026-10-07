@@ -3,12 +3,12 @@
  * the AudioContext to be created/resumed inside a real user gesture, so
  * nothing is built until unlock() is called from a tap.
  *
- * Three layers: one-shot effects, the collar's detector pings (faster and
+ * Three layers: one-shot effects, the collar's pings (faster and
  * higher the closer CK gets — the game's hot/cold hook), and a small
  * chiptune score, one loop per region, sequenced a little ahead of time.
  */
 import type { Region } from '@/game/types';
-import type { DetectorReading } from '@/game/detector';
+import type { CollarReading } from '@/game/collar';
 
 const midi = (n: number) => 440 * Math.pow(2, (n - 69) / 12);
 
@@ -293,6 +293,22 @@ class AudioEngine {
   meow(): void {
     this.tone(700, 0.35, 'triangle', 0.14, 0, this.master, 480);
   }
+  /** The questioning little trill a cat makes when you touch it. */
+  mrrp(): void {
+    if (!this.ctx) return;
+    const t = this.ctx.currentTime;
+    this.tone(520, 0.09, 'triangle', 0.1, t, this.master, 700);
+    this.tone(700, 0.14, 'triangle', 0.11, t + 0.08, this.master, 940);
+  }
+  /** Settling down for a nap: a long yawn sliding down. */
+  yawn(): void {
+    this.tone(640, 0.55, 'triangle', 0.07, 0, this.master, 280);
+  }
+  /** A purr: a low, soft rumble with no edges. */
+  purr(seconds = 1.2): void {
+    this.tone(46, seconds, 'sawtooth', 0.035);
+    this.tone(92, seconds, 'triangle', 0.025);
+  }
 
   // ── the collar ──────────────────────────────────────────────────────────
 
@@ -304,7 +320,7 @@ class AudioEngine {
    * front of CK) it chirps twice. Junk rings duller and buzzier than the
    * real thing; a mechanism warbles low.
    */
-  detector(reading: DetectorReading): void {
+  collar(reading: CollarReading): void {
     if (!this.ctx || !this.master || !reading.kind || reading.strength <= 0) return;
     const now = this.ctx.currentTime;
     if (now < this.nextPingAt) return;

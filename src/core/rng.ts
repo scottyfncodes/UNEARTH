@@ -41,7 +41,7 @@ export function weightedPick<T>(rng: Rng, items: readonly { item: T; weight: num
   return items[items.length - 1]!.item;
 }
 
-/** Smooth 1D value noise — used to make detector signals breathe. */
+/** Smooth 1D value noise — used to make the collar's signal breathe. */
 export function valueNoise1D(seed: number) {
   const rng = mulberry32(seed);
   const table = new Float32Array(256);

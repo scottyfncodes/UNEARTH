@@ -24,7 +24,7 @@ import { isTrapDisarmed, mapStateOf } from './world';
 
 export type SignalKind = 'buried' | 'mechanism' | null;
 
-export interface DetectorReading {
+export interface CollarReading {
   /** Overall 0..1 — what the HUD bars show. */
   strength: number;
   kind: SignalKind;
@@ -40,7 +40,7 @@ export interface DetectorReading {
   junk: boolean;
 }
 
-export const DETECTOR_RADIUS = 5;
+export const COLLAR_RADIUS = 5;
 
 const FACING: Record<GameState['player']['facing'], Vec2> = {
   up: { x: 0, y: -1 },
@@ -74,9 +74,9 @@ function aimAt(from: Vec2, facing: Vec2, source: Vec2): number {
   return Math.max(0, cos);
 }
 
-const NOTHING: DetectorReading = { strength: 0, kind: null, distance: Infinity, proximity: 0, aim: 0, locked: false, junk: false };
+const NOTHING: CollarReading = { strength: 0, kind: null, distance: Infinity, proximity: 0, aim: 0, locked: false, junk: false };
 
-export function computeDetectorReading(map: GameMap, state: GameState, from: Vec2 = state.player.pos): DetectorReading {
+export function computeCollarReading(map: GameMap, state: GameState, from: Vec2 = state.player.pos): CollarReading {
   const mapState = mapStateOf(state, map.id);
   const facing = FACING[state.player.facing];
   const ahead = step(from, state.player.facing);
@@ -84,8 +84,8 @@ export function computeDetectorReading(map: GameMap, state: GameState, from: Vec
 
   const consider = (source: Vec2, kind: Exclude<SignalKind, null>, junk: boolean) => {
     const distance = Math.hypot(source.x - from.x, source.y - from.y);
-    if (distance > DETECTOR_RADIUS + 0.5) return;
-    const proximity = Math.max(0, 1 - distance / (DETECTOR_RADIUS + 1));
+    if (distance > COLLAR_RADIUS + 0.5) return;
+    const proximity = Math.max(0, 1 - distance / (COLLAR_RADIUS + 1));
     const aim = aimAt(from, facing, source);
     const muffle = Math.pow(0.55, wallsBetween(map, from, source));
     const locked = source.x === ahead.x && source.y === ahead.y;

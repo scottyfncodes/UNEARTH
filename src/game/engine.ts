@@ -48,9 +48,6 @@ export function reduce(ctx: EngineContext, state: GameState, action: Action): { 
     case 'interact':
       result = attemptInteract(ctx.maps, state);
       break;
-    case 'toggleTool':
-      result = { state: { ...state, tool: state.tool === 'detector' ? 'paws' : 'detector' }, events: [] };
-      break;
     default: {
       const exhaustive: never = action;
       throw new Error(`Unhandled action: ${JSON.stringify(exhaustive)}`);

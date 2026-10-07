@@ -65,8 +65,6 @@ export function baseState(overrides: Partial<GameState> = {}): GameState {
     player: { pos: { x: 1, y: 4 }, facing: 'down' },
     hearts: 3,
     maxHearts: 3,
-    tool: 'detector',
-    detectorOn: true,
     inventory: [],
     flags: {},
     clues: [],

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useGameState } from './useGameState';
 import { MAPS } from '@/content/maps';
-import { computeDetectorReading } from '@/game/detector';
+import { computeCollarReading } from '@/game/collar';
 import { progressOf } from '@/content/progress';
 import { audio } from '@/engine/audio';
 
@@ -9,7 +9,7 @@ export function Hud({ onOpenJournal }: { onOpenJournal: () => void }) {
   const state = useGameState();
   const [sound, setSound] = useState(audio.isEnabled());
   const map = MAPS[state.mapId]!;
-  const reading = computeDetectorReading(map, state);
+  const reading = computeCollarReading(map, state);
   const progress = progressOf(state);
   const bars = reading.kind ? Math.max(1, Math.round(reading.strength * 5)) : 0;
 
