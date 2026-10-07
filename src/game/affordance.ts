@@ -16,7 +16,7 @@ import { step } from './types';
 import { dressingAt, entitiesAt, isDoorOpen, mapStateOf } from './world';
 import { checkDig } from './dig';
 import { jumpLanding } from './movement';
-import { computeDetectorReading } from './detector';
+import { computeCollarReading } from './collar';
 
 export type PawVerb = 'Talk' | 'Open' | 'Pull' | 'Read' | 'Look' | 'Bat' | 'Knock' | 'Sniff';
 
@@ -96,6 +96,6 @@ export function digAffordance(maps: MapRegistry, state: GameState): DigAffordanc
   if (check === 'hard') return 'none';
   if (check === 'dug') return 'none';
   if (check === 'old') return 'soft';
-  const reading = computeDetectorReading(maps[state.mapId]!, state);
+  const reading = computeCollarReading(maps[state.mapId]!, state);
   return reading.locked && reading.kind === 'buried' ? 'hot' : 'soft';
 }

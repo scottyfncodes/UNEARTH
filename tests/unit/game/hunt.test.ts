@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { buildMap } from '@/game/mapBuilder';
 import { reduce, type EngineContext } from '@/game/engine';
-import { computeDetectorReading } from '@/game/detector';
+import { computeCollarReading } from '@/game/collar';
 import { checkDig } from '@/game/dig';
 import { needsTick, rolledFlag } from '@/game/hazards';
 import { mapStateOf } from '@/game/world';
@@ -173,8 +173,8 @@ describe('digging for real', () => {
 describe('the directional collar', () => {
   it('is louder facing the source than facing away, at the same distance', () => {
     const lone = buildMap({ id: 'l', name: 'L', region: 'meadow', softGround: true, rows: ['#######', '#.....#', '#######'], entities: [], buried: { '4,1': { itemId: 'gem' } }, defaultSpawn: { x: 2, y: 1 } });
-    const toward = computeDetectorReading(lone, baseState({ mapId: 'l', player: { pos: { x: 2, y: 1 }, facing: 'right' } }));
-    const away = computeDetectorReading(lone, baseState({ mapId: 'l', player: { pos: { x: 2, y: 1 }, facing: 'left' } }));
+    const toward = computeCollarReading(lone, baseState({ mapId: 'l', player: { pos: { x: 2, y: 1 }, facing: 'right' } }));
+    const away = computeCollarReading(lone, baseState({ mapId: 'l', player: { pos: { x: 2, y: 1 }, facing: 'left' } }));
     expect(toward.kind).toBe('buried');
     expect(toward.proximity).toBeCloseTo(away.proximity);
     expect(toward.aim).toBeGreaterThan(away.aim);
@@ -182,12 +182,12 @@ describe('the directional collar', () => {
   });
 
   it('locks on only when the source is the very tile in front', () => {
-    expect(computeDetectorReading(field, at('field', 5, 1, 'right')).locked).toBe(true);
-    expect(computeDetectorReading(field, at('field', 4, 1, 'right')).locked).toBe(false);
+    expect(computeCollarReading(field, at('field', 5, 1, 'right')).locked).toBe(true);
+    expect(computeCollarReading(field, at('field', 4, 1, 'right')).locked).toBe(false);
   });
 
   it('hears junk as junk', () => {
-    const r = computeDetectorReading(field, at('field', 1, 3, 'right'));
+    const r = computeCollarReading(field, at('field', 1, 3, 'right'));
     expect(r.junk).toBe(true);
     expect(r.locked).toBe(true);
   });
@@ -196,8 +196,8 @@ describe('the directional collar', () => {
     const make = (row: string) =>
       buildMap({ id: 'w', name: 'W', region: 'meadow', softGround: true, rows: ['#####', row, '#####'], entities: [], buried: { '3,1': { itemId: 'gem' } }, defaultSpawn: { x: 1, y: 1 } });
     const s = baseState({ mapId: 'w', player: { pos: { x: 1, y: 1 }, facing: 'right' } });
-    const open = computeDetectorReading(make('#...#'), s);
-    const walled = computeDetectorReading(make('#.#.#'), s);
+    const open = computeCollarReading(make('#...#'), s);
+    const walled = computeCollarReading(make('#.#.#'), s);
     expect(walled.distance).toBe(open.distance);
     expect(walled.strength).toBeLessThan(open.strength * 0.7);
   });

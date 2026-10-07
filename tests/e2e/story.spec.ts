@@ -72,8 +72,6 @@ test('a finished journey ends on Dad, the numbers, and the hum', async ({ page }
         player: { pos: { x: 12, y: 8 }, facing: 'left' },
         hearts: 3,
         maxHearts: 3,
-        tool: 'detector',
-        detectorOn: true,
         inventory: ['idol_sunstone', 'moon_seal', 'keepers_bell'],
         flags: { dadLeft: true, foundOldNote: true, napTaken: true },
         clues: [],

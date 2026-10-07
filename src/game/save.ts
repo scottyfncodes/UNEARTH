@@ -17,8 +17,10 @@ export function serialize(state: GameState): string {
 
 export function deserialize(json: string, fallback: GameState): GameState {
   try {
-    const parsed = JSON.parse(json) as Partial<Persisted> & { timed?: unknown };
-    const { timed: _timed, ...rest } = parsed;
+    // `tool` and `detectorOn` were never more than an always-on switch for
+    // the collar; older saves still carry them, so they are dropped here.
+    const parsed = JSON.parse(json) as Partial<Persisted> & { timed?: unknown; tool?: unknown; detectorOn?: unknown };
+    const { timed: _timed, tool: _tool, detectorOn: _detectorOn, ...rest } = parsed;
     return { ...fallback, ...rest, dialogue: null };
   } catch {
     return fallback;

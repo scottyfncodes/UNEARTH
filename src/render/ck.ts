@@ -39,6 +39,57 @@ const DOWN = [
 const DOWN_STEP = [...DOWN.slice(0, 14), '..kowwk..kwwok..', '..kkk......kkk..'];
 const DOWN_BLINK = [...DOWN.slice(0, 6), '.kooooooooooook.', '.kokkooooookkok.', ...DOWN.slice(8)];
 
+// Sitting: head drops a row, haunches spread, tail curled round the front paws.
+const SIT = [
+  '................',
+  '................',
+  '..kk........kk..',
+  '..kok......kok..',
+  '..kpokkkkkkopk..',
+  '.koooOoOOoOoook.',
+  '.kooooooooooook.',
+  '.koWeooooooWeok.',
+  '.koeeooooooeeok.',
+  '.kwwoooppooowwk.',
+  '..kwwwwkkwwwwk..',
+  '..kkkcccycckkk..',
+  '.koooOwwwwOoookk',
+  '.koowwwwwwwwoOOk',
+  '.kowwkwwkwwkkOk.',
+  '..kkkkkkkkkk.k..',
+];
+const SIT_BLINK = [...SIT.slice(0, 7), '.kooooooooooook.', '.kokkooooookkok.', ...SIT.slice(9)];
+// Grooming: eyes shut, one paw up at the mouth, tongue out.
+const GROOM = [
+  ...SIT_BLINK.slice(0, 9),
+  '.kwkwwkoppoowwk.',
+  '..kkwwkkpwwwwk..',
+  '...kwwkcycckk...',
+  '.koooOwwwwOoookk',
+  '.koowwwwwwwwoOOk',
+  '.kooooookwwkkOk.',
+  '..kkkkkkkkkk.k..',
+];
+// Asleep: a curled loaf, tail wrapped across the front.
+const SLEEP = [
+  '................',
+  '................',
+  '................',
+  '................',
+  '................',
+  '..kk........kk..',
+  '..kok......kok..',
+  '..kpokkkkkkopk..',
+  '.koooOoOOoOoook.',
+  '.kooooooooooook.',
+  '.kokkooooookkokk',
+  '.kwwoooppooowwOk',
+  'kOwwwwwkkwwwwkOk',
+  'kooOOOOOOOOOOOok',
+  '.koooooooooooOk.',
+  '..kkkkkkkkkkkk..',
+];
+
 const UP = [
   '................',
   '..kk........kk..',
@@ -58,6 +109,8 @@ const UP = [
   '...kkk....kkk...',
 ];
 const UP_STEP = [...UP.slice(0, 14), '..kook...kook...', '..kkk.....kkk...'];
+// One ear flicks back — something behind CK made a sound.
+const UP_EAR = ['................', '..kk............', '..kok......kkk..', ...UP.slice(3)];
 
 const RIGHT = [
   '................',
@@ -78,6 +131,8 @@ const RIGHT = [
   '..kkkk....kkkk..',
 ];
 const RIGHT_STEP = [...RIGHT.slice(0, 13), '..kook...kook...', '.kook.....kook..', '.kkkk.....kkkk..'];
+// Tail up and curling — the idle flick.
+const RIGHT_TAIL = [...RIGHT.slice(0, 5), '.kk....koooooWek', 'kok....koooooeek', 'kok....koooowwpk', ...RIGHT.slice(8)];
 
 function frame(id: string, rows: string[]): HTMLCanvasElement {
   return baked(`ck:${id}`, (p) => p.rows(rows, CK));
@@ -94,6 +149,28 @@ export interface CkPose {
   digging?: boolean;
   /** Fur standing up: something nearby is a trap. */
   bristling?: boolean;
+  /** Seconds since CK last did anything. Left alone, a cat finds things to do. */
+  idle?: number;
+}
+
+/** When CK sits down, and when CK gives up and naps, in seconds of being left alone. */
+export const SIT_AFTER = 4;
+export const NAP_AFTER = 24;
+
+export type IdleMood = 'stand' | 'sit' | 'groom' | 'flick' | 'ear' | 'nap';
+
+/**
+ * What a cat left alone does, as a pure function of how long it has been
+ * left and which way it was facing: sit, wash, flick the tail, listen
+ * behind, and in the end curl up. Anything at all wakes it.
+ */
+export function idleMood(facing: Direction, idle: number): IdleMood {
+  if (idle >= NAP_AFTER) return 'nap';
+  if (idle < SIT_AFTER) return 'stand';
+  const t = idle - SIT_AFTER;
+  if (facing === 'down') return t % 8 > 4.6 && t % 8 < 6.4 ? 'groom' : 'sit';
+  if (facing === 'up') return t % 5 < 0.5 ? 'ear' : 'stand';
+  return t % 3.2 < 0.9 ? 'flick' : 'stand';
 }
 
 export function drawCK(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, pose: CkPose): void {
@@ -101,18 +178,31 @@ export function drawCK(ctx: CanvasRenderingContext2D, x: number, y: number, size
   // A slow blink every few seconds while idle — the cheapest way to make a sprite feel alive.
   const blink = !pose.walking && pose.time % 3.7 < 0.13;
   const facing = pose.holding ? 'down' : pose.facing;
+  const mood = pose.walking || pose.holding || pose.digging ? 'stand' : idleMood(facing, pose.idle ?? 0);
   let sprite: HTMLCanvasElement;
   let mirror = false;
+  if (mood === 'nap') {
+    // Breathing: the loaf rises and falls, slowly.
+    const breath = Math.sin(pose.time * 1.8) > 0 ? 0 : size / 16;
+    blit(ctx, frame('sleep', SLEEP), x, y + breath * 0.5, size);
+    return;
+  }
+  if (mood === 'sit' || mood === 'groom') {
+    const lick = mood === 'groom' && Math.floor(pose.time * 5) % 2 === 0;
+    sprite = mood === 'groom' ? (lick ? frame('groom', GROOM) : frame('sit-blink', SIT_BLINK)) : blink ? frame('sit-blink', SIT_BLINK) : frame('sit', SIT);
+    blit(ctx, sprite, x, y, size);
+    return;
+  }
   switch (facing) {
     case 'down':
       sprite = blink ? frame('down-blink', DOWN_BLINK) : step ? frame('down-step', DOWN_STEP) : frame('down', DOWN);
       break;
     case 'up':
-      sprite = step ? frame('up-step', UP_STEP) : frame('up', UP);
+      sprite = step ? frame('up-step', UP_STEP) : mood === 'ear' ? frame('up-ear', UP_EAR) : frame('up', UP);
       break;
     case 'right':
     case 'left':
-      sprite = step ? frame('right-step', RIGHT_STEP) : frame('right', RIGHT);
+      sprite = step ? frame('right-step', RIGHT_STEP) : mood === 'flick' ? frame('right-tail', RIGHT_TAIL) : frame('right', RIGHT);
       mirror = facing === 'left';
       break;
   }

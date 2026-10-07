@@ -42,6 +42,14 @@ describe('save/load', () => {
     expect(restored.dialogue).toBeNull();
   });
 
+  it('loads an older save and drops its retired collar switch', () => {
+    const old = JSON.stringify({ ...JSON.parse(serialize(baseState({ hearts: 2 }))), tool: 'detector', detectorOn: true });
+    const restored = deserialize(old, baseState()) as unknown as Record<string, unknown>;
+    expect(restored.hearts).toBe(2);
+    expect('tool' in restored).toBe(false);
+    expect('detectorOn' in restored).toBe(false);
+  });
+
   it('saveGame/loadGame round-trip through localStorage', () => {
     const state = baseState({ inventory: ['idol_sunstone'] });
     saveGame(state);

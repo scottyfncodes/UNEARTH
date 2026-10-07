@@ -15,6 +15,10 @@ funny one: the note was twenty years old, and Dad just went to the store.
 **Play it: https://scottyfncodes.github.io/UNEARTH/** — best on a phone,
 with sound on.
 
+> This repository is the cat game and nothing else. An early first-person
+> metal-detecting prototype once shared the name; it now lives in its own
+> repository (DETECTOR) and none of its code, saves or assets remain here.
+
 ```
 NOTICE → INVESTIGATE → INTERPRET → LOCATE → DIG → DISCOVER
 ```
@@ -57,6 +61,12 @@ facing, and footsteps sound like the ground they land on.
 
 ## How it plays
 
+- **CK is a cat first.** The title screen is CK sitting in a patch of the
+  Meadow — tap CK and it trills and bounces. In the game, leave CK alone and
+  it sits down, washes a paw, flicks its tail or listens behind it, and
+  after a while curls up and naps with a yawn and a purr; anything at all
+  startles it awake. When the collar locks on to something, CK drops low and
+  does the pre-pounce wiggle.
 - **Move** with the d-pad (or arrows / WASD). CK steps one tile at a time;
   holding a direction trots. **Tapping a new direction turns CK on the spot
   first** — keep holding and CK sets off. Turning in place is how you sweep
@@ -134,7 +144,7 @@ src/
     movement.ts           stepping, turning on the spot and hopping, sharing one arrival rule
                           (items, nooks, curios, trigger strips, crumbling stone, exits)
     dig.ts                 dig the soft tile ahead: a find, junk, dirt, or somebody's old hole
-    detector.ts            the directional collar: proximity, aim, walls, lock-on, junk vs. treasure
+    collar.ts              the directional collar: proximity, aim, walls, lock-on, junk vs. treasure
     affordance.ts          what each button would do right now — Paw's verb, whether Hop goes
                            anywhere, whether Dig is "hot" — without doing it
     hazards.ts             time: delayed strikes, crumbling floors, spike rhythms, rolling boulders
@@ -153,7 +163,8 @@ src/
     initialState.ts         fresh save + engine context wiring
   render/           canvas 2D presentation — no game logic
     pixel.ts              a tiny pixel-art toolkit: 16×16 sprites baked once
-    ck.ts                  CK's frames, Dad, the tortoise, the bat, the magpie
+    ck.ts                  CK's frames — walking, sitting, washing, tail flicks, napping —
+                           plus `idleMood()`, and Dad, the tortoise, the bat, the magpie
     sprites.ts             every item and prop
     tiles.ts               per-region terrain with auto-tiled walls, frayed earth, trigger
                            bricks, floor scatter and flat dressing, baked per room
@@ -168,7 +179,8 @@ src/
                            marker over whatever Paw would touch
   app/controls.ts   turn-then-walk, the timed dig and the hop — shared by touch and keyboard
   app/              React shell: canvas, HUD, controls, dialogue, find/note
-                    cards, chapter titles, journal, title and ending screens
+                    cards, chapter titles, journal, title and ending screens;
+                    TitleScene.tsx is the living patch of meadow on the title
   engine/audio.ts     synthesised SFX, the collar's pings, a chiptune loop per region
   core/
     game.ts               the live Store<GameState> + dispatch()
@@ -179,7 +191,7 @@ src/
 Two rules hold the shape:
 
 1. **`src/game/*` never touches the DOM or React.** Every mechanic — movement,
-   digging, the detector, puzzles, traps, assembly — is a pure function over
+   digging, the collar, puzzles, traps, assembly — is a pure function over
    plain data, which is why it's exhaustively unit-tested without a browser.
 2. **Maps are terrain + dressing + entities, not one big blob.** Terrain
    (walls, floors, earth, pits, trigger bricks, crumbling stone) is an
@@ -213,7 +225,8 @@ so a typo in content fails a test, not a player's game.
 
 Flags, inventory, clues, per-room state, position and hearts are saved to
 `localStorage` under `unearth.save.v2` after every action that produces an
-event (v1 saves belong to the old vertical slice and are ignored). Play time
+event (an older `v1` key from before CK's journey is ignored, and retired
+fields in older v2 saves are dropped on load). Play time
 is tracked separately so the ending can compare it with Dad's twenty
 minutes. A corrupt or missing save falls back to a fresh game; if storage is
 unavailable the game just runs without persistence.

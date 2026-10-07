@@ -96,7 +96,7 @@ const home = buildMap({
       id: 'deco_desk',
       pos: { x: 6, y: 1 },
       spriteId: 'desk',
-      line: "Dad's desk. The hook where his prototype detector collar hangs is empty. …Oh. CK is wearing it.",
+      line: "Dad's desk. The hook where his prototype collar hangs is empty — the one that hums near buried things. …Oh. CK is wearing it.",
     },
     {
       kind: 'decoration',

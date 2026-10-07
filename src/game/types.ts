@@ -178,7 +178,7 @@ export interface TrapEntity {
   period?: number;
   upMs?: number;
   offsetMs?: number;
-  /** The trap's metal mechanism shows up on the detector as a warning. */
+  /** The trap's metal mechanism makes CK's collar warble low — a warning. */
   detectable?: boolean;
 }
 
@@ -354,8 +354,6 @@ export function emptyMapState(): MapRuntimeState {
   };
 }
 
-export type ToolId = 'detector' | 'paws';
-
 export interface DialogueState {
   npcId: string;
   lines: string[];
@@ -403,9 +401,7 @@ export interface GameState {
   player: { pos: Vec2; facing: Direction };
   hearts: number;
   maxHearts: number;
-  tool: ToolId;
-  detectorOn: boolean;
-  /** Fragment ids, tool ids, and assembled artifact ids all live here. */
+  /** Fragment ids, relics, and assembled artifact ids all live here. */
   inventory: string[];
   flags: Record<string, boolean>;
   clues: string[];
@@ -465,6 +461,5 @@ export type Action =
   | { type: 'jump' }
   | { type: 'interact' }
   | { type: 'dig' }
-  | { type: 'toggleTool' }
   /** Time passing: `dt` since the last tick, `now` on the game clock (both ms). */
   | { type: 'tick'; dt: number; now: number };

@@ -3,14 +3,6 @@ import { reduce } from '@/game/engine';
 import { CTX, baseState } from './fixtures';
 
 describe('reduce', () => {
-  it('toggles between the detector and paws tools', () => {
-    const state = baseState({ tool: 'detector' });
-    const { state: next } = reduce(CTX, state, { type: 'toggleTool' });
-    expect(next.tool).toBe('paws');
-    const { state: back } = reduce(CTX, next, { type: 'toggleTool' });
-    expect(back.tool).toBe('detector');
-  });
-
   it('auto-assembles the key the instant both fragments are collected, from a dig and a pickup', () => {
     const digged = reduce(CTX, baseState({ player: { pos: { x: 3, y: 1 }, facing: 'right' } }), { type: 'dig' });
     expect(digged.state.inventory).toEqual(['fragB']);
