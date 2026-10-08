@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { buildMap } from '@/game/mapBuilder';
 import { emptyMapState, type Direction, type Entity } from '@/game/types';
 import { createInitialState } from '@/content/initialState';
@@ -45,6 +45,11 @@ const TRAIL = buildMap({
     '......:.....',
     '.....::.....',
     '.....:......',
+    '....::......',
+    '....:.......',
+    '....::......',
+    '.....:......',
+    '.....::.....',
   ],
   props: [
     'Tb.h.....*bT',
@@ -56,6 +61,11 @@ const TRAIL = buildMap({
     'I..i...*.j..',
     '.o..h...i..s',
     'i...I...O..i',
+    'h..i....*..I',
+    '.s...*.j...h',
+    'I..*...h.o.i',
+    '.h..i..I..s.',
+    'i..*.....h.O',
   ],
   entities: [],
   defaultSpawn: { x: 5, y: 0 },
@@ -76,6 +86,11 @@ const STATE = createInitialState();
 STATE.mapStates[HOME.id] = { ...emptyMapState(), usedDecorations: { t_shelf: true } };
 
 const SCENE_W = HOME.width * T;
+
+/** Trail rows the scene settles on before it grows into spare height. */
+const BASE_TRAIL_ROWS = 9;
+/** The breathing room left between the premise and the sound line. */
+const BODY_GAP = 28;
 
 const CK = { x: 5 * T, y: 4 * T };
 
@@ -108,7 +123,33 @@ export function TitleScene() {
   const viewW = Math.min(SCENE_W, Math.floor((vw * dpr) / k));
   const offsetX = Math.floor((SCENE_W - viewW) / 2);
   const tileCss = (T * k) / dpr;
-  const trailRows = Math.max(3, Math.min(TRAIL.height, Math.floor((vh * 0.58) / tileCss) - HOME.height));
+  const baseRows = Math.max(3, Math.min(BASE_TRAIL_ROWS, Math.floor((vh * 0.58) / tileCss) - HOME.height));
+  // A tall phone has height to spare under the premise: rather than leave it
+  // as an empty gap, let the trail run on into it a whole tile at a time,
+  // keeping the words and the button where they sit in the thumb zone.
+  const [grownRows, setGrownRows] = useState(baseRows);
+  const trailRows = Math.max(baseRows, Math.min(TRAIL.height, grownRows));
+  useLayoutEffect(() => {
+    const scene = ref.current?.parentElement;
+    const screen = scene?.closest<HTMLElement>('.title-screen');
+    const push = screen?.querySelector<HTMLElement>('.title-screen__push');
+    if (!scene || !screen || !push) return;
+    // The height the scene could take: its own, plus the gap under the
+    // premise beyond a little breathing room, less anything overflowing.
+    const fit = () => {
+      const room =
+        scene.getBoundingClientRect().height +
+        push.getBoundingClientRect().height -
+        Math.max(0, screen.scrollHeight - screen.clientHeight) -
+        BODY_GAP;
+      setGrownRows(Math.floor(room / tileCss) - HOME.height);
+    };
+    fit();
+    const watch = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(fit);
+    watch?.observe(push);
+    watch?.observe(screen);
+    return () => watch?.disconnect();
+  }, [tileCss]);
   const sceneH = (HOME.height + trailRows) * T;
 
   useEffect(() => {
