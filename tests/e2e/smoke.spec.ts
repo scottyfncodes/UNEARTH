@@ -9,8 +9,8 @@ declare global {
 test('loads the title screen, begins the game, and moves CK with the touch d-pad', async ({ page }) => {
   await page.goto('/?debug=1');
 
-  await expect(page.getByText('UNEARTH')).toBeVisible();
-  await page.getByRole('button', { name: 'Begin' }).click();
+  await expect(page.getByRole('heading', { name: 'UNEARTH' })).toBeVisible();
+  await page.getByRole('button', { name: 'Follow the trail' }).click();
 
   const canvas = page.locator('canvas.game-canvas');
   await expect(canvas).toBeVisible();
@@ -28,31 +28,40 @@ test('loads the title screen, begins the game, and moves CK with the touch d-pad
   expect(after).not.toEqual(before);
 });
 
-test('the opening shows CK, says what you do, and remembers where CK got to', async ({ page }) => {
+test('the opening is the game itself, one verb to start, and remembers where CK got to', async ({ page }) => {
   await page.goto('/?debug=1');
-  // A cat in the grass you can say hello to — and it doesn't start the game.
+  // CK at home by the open door — tap to say hello, and it doesn't start the game.
   const ck = page.getByRole('button', { name: 'Say hello to CK' });
   await expect(ck).toBeVisible();
   await ck.click();
-  await expect(page.getByRole('button', { name: 'Begin' })).toBeVisible();
-  const verbs = page.getByRole('list', { name: 'How to play' });
-  for (const verb of ['Paw', 'Dig', 'Hop']) await expect(verbs).toContainText(verb);
+  await expect(page.getByText("Dad's gone out. CK's on the case.")).toBeAttached();
+  await expect(page.getByText('The collar sings', { exact: false })).toBeAttached();
+  const go = page.getByRole('button', { name: 'Follow the trail' });
+  await expect(go).toBeVisible();
+  // One big button, in the thumb zone, with nothing clipped at a phone's size.
+  const box = (await go.boundingBox())!;
+  expect(box.height).toBeGreaterThanOrEqual(64);
+  expect(box.y + box.height).toBeLessThanOrEqual(844);
+  expect(box.y).toBeGreaterThan(844 / 2);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+  await expect(page.getByRole('button', { name: 'New game' })).toHaveCount(0);
 
   // Come back later: the title says where CK is and what has been found.
-  await page.getByRole('button', { name: 'Begin' }).click();
+  await go.click();
   await page.getByRole('button', { name: 'Move down' }).dispatchEvent('pointerdown');
   await page.waitForTimeout(80);
   await page.getByRole('button', { name: 'Move down' }).dispatchEvent('pointerup');
   await page.waitForTimeout(200);
   await page.reload();
-  await expect(page.getByRole('button', { name: 'Continue' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Keep digging' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'New game' })).toBeVisible();
   await expect(page.getByTestId('title-progress')).toContainText("CK is in CK's Home");
   await expect(page.getByTestId('title-progress')).toContainText('0/16 shinies');
 });
 
 test('opens and closes the journal overlay', async ({ page }) => {
   await page.goto('/');
-  await page.getByRole('button', { name: 'Begin' }).click();
+  await page.getByRole('button', { name: 'Follow the trail' }).click();
   await page.getByRole('button', { name: 'Open journal' }).click();
   await expect(page.getByText("CK's Journal")).toBeVisible();
   await page.getByRole('button', { name: 'Close journal' }).click();
@@ -83,7 +92,7 @@ test('ships a home-screen icon and an app manifest that actually load', async ({
 
 test('a tap in a new direction turns CK on the spot before walking', async ({ page }) => {
   await page.goto('/?debug=1');
-  await page.getByRole('button', { name: 'Begin' }).click();
+  await page.getByRole('button', { name: 'Follow the trail' }).click();
   const state = () => page.evaluate(() => (window as any).__unearth.state().player as { pos: { x: number; y: number }; facing: string });
   const before = await state();
   expect(before.facing).toBe('down');
