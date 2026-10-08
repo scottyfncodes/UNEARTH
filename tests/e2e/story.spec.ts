@@ -20,7 +20,7 @@ const pos = (page: Page) => page.evaluate(() => (window as any).__unearth.state(
 
 test('the prologue: Dad leaves, the vase falls, the note is found, the door opens', async ({ page }) => {
   await page.goto('/?debug=1');
-  await page.getByRole('button', { name: 'Begin' }).click();
+  await page.getByRole('button', { name: 'Follow the trail' }).click();
   await expect(page.getByText('Twenty Minutes')).toBeVisible();
 
   // Down to Dad, who is standing in the doorway.
@@ -80,7 +80,7 @@ test('a finished journey ends on Dad, the numbers, and the hum', async ({ page }
     );
   });
   await page.goto('/?debug=1');
-  await page.getByRole('button', { name: 'Continue' }).click();
+  await page.getByRole('button', { name: 'Keep digging' }).click();
 
   await press(page, 'Interact');
   const dialogue = page.getByTestId('dialogue');
@@ -97,7 +97,7 @@ test('a finished journey ends on Dad, the numbers, and the hum', async ({ page }
 
 test('the buttons say what they would do, and the journal maps where CK has been', async ({ page }) => {
   await page.goto('/?debug=1');
-  await page.getByRole('button', { name: 'Begin' }).click();
+  await page.getByRole('button', { name: 'Follow the trail' }).click();
   const paw = page.getByRole('button', { name: 'Interact', exact: true });
   await expect(paw).toHaveText('Paw');
 

@@ -61,8 +61,15 @@ facing, and footsteps sound like the ground they land on.
 
 ## How it plays
 
-- **CK is a cat first.** The title screen is CK sitting in a patch of the
-  Meadow — tap CK and it trills and bounces. In the game, leave CK alone and
+- **The opening is the game.** The title screen is CK's front room, drawn
+  with the real tiles: the book knocked off the shelf, Dad's note fluttering
+  on the floor, CK sitting by the open door (blinking, washing, flicking its
+  tail), and the trail running out through the grass toward the ruins. The
+  name and the words under it are drawn in a little 5×7 pixel font, and
+  everything is scaled by whole screen pixels, so nothing smears. One big
+  button — *Follow the trail*, or *Keep digging* when there's a save — and
+  tap CK to say hello.
+- **CK is a cat first.** In the game, leave CK alone and
   it sits down, washes a paw, flicks its tail or listens behind it, and
   after a while curls up and naps with a yawn and a purr; anything at all
   startles it awake. When the collar locks on to something, CK drops low and
@@ -180,7 +187,8 @@ src/
   app/controls.ts   turn-then-walk, the timed dig and the hop — shared by touch and keyboard
   app/              React shell: canvas, HUD, controls, dialogue, find/note
                     cards, chapter titles, journal, title and ending screens;
-                    TitleScene.tsx is the living patch of meadow on the title
+                    TitleScene.tsx is CK's front room and the trail on the title;
+                    PixelText.tsx draws words in render/pixelFont.ts's 5×7 font
   engine/audio.ts     synthesised SFX, the collar's pings, a chiptune loop per region
   core/
     game.ts               the live Store<GameState> + dispatch()
