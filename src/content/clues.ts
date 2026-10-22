@@ -17,49 +17,49 @@ const list: ClueDef[] = [
   {
     id: 'clue_field_notes_1',
     page: 1,
-    title: 'Field Notes — Page 1',
+    title: 'Field Notes: Page 1',
     text: '"The keepers split their bronze key and hid the halves. One half they buried. The other sits behind a statue, through a crack no person could fit through. Odd. It\'s almost as if they didn\'t want a person to open it at all."',
   },
   {
     id: 'clue_field_notes_2',
     page: 2,
-    title: 'Field Notes — Page 2',
+    title: 'Field Notes: Page 2',
     text: '"The Sunstone. Warm as a windowsill in June. The inscriptions say it \'lights the way below the well.\' I think the crypt is under the old well east of the meadow. Tomorrow."',
   },
   {
     id: 'clue_field_notes_3',
     page: 3,
-    title: 'Field Notes — Page 3',
+    title: 'Field Notes: Page 3',
     text: '"The well stairs go down into the crypt. My lamp keeps guttering out down there, like the dark is hungry. Ordinary light won\'t do. The keepers must have had something better."',
   },
   {
     id: 'clue_field_notes_4',
     page: 4,
-    title: 'Field Notes — Page 4',
-    text: '"A seal in three pieces — crescent, face and rim — scattered through the crypt. Moon-marked. Put it back together and the round door opens. I have found exactly none of them. My knees hate this place."',
+    title: 'Field Notes: Page 4',
+    text: '"A seal in three pieces (crescent, face and rim) scattered through the crypt. Moon-marked. Put it back together and the round door opens. I have found exactly none of them. My knees hate this place."',
   },
   {
     id: 'clue_field_notes_5',
     page: 5,
-    title: 'Field Notes — Last Page',
-    text: '"I\'ve come as far as a person can. The last passage is a crack no wider than my hand. Whatever the keepers hid, they hid it from people. I\'m going home. Maybe I\'ll find a way back someday. — A."',
+    title: 'Field Notes: Last Page',
+    text: '"I\'ve come as far as a person can. The last passage is a crack no wider than my hand. Whatever the keepers hid, they hid it from people. I\'m going home. Maybe I\'ll find a way back someday. A."',
   },
 
   // ── what CK noticed ──────────────────────────────────────────────────
   {
     id: 'clue_old_note',
     title: 'A Note in a Book',
-    text: '"Back soon — followed a lead out past the old ruins. Mind the house. — A." The paper is yellow and crackly at the edges. Dad must have left in a real hurry.',
+    text: '"Back soon. Followed a lead out past the old ruins. Mind the house. A." The paper is yellow and crackly at the edges. Dad must have left in a real hurry.',
   },
   {
     id: 'clue_worn_stone',
     title: 'A Worn Stone',
-    text: 'A flat stone rubbed smooth where someone sat and sketched. Scratched into it: an arrow pointing south, and a small symbol — a circle with two pointed ears.',
+    text: 'A flat stone rubbed smooth where someone sat and sketched. Scratched into it: an arrow pointing south, and a small symbol: a circle with two pointed ears.',
   },
   {
     id: 'clue_statue_crack',
     title: 'A Cracked Wall',
-    text: 'Behind the statue, a hairline crack splits the stone — just wide enough for something small and determined.',
+    text: 'Behind the statue, a hairline crack splits the stone, just wide enough for something small and determined.',
   },
   {
     id: 'clue_mural_cats',
@@ -89,14 +89,14 @@ const list: ClueDef[] = [
   {
     id: 'clue_keepers_2',
     title: 'The Last Panel',
-    text: 'A small cat, alone, following a trail of shiny things — all the way home.',
+    text: 'A small cat, alone, following a trail of shiny things, all the way home.',
   },
 
   // ── the hunt: what the sites themselves give away ────────────────────
   {
     id: 'clue_dig_log',
     title: "Dad's Dig Log",
-    text: 'Pinned to a board, curling at the edges: "Trench A — nothing. Trench B — nothing. Test pit by the tent — a tent peg (mine). Collar pinged LOUD by the leaning stone, on its sunrise side. Ran out of daylight. Back tomorrow for it!" Nobody came back tomorrow. A sapling has grown through the camp table.',
+    text: 'Pinned to a board, curling at the edges: "Trench A: nothing. Trench B: nothing. Test pit by the tent: a tent peg (mine). Collar pinged LOUD by the leaning stone, on its sunrise side. Ran out of daylight. Back tomorrow for it!" Nobody came back tomorrow. A sapling has grown through the camp table.',
   },
   {
     id: 'clue_guardian_gaze',
@@ -121,12 +121,12 @@ const list: ClueDef[] = [
   {
     id: 'clue_bridge_scratch',
     title: 'Scratched Into the Ledge',
-    text: 'In Dad\'s handwriting, gouged with a pocket knife: "DON\'T STOP ON THE BRIDGE. Also don\'t look down. (Looked down.) — A."',
+    text: 'In Dad\'s handwriting, gouged with a pocket knife: "DON\'T STOP ON THE BRIDGE. Also don\'t look down. (Looked down.) A."',
   },
   {
     id: 'clue_decoy_moons',
     title: 'Decoy Moons',
-    text: 'Little carved stone crescents, buried all over the Hall of Echoes. Worthless — made to be dug up by the wrong people. The real piece rings clear. These only clunk.',
+    text: 'Little carved stone crescents, buried all over the Hall of Echoes. Worthless, made to be dug up by the wrong people. The real piece rings clear. These only clunk.',
   },
 ];
 

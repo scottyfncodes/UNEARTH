@@ -330,7 +330,6 @@ button.confirm--armed {
   border: 1px solid var(--line);
   border-radius: 999px;
   padding: 6px 10px;
-  backdrop-filter: blur(6px);
 }
 
 .heart {
@@ -365,7 +364,11 @@ button.confirm--armed {
   background: rgba(10, 13, 11, 0.6);
   border: 1px solid var(--line);
   font-size: 17px;
-  backdrop-filter: blur(6px);
+}
+
+.hud__glyph {
+  display: block;
+  margin: auto;
 }
 
 .hud__icon-btn {
@@ -377,7 +380,6 @@ button.confirm--armed {
   border: 1px solid var(--line);
   font-size: 16px;
   color: var(--muted);
-  backdrop-filter: blur(6px);
 }
 
 /* The status column sits between the d-pad and the action buttons. */
@@ -461,7 +463,6 @@ button.confirm--armed {
   border-radius: 999px;
   background: rgba(10, 13, 11, 0.82);
   border: 1px solid var(--line);
-  backdrop-filter: blur(6px);
   animation: fade 0.25s ease both;
   max-width: 88%;
   width: max-content;
@@ -562,7 +563,6 @@ button.confirm--armed {
   border: 1px solid var(--line-strong);
   font-size: 18px;
   color: var(--text);
-  backdrop-filter: blur(6px);
   touch-action: none;
   user-select: none;
 }
@@ -632,7 +632,6 @@ button.confirm--armed {
   text-transform: uppercase;
   background: rgba(233, 226, 208, 0.1);
   border: 1px solid var(--line-strong);
-  backdrop-filter: blur(6px);
   touch-action: none;
   user-select: none;
 }
@@ -662,7 +661,6 @@ button.confirm--armed {
   position: absolute;
   inset: 0;
   background: rgba(6, 8, 7, 0.86);
-  backdrop-filter: blur(5px);
   display: flex;
   align-items: flex-end;
   z-index: 20;
@@ -842,7 +840,6 @@ button.confirm--armed {
   place-items: center;
   padding: 24px;
   background: rgba(4, 5, 4, 0.72);
-  backdrop-filter: blur(3px);
   animation: fade 0.18s ease both;
 }
 

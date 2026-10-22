@@ -66,9 +66,9 @@ const home = buildMap({
       sprite: 'dadGroceries',
       requiresFlag: 'napTaken',
       lines: [
-        "CK! I'm home! Sorry — the line at the store was out the door.",
+        "CK! I'm home! Sorry, the line at the store was out the door.",
         'Were you asleep this whole time? You\'re covered in… is that moss? And bat fur?',
-        "Wait — why is my old note out? I wrote that twenty years ago, on my Hollow expedition. Before you were even born!",
+        "Wait. Why is my old note out? I wrote that twenty years ago, on my Hollow expedition. Before you were even born!",
         'Never did get into that vault. The last passage was too small for a person, would you believe it.',
         'Anyway! I got you the fancy fish. Twenty minutes, tops. Did you miss me?',
       ],
@@ -89,14 +89,14 @@ const home = buildMap({
       id: 'deco_bookshelf',
       pos: { x: 3, y: 1 },
       spriteId: 'bookshelf',
-      line: 'Books about ruins. Books about more ruins. One about cats — thoroughly chewed.',
+      line: 'Books about ruins. Books about more ruins. One about cats, thoroughly chewed.',
     },
     {
       kind: 'decoration',
       id: 'deco_desk',
       pos: { x: 6, y: 1 },
       spriteId: 'desk',
-      line: "Dad's desk. The hook where his prototype collar hangs is empty — the one that hums near buried things. …Oh. CK is wearing it.",
+      line: "Dad's desk. The hook where his prototype collar hangs is empty: the one that hums near buried things. …Oh. CK is wearing it.",
     },
     {
       kind: 'decoration',
@@ -110,7 +110,7 @@ const home = buildMap({
       id: 'deco_vase',
       pos: { x: 5, y: 6 },
       spriteId: 'vase',
-      line: 'CK nudges the vase. Nudges it again. It topples — and something shiny rolls out!',
+      line: 'CK nudges the vase. Nudges it again. It topples, and something shiny rolls out!',
       givesItem: 'shiny_button',
       afterLine: 'The vase lies on its side. Dad will blame the wind.',
     },
@@ -221,7 +221,7 @@ const meadow = buildMap({
       id: 'deco_sign',
       pos: { x: 8, y: 7 },
       spriteId: 'sign',
-      line: 'A weathered signpost. SOUTH: The Old Temple. EAST: The Old Well (CLOSED). WEST: Dig Site — PRIVATE, KEEP OUT, THIS MEANS YOU. — A. Someone has crossed out "closed".',
+      line: 'A weathered signpost. SOUTH: The Old Temple. EAST: The Old Well (CLOSED). WEST: Dig Site. PRIVATE, KEEP OUT, THIS MEANS YOU. (signed, A.) Someone has crossed out "closed".',
     },
     { kind: 'decoration', id: 'deco_flowers', pos: { x: 4, y: 10 }, spriteId: 'flowers', walkable: true, line: 'Flowers. CK sneezes.' },
     { kind: 'item', id: 'item_marble', pos: { x: 2, y: 2 }, itemId: 'shiny_marble' },
@@ -297,7 +297,7 @@ const digsite = buildMap({
       sprite: 'mole',
       lines: [
         'Oi! Watch where you\'re diggin\'. This is MY field. Has been for ages.',
-        'That jangly thing on your neck — the big hat fella\'s gadget, innit? He waved it about all day.',
+        'That jangly thing on your neck. The big hat fella\'s gadget, innit? He waved it about all day.',
         'Here\'s a free tip, fuzzball. It ticks faster the closer you get. But it only goes all bright and clear when you\'re FACING the thing.',
         'So stop. Turn on the spot. Listen. When it chirps twice, it\'s right under your nose.',
         'And the dull, clunky ones? Junk. Tins and pegs. Your hat fella dug up a hundred of \'em.',
@@ -452,7 +452,7 @@ const well = buildMap({
       spawn: { x: 7, y: 1 },
       spawnFacing: 'down',
       requiresItem: 'idol_sunstone',
-      lockedMessage: "The well's stairs spiral down into total darkness. CK's eyes are good — but not that good. A light, maybe?",
+      lockedMessage: "The well's stairs spiral down into total darkness. CK's eyes are good, but not that good. A light, maybe?",
     },
   ],
   defaultSpawn: { x: 1, y: 6 },
@@ -465,7 +465,7 @@ const well = buildMap({
 // the south corridor do — and that a small, bouncy someone can just go over.
 const temple1 = buildMap({
   id: 'temple1',
-  name: 'Forgotten Temple — Entry Hall',
+  name: 'Forgotten Temple: Entry Hall',
   region: 'temple',
   chapter: { number: 'Chapter I', title: 'The Forgotten Temple' },
   rows: [
@@ -548,7 +548,7 @@ const temple1 = buildMap({
 // of the door. The obvious way through is the dangerous one.
 const temple2 = buildMap({
   id: 'temple2',
-  name: 'Forgotten Temple — Puzzle Chamber',
+  name: 'Forgotten Temple: Puzzle Chamber',
   region: 'temple',
   rows: [
     '#######>########',
@@ -614,7 +614,7 @@ const temple2 = buildMap({
       pos: { x: 7, y: 12 },
       requiresArtifact: 'key_bronze',
       opensOnFlag: 'sanctumUnlockedByShortcut',
-      lockedMessage: 'The bronze fittings hum faintly. This door wants its key — or another way in.',
+      lockedMessage: 'The bronze fittings hum faintly. This door wants its key. Or another way in.',
     },
   ],
   buried: {
@@ -633,7 +633,7 @@ const temple2 = buildMap({
 // top — so run, or duck into an alcove, and then go and see what it broke.
 const temple3 = buildMap({
   id: 'temple3',
-  name: 'Forgotten Temple — Inner Sanctum',
+  name: 'Forgotten Temple: Inner Sanctum',
   region: 'temple',
   rows: [
     '#######>########',
@@ -720,7 +720,7 @@ const temple3 = buildMap({
 // ── Chapter II: The Sunken Crypt ───────────────────────────────────────────
 const crypt1 = buildMap({
   id: 'crypt1',
-  name: 'Sunken Crypt — The Stairs',
+  name: 'Sunken Crypt: The Stairs',
   region: 'crypt',
   dark: true,
   chapter: { number: 'Chapter II', title: 'The Sunken Crypt' },
@@ -765,7 +765,7 @@ const crypt1 = buildMap({
         'Squeak! A CAT! …A cat with a LIGHT. Oh, that\'s actually lovely.',
         'The tall one with the hat? Oh, he came down here once. Years and years ago.',
         'His lamp kept going out. He bumped into EVERYTHING. Very funny. Squeak.',
-        'He dropped something pale and moony up by the east wall. It went down between the stones. I\'d have fetched it, but — no hands.',
+        'He dropped something pale and moony up by the east wall. It went down between the stones. I\'d have fetched it, but... no hands.',
         'And mind the ceiling. When it starts to trickle, MOVE. Bonk.',
       ],
     },
@@ -795,7 +795,7 @@ const crypt1 = buildMap({
 // stand on. A tin star sits out on the pillar island for the brave.
 const chasm = buildMap({
   id: 'chasm',
-  name: 'Sunken Crypt — The Crumbling Span',
+  name: 'Sunken Crypt: The Crumbling Span',
   region: 'crypt',
   dark: true,
   rows: [
@@ -845,7 +845,7 @@ const chasm = buildMap({
 
 const crypt2 = buildMap({
   id: 'crypt2',
-  name: 'Sunken Crypt — Flooded Gallery',
+  name: 'Sunken Crypt: Flooded Gallery',
   region: 'crypt',
   dark: true,
   rows: [
@@ -889,7 +889,7 @@ const crypt2 = buildMap({
         { x: 3, y: 7 },
         { x: 11, y: 7 },
       ],
-      lockedMessage: 'A heavy stone door. Two worn plates flank the hall — and two heavy blocks sit nearby, doing nothing useful.',
+      lockedMessage: 'A heavy stone door. Two worn plates flank the hall, and two heavy blocks sit nearby, doing nothing useful.',
     },
     {
       kind: 'trap',
@@ -922,7 +922,7 @@ const crypt2 = buildMap({
 // rings clear, under the one carving with its eye open.
 const crypt3 = buildMap({
   id: 'crypt3',
-  name: 'Sunken Crypt — Hall of Echoes',
+  name: 'Sunken Crypt: Hall of Echoes',
   region: 'crypt',
   dark: true,
   rows: [
@@ -972,7 +972,7 @@ const crypt3 = buildMap({
   ],
   buried: {
     '10,2': { itemId: 'moon_rim' },
-    '12,2': { junk: 'A tiny carved stone crescent. A decoy — the keepers buried dozens.', clueId: 'clue_decoy_moons' },
+    '12,2': { junk: 'A tiny carved stone crescent. A decoy. The keepers buried dozens.', clueId: 'clue_decoy_moons' },
     '4,2': { junk: 'Another decoy crescent. The keepers really committed to the bit.', clueId: 'clue_decoy_moons' },
     '13,6': { junk: 'A decoy crescent, chipped. Someone else dug this one up once and threw it back.', clueId: 'clue_decoy_moons' },
     '3,8': { itemId: 'shiny_glasseye' },
@@ -1063,7 +1063,7 @@ const vault = buildMap({
       id: 'deco_hollow',
       pos: { x: 7, y: 7 },
       spriteId: 'hollow',
-      line: 'In a single warm beam of light sits a smooth hollow in the stone — exactly cat-shaped. CK has never been so sure of anything. CK curls up. Just for a minute…',
+      line: 'In a single warm beam of light sits a smooth hollow in the stone, exactly cat-shaped. CK has never been so sure of anything. CK curls up. Just for a minute…',
       setsFlag: 'napTaken',
       warpTo: { mapId: 'home', pos: { x: 12, y: 8 }, facing: 'left' },
       afterLine: 'The perfect nap spot.',

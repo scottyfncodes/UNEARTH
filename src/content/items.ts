@@ -19,14 +19,14 @@ const list: ItemDef[] = [
   // ── the bronze key ───────────────────────────────────────────────────
   {
     id: 'fragment_bronze_handle',
-    name: 'Bronze Key — Handle',
+    name: 'Bronze Key: Handle',
     description: 'Half of something. The break is old and deliberate: cut, not snapped.',
     kind: 'fragment',
     sprite: 'keyHandle',
   },
   {
     id: 'fragment_bronze_blade',
-    name: 'Bronze Key — Blade',
+    name: 'Bronze Key: Blade',
     description: 'The other half, hidden where no person could reach it. Almost like that was the point.',
     kind: 'fragment',
     sprite: 'keyBlade',
@@ -42,21 +42,21 @@ const list: ItemDef[] = [
   // ── the moon seal ────────────────────────────────────────────────────
   {
     id: 'moon_crescent',
-    name: 'Moon Seal — Crescent',
+    name: 'Moon Seal: Crescent',
     description: 'A pale sliver of stone, cool to the touch. One of three, the notes said.',
     kind: 'fragment',
     sprite: 'moonCrescent',
   },
   {
     id: 'moon_face',
-    name: 'Moon Seal — Face',
+    name: 'Moon Seal: Face',
     description: 'The middle of the moon. There is a tiny eared circle carved in its center.',
     kind: 'fragment',
     sprite: 'moonFace',
   },
   {
     id: 'moon_rim',
-    name: 'Moon Seal — Rim',
+    name: 'Moon Seal: Rim',
     description: 'The last curve. It hums very quietly when it is near the others.',
     kind: 'fragment',
     sprite: 'moonRim',
