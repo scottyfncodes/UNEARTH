@@ -20,7 +20,7 @@ import { HOP_MS, lockFor } from './controls';
 const JUST_DIRT = ['Just dirt.', 'Dirt. Very nice dirt. Still just dirt.', 'Nothing but earth and one surprised worm.', 'Just dirt. The collar was quiet here, to be fair.'];
 const MISSES = [
   'THWIP-THWIP-THWIP! Darts hiss past behind CK. Too slow, temple.',
-  'THWIP! A volley of darts — right where CK was half a second ago.',
+  'THWIP! A volley of darts, right where CK was half a second ago.',
   'Darts rattle off the far wall. CK does not look back. CK is too cool to look back.',
 ];
 
@@ -135,7 +135,7 @@ export function useGameEvents(): string | null {
           break;
         case 'dig-hard':
           audio.digHard();
-          show('Too hard for paws here — CK needs soft ground.', 1800);
+          show('Too hard for paws here. CK needs soft ground.', 1800);
           break;
         case 'jump': {
           audio.hop();
@@ -212,7 +212,7 @@ export function useGameEvents(): string | null {
             audio.hurt();
             fx.hurt();
           }, 250);
-          show('The stone drops away — and CK with it! CK scrabbles back up, very dusty and quite annoyed.', 3200);
+          show('The stone drops away, and CK with it! CK scrabbles back up, very dusty and quite annoyed.', 3200);
           break;
         case 'roller-start':
           audio.rumble();
@@ -227,13 +227,13 @@ export function useGameEvents(): string | null {
           audio.splat();
           fx.hurt();
           haptics.danger();
-          show('SPLAT. CK is flattened like a pancake — then pops back into shape, deeply offended.', 3000);
+          show('SPLAT. CK is flattened like a pancake, then pops back into shape, deeply offended.', 3000);
           break;
         case 'roller-stop':
           audio.crash();
           fx.crash(event.at);
           haptics.reveal();
-          show('BOOM. The boulder goes straight through the cracked wall — and there\'s something behind it.', 3400);
+          show('BOOM. The boulder goes straight through the cracked wall, and there\'s something behind it.', 3400);
           break;
         case 'reveal':
           audio.dig();
@@ -268,7 +268,7 @@ export function useGameEvents(): string | null {
           audio.secret();
           fx.secret(game.get().player.pos);
           haptics.reveal();
-          show('✦ A secret nook! ✦', 2200);
+          show('◆ A secret nook!', 2200);
           break;
         case 'switch-on':
           audio.doorOpen();

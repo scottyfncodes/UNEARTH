@@ -13,7 +13,7 @@ const GAP_X = 14;
 const GAP_Y = 16;
 
 function shortName(name: string): string {
-  const dash = name.indexOf('—');
+  const dash = name.indexOf(':');
   return dash >= 0 ? name.slice(dash + 1).trim() : name.replace(/^The /, '').replace("CK's ", '');
 }
 
@@ -73,7 +73,7 @@ export function WorldMap({ state }: { state: GameState }) {
             <Room key={r.id} room={r} {...at(r.id)} />
           ))}
       </svg>
-      <p className="world-map__legend">✦ shinies · ◆ secret nooks</p>
+      <p className="world-map__legend">● shinies · ◆ secret nooks</p>
     </div>
   );
 }
@@ -97,10 +97,10 @@ function Room({ room, x, y }: { room: RoomProgress; x: number; y: number }) {
         {shortName(room.name)}
       </text>
       <text x={x + 9} y={y + 38} className="world-map__counts">
-        {room.shiniesTotal > 0 ? `✦ ${room.shinies}/${room.shiniesTotal}` : ''}
+        {room.shiniesTotal > 0 ? `● ${room.shinies}/${room.shiniesTotal}` : ''}
         {room.shiniesTotal > 0 && room.secretsTotal > 0 ? '   ' : ''}
         {room.secretsTotal > 0 ? `◆ ${room.secrets}/${room.secretsTotal}` : ''}
-        {room.shiniesTotal === 0 && room.secretsTotal === 0 ? '—' : ''}
+        {room.shiniesTotal === 0 && room.secretsTotal === 0 ? '-' : ''}
       </text>
       {room.current ? <circle cx={x + CELL_W - 12} cy={y + 12} r={4} className="world-map__you" /> : null}
       {room.complete && !room.current ? (

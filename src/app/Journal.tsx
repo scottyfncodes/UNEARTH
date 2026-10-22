@@ -118,7 +118,7 @@ export function Journal({ onClose }: { onClose: () => void }) {
                   </li>
                 ) : (
                   <li key={page.id} className="journal__page journal__page--missing">
-                    <strong>Page {page.page === FIELD_NOTE_PAGES.length ? 'the last' : page.page} — missing</strong>
+                    <strong>Page {page.page === FIELD_NOTE_PAGES.length ? 'the last' : page.page} (missing)</strong>
                     <span>Somewhere out there, a page of Dad&apos;s notes is waiting.</span>
                   </li>
                 ),

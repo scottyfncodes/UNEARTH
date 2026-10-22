@@ -48,7 +48,7 @@ export function Hud({ onOpenJournal }: { onOpenJournal: () => void }) {
           {sound ? '♪' : '✕'}
         </button>
         <button className="hud__icon-btn hud__journal" onClick={onOpenJournal} aria-label="Open journal">
-          📖
+          <JournalGlyph />
         </button>
       </div>
 
@@ -64,10 +64,24 @@ export function Hud({ onOpenJournal }: { onOpenJournal: () => void }) {
           </span>
         </div>
         <div className="hud__counts">
-          <span title="Shinies">✦ {progress.shinies}/{progress.shiniesTotal}</span>
+          <span title="Shinies">● {progress.shinies}/{progress.shiniesTotal}</span>
           <span title="Dad's field notes">✎ {progress.pages}/{progress.pagesTotal}</span>
         </div>
       </div>
     </div>
+  );
+}
+
+/** CK's journal, drawn on the same pixel grid as everything else in the game. */
+function JournalGlyph() {
+  return (
+    <svg className="hud__glyph" viewBox="0 0 12 12" width="20" height="20" shapeRendering="crispEdges" aria-hidden="true">
+      <rect x="2" y="1" width="8" height="10" fill="#8a6a2c" />
+      <rect x="3" y="2" width="6" height="8" fill="#d9a441" />
+      <rect x="2" y="1" width="1" height="10" fill="#5a4320" />
+      <rect x="4" y="4" width="4" height="1" fill="#5a4320" />
+      <rect x="4" y="6" width="3" height="1" fill="#5a4320" />
+      <rect x="8" y="9" width="1" height="3" fill="#c0392b" />
+    </svg>
   );
 }

@@ -35,7 +35,7 @@ export function Ending({ onKeepExploring, onNewGame }: { onKeepExploring: () => 
 
         <div className="ending__stats">
           <div>
-            ✦ Shinies <strong>{p.shinies}/{p.shiniesTotal}</strong>
+            ● Shinies <strong>{p.shinies}/{p.shiniesTotal}</strong>
           </div>
           <div>
             ✎ Dad&apos;s notes <strong>{p.pages}/{p.pagesTotal}</strong>
@@ -48,7 +48,7 @@ export function Ending({ onKeepExploring, onNewGame }: { onKeepExploring: () => 
           </div>
         </div>
         <div className="ending__rank">
-          Curiosity {p.percent}% — <em>{curiosityRank(p.percent)}</em>
+          Curiosity {p.percent}%: <em>{curiosityRank(p.percent)}</em>
         </div>
 
         <p className="ending__sting">
