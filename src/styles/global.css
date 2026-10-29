@@ -382,6 +382,76 @@ button.confirm--armed {
   color: var(--muted);
 }
 
+/* ── sound settings ───────────────────────────────────────────────────── */
+.sound-panel__scrim {
+  pointer-events: auto;
+  position: absolute;
+  inset: 0;
+  background: transparent;
+  border: 0;
+  z-index: 7;
+}
+
+.sound-panel {
+  pointer-events: auto;
+  position: absolute;
+  top: calc(var(--safe-top) + 58px);
+  right: 14px;
+  width: min(260px, calc(100% - 28px));
+  background: var(--panel-solid);
+  border: 2px solid #3a4a3c;
+  box-shadow: 0 0 0 2px #0a0d0b, 0 10px 30px rgba(0, 0, 0, 0.5);
+  border-radius: 10px;
+  padding: 6px 14px 10px;
+  z-index: 8;
+  animation: fade 0.15s ease both;
+}
+
+.sound-panel__toggle {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 0;
+  background: none;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  color: var(--text);
+  font-family: var(--serif);
+  font-size: 15px;
+}
+
+.sound-panel__state {
+  font-family: var(--sans);
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+
+.sound-panel__toggle--on .sound-panel__state {
+  color: var(--gold);
+}
+
+.sound-panel__row {
+  display: grid;
+  grid-template-columns: 64px 1fr;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 0 2px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.sound-panel__row--off {
+  opacity: 0.4;
+}
+
+.sound-panel__row input {
+  width: 100%;
+  accent-color: var(--gold);
+}
+
 /* The status column sits between the d-pad and the action buttons. */
 .hud__status {
   position: absolute;
@@ -517,16 +587,10 @@ button.confirm--armed {
   font-size: 15.5px;
   line-height: 1.4;
   margin: 0 0 6px;
-  animation: typein 0.35s steps(12) both;
 }
 
-@keyframes typein {
-  from {
-    clip-path: inset(0 100% 0 0);
-  }
-  to {
-    clip-path: inset(0 0 0 0);
-  }
+.dialogue__unsaid {
+  visibility: hidden;
 }
 
 .dialogue__hint {
@@ -534,6 +598,11 @@ button.confirm--armed {
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--faint);
+  transition: opacity 0.15s;
+}
+
+.dialogue__hint--typing {
+  opacity: 0;
 }
 
 /* ── touch controls ───────────────────────────────────────────────────── */

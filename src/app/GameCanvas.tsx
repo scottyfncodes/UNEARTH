@@ -12,6 +12,7 @@ import { TILE_SIZE } from '@/render/constants';
 import { NAP_AFTER } from '@/render/ck';
 import type { Direction } from '@/game/types';
 import { pressDig, pressDirection, pressInteract, pressJump, releaseDirection } from './controls';
+import { continueDialogue } from './typewriter';
 
 const KEY_DIRECTION: Record<string, Direction> = {
   ArrowUp: 'up',
@@ -139,9 +140,25 @@ export function GameCanvas() {
         lastMap = state.mapId;
         lastMovedAt = time;
       }
-      // The collar pings on its own clock whenever nothing modal is up.
+      // The collar pings on its own clock whenever nothing modal is up,
+      // and the score listens to the same reading.
+      const reading = computeCollarReading(map, state);
+      const timed = state.timed;
+      audio.setMood({
+        curiosity: !paused && reading.kind === 'buried' ? reading.proximity : 0,
+        danger: timed?.rollers.length
+          ? 1
+          : timed?.strikes.length
+            ? 0.6
+            : timed?.crumbling.length
+              ? 0.45
+              : !paused && reading.kind === 'mechanism'
+                ? reading.proximity * 0.35
+                : 0,
+        talking: !!state.dialogue,
+        muffled: isBlocking(),
+      });
       if (!paused) {
-        const reading = computeCollarReading(map, state);
         audio.collar(reading);
         const locked = reading.locked && reading.kind === 'buried';
         if (locked && !wasLocked && !isHopping() && !fx.isDigging()) {
@@ -207,7 +224,7 @@ export function GameCanvas() {
         return;
       }
       if (game.get().dialogue) {
-        if ((e.code === 'Space' || e.code === 'Enter') && !e.repeat) dispatch({ type: 'interact' });
+        if ((e.code === 'Space' || e.code === 'Enter') && !e.repeat) continueDialogue();
         return;
       }
       const dir = KEY_DIRECTION[e.code];

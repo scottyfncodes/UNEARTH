@@ -1,101 +1,62 @@
 /**
- * All sound is synthesised — no audio files on a static host. iOS requires
+ * All sound is synthesised: no audio files on a static host. iOS requires
  * the AudioContext to be created/resumed inside a real user gesture, so
  * nothing is built until unlock() is called from a tap.
  *
- * Three layers: one-shot effects, the collar's pings (faster and
- * higher the closer CK gets — the game's hot/cold hook), and a small
- * chiptune score, one loop per region, sequenced a little ahead of time.
+ * Four layers: one-shot effects, the collar's pings (faster and higher the
+ * closer CK gets: the game's hot/cold hook), voices for everyone CK meets,
+ * and a score that listens to the game (see score.ts). Effects and music
+ * run through the region's room, so the crypt rings and the meadow doesn't.
+ *
+ *   effects ─┬────────────────────────────┐
+ *            └─ send ─ room (convolver) ──┤
+ *   score layers ─ filter ─ fade ─ duck ─ music volume ─┴─ master ─ out
  */
 import type { Region } from '@/game/types';
 import type { CollarReading } from '@/game/collar';
+import { compose, ROOMS, SONGS, stepLength, type Step } from './score';
+import { speaks, syllable, type Voice } from './voices';
 
 const midi = (n: number) => 440 * Math.pow(2, (n - 69) / 12);
 
-interface Song {
-  bpm: number;
-  root: number;
-  scale: number[];
-  /** Scale degrees (0-based) of each bar's chord root. */
-  bars: number[];
-  style: 'bouncy' | 'wander' | 'sparse' | 'drone' | 'dream';
-  seed: number;
+const SETTINGS_KEY = 'unearth.audio.v1';
+/** The score sits this far under the effects at full music volume. */
+const MUSIC_LEVEL = 0.2;
+
+export interface Mood {
+  /** 0-1: how close the collar is to something buried. */
+  curiosity: number;
+  /** 0-1: something is chasing, falling or about to fire. */
+  danger: number;
+  /** Someone is talking: the score steps back. */
+  talking: boolean;
+  /** A card or the journal is up: the score sounds like it's in the next room. */
+  muffled: boolean;
 }
 
-const SONGS: Record<Region, Song> = {
-  home: { bpm: 104, root: 60, scale: [0, 2, 4, 5, 7, 9, 11], bars: [0, 5, 3, 4], style: 'bouncy', seed: 3 },
-  meadow: { bpm: 118, root: 55, scale: [0, 2, 4, 5, 7, 9, 11], bars: [0, 3, 5, 4], style: 'wander', seed: 11 },
-  well: { bpm: 84, root: 57, scale: [0, 2, 3, 5, 7, 8, 10], bars: [0, 5, 3, 6], style: 'sparse', seed: 7 },
-  temple: { bpm: 92, root: 50, scale: [0, 2, 3, 5, 7, 9, 10], bars: [0, 6, 3, 4], style: 'sparse', seed: 19 },
-  crypt: { bpm: 70, root: 52, scale: [0, 1, 3, 5, 7, 8, 10], bars: [0, 1, 0, 6], style: 'drone', seed: 23 },
-  vault: { bpm: 76, root: 53, scale: [0, 2, 4, 6, 7, 9, 11], bars: [0, 1, 4, 0], style: 'dream', seed: 31 },
-};
-
-function rng(seed: number): () => number {
-  let s = seed >>> 0;
-  return () => {
-    s = (s + 0x6d2b79f5) >>> 0;
-    let t = s;
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
-interface Step {
-  bass?: number;
-  lead?: number;
-  arp?: number;
-}
-
-/** Builds a four-bar, 16-steps-per-bar loop: an A-A' melody over chord roots. */
-function compose(song: Song): Step[] {
-  const r = rng(song.seed);
-  const note = (degree: number, octave = 0) => {
-    const len = song.scale.length;
-    const oct = Math.floor(degree / len) + octave;
-    return song.root + song.scale[((degree % len) + len) % len]! + oct * 12;
-  };
-  // One two-bar motif, repeated with a tweak — memorable beats random.
-  const motif: (number | null)[] = [];
-  const density = song.style === 'bouncy' ? 0.62 : song.style === 'wander' ? 0.55 : song.style === 'dream' ? 0.35 : 0.22;
-  let deg = 2;
-  for (let i = 0; i < 32; i++) {
-    const strong = i % 4 === 0;
-    if (r() < (strong ? density + 0.25 : density * 0.6)) {
-      deg += Math.round((r() - 0.5) * 4);
-      deg = Math.max(0, Math.min(9, deg));
-      motif.push(deg);
-    } else motif.push(null);
-  }
-  const steps: Step[] = [];
-  for (let bar = 0; bar < 4; bar++) {
-    const chord = song.bars[bar]!;
-    for (let s = 0; s < 16; s++) {
-      const i = (bar % 2) * 16 + s;
-      const step: Step = {};
-      if (song.style === 'drone') {
-        if (s === 0) step.bass = note(chord, -1);
-        if (s === 8 && r() < 0.5) step.lead = note(chord + 4, 1);
-      } else {
-        if (s % (song.style === 'bouncy' ? 4 : 8) === 0) step.bass = note(chord + (s === 8 ? 4 : 0), -1);
-        const m = motif[i];
-        if (m !== null && m !== undefined) step.lead = note(m + (bar === 3 && s > 8 ? 1 : 0), song.style === 'dream' ? 1 : 0);
-        if (song.style === 'wander' || song.style === 'dream') {
-          if (s % 2 === 0) step.arp = note(chord + [0, 2, 4, 7][(s / 2) % 4]!, 1);
-        }
-      }
-      steps.push(step);
-    }
-  }
-  return steps;
+interface Layers {
+  base: GainNode;
+  perc: GainNode;
+  shimmer: GainNode;
+  drive: GainNode;
 }
 
 class AudioEngine {
   private ctx: AudioContext | null = null;
   private master: GainNode | null = null;
-  private musicBus: GainNode | null = null;
+  private sfx: GainNode | null = null;
+  private send: GainNode | null = null;
+  private room: ConvolverNode | null = null;
+  private musicVol: GainNode | null = null;
+  private duck: GainNode | null = null;
+  private fade: GainNode | null = null;
+  private filter: BiquadFilterNode | null = null;
+  private layers: Layers | null = null;
+  private noiseBuf: AudioBuffer | null = null;
+  private rooms = new Map<string, AudioBuffer>();
   private enabled = true;
+  private musicVolume = 0.8;
+  private sfxVolume = 1;
 
   private song: Region | null = null;
   private steps: Step[] = [];
@@ -103,13 +64,22 @@ class AudioEngine {
   private nextStepAt = 0;
   private timer: ReturnType<typeof setInterval> | null = null;
 
+  /** Smoothed mood targets, and the levels last sent to the graph. */
+  private mood: Mood = { curiosity: 0, danger: 0, talking: false, muffled: false };
+  private journalOpen = false;
+  private sent = { shimmer: -1, drive: -1, duck: -1, cutoff: -1 };
+  private duckedUntil = 0;
+
   private nextPingAt = 0;
 
   constructor() {
     try {
       this.enabled = localStorage.getItem('unearth.sound') !== 'off';
+      const saved = JSON.parse(localStorage.getItem(SETTINGS_KEY) ?? 'null') as { music?: number; sfx?: number } | null;
+      if (saved && typeof saved.music === 'number') this.musicVolume = clamp01(saved.music);
+      if (saved && typeof saved.sfx === 'number') this.sfxVolume = clamp01(saved.sfx);
     } catch {
-      // storage unavailable — keep sound on
+      // storage unavailable: keep the defaults
     }
   }
 
@@ -127,6 +97,23 @@ class AudioEngine {
     if (this.master && this.ctx) this.master.gain.setTargetAtTime(on ? 0.85 : 0, this.ctx.currentTime, 0.05);
   }
 
+  getVolumes(): { music: number; sfx: number } {
+    return { music: this.musicVolume, sfx: this.sfxVolume };
+  }
+
+  setVolumes(v: { music?: number; sfx?: number }): void {
+    if (v.music !== undefined) this.musicVolume = clamp01(v.music);
+    if (v.sfx !== undefined) this.sfxVolume = clamp01(v.sfx);
+    try {
+      localStorage.setItem(SETTINGS_KEY, JSON.stringify({ music: this.musicVolume, sfx: this.sfxVolume }));
+    } catch {
+      // ignore
+    }
+    if (!this.ctx) return;
+    this.musicVol?.gain.setTargetAtTime(MUSIC_LEVEL * this.musicVolume, this.ctx.currentTime, 0.05);
+    this.sfx?.gain.setTargetAtTime(this.sfxVolume, this.ctx.currentTime, 0.05);
+  }
+
   unlock(): void {
     if (!this.ctx) {
       const Ctor: typeof AudioContext | undefined =
@@ -137,12 +124,7 @@ class AudioEngine {
       } catch {
         return;
       }
-      this.master = this.ctx.createGain();
-      this.master.gain.value = this.enabled ? 0.85 : 0;
-      this.master.connect(this.ctx.destination);
-      this.musicBus = this.ctx.createGain();
-      this.musicBus.gain.value = 0.2;
-      this.musicBus.connect(this.master);
+      this.build(this.ctx);
       if (this.song) this.startSequencer();
     }
     if (this.ctx.state === 'suspended') void this.ctx.resume();
@@ -150,6 +132,67 @@ class AudioEngine {
 
   resume(): void {
     if (this.ctx?.state === 'suspended') void this.ctx.resume();
+  }
+
+  private build(ctx: AudioContext): void {
+    const gain = (value: number, to: AudioNode) => {
+      const g = ctx.createGain();
+      g.gain.value = value;
+      g.connect(to);
+      return g;
+    };
+    this.master = gain(this.enabled ? 0.85 : 0, ctx.destination);
+    this.room = ctx.createConvolver();
+    this.room.connect(this.master);
+    this.send = gain(ROOMS.none[0], this.room);
+    this.sfx = gain(this.sfxVolume, this.master);
+    this.sfx.connect(this.send);
+    this.musicVol = gain(MUSIC_LEVEL * this.musicVolume, this.master);
+    this.duck = gain(1, this.musicVol);
+    this.fade = gain(1, this.duck);
+    // A little of the score goes into the room too, so it sits in the same space.
+    const musicSend = gain(0.5, this.send);
+    this.fade.connect(musicSend);
+    this.filter = ctx.createBiquadFilter();
+    this.filter.type = 'lowpass';
+    this.filter.frequency.value = 18000;
+    this.filter.connect(this.fade);
+    this.layers = {
+      base: gain(1, this.filter),
+      perc: gain(0.55, this.filter),
+      shimmer: gain(0, this.filter),
+      drive: gain(0, this.filter),
+    };
+    const buf = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+    this.noiseBuf = buf;
+    this.setRoom(this.song);
+  }
+
+  /** A room is a decaying burst of noise: longer and darker the bigger the space. */
+  private setRoom(region: Region | null): void {
+    if (!this.ctx || !this.room || !this.send) return;
+    const key = region ?? 'none';
+    const [wet, tail] = ROOMS[key];
+    let ir = this.rooms.get(key);
+    if (!ir) {
+      const rate = this.ctx.sampleRate;
+      const n = Math.ceil(rate * tail);
+      ir = this.ctx.createBuffer(2, n, rate);
+      for (let ch = 0; ch < 2; ch++) {
+        const d = ir.getChannelData(ch);
+        let lp = 0;
+        for (let i = 0; i < n; i++) {
+          // Smoothed noise rolls the highs off, the way stone swallows them.
+          lp += ((Math.random() * 2 - 1) - lp) * 0.35;
+          d[i] = lp * Math.pow(1 - i / n, 3);
+        }
+      }
+      this.rooms.set(key, ir);
+    }
+    this.room.buffer = ir;
+    this.send.gain.setTargetAtTime(wet, this.ctx.currentTime, 0.2);
   }
 
   // ── primitives ──────────────────────────────────────────────────────────
@@ -160,7 +203,7 @@ class AudioEngine {
     type: OscillatorType = 'square',
     gainPeak = 0.22,
     at = 0,
-    dest: AudioNode | null = this.master,
+    dest: AudioNode | null = this.sfx,
     slideTo?: number,
   ): void {
     if (!this.ctx || !dest) return;
@@ -179,27 +222,61 @@ class AudioEngine {
     osc.stop(t0 + duration + 0.03);
   }
 
-  private noise(duration: number, gainPeak: number, lowpass = 1200): void {
-    if (!this.ctx || !this.master) return;
-    const t0 = this.ctx.currentTime;
-    const buf = this.ctx.createBuffer(1, Math.ceil(this.ctx.sampleRate * duration), this.ctx.sampleRate);
-    const data = buf.getChannelData(0);
-    for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / data.length);
+  private noise(
+    duration: number,
+    gainPeak: number,
+    cutoff = 1200,
+    at = 0,
+    dest: AudioNode | null = this.sfx,
+    type: BiquadFilterType = 'lowpass',
+  ): void {
+    if (!this.ctx || !dest || !this.noiseBuf) return;
+    const t0 = Math.max(this.ctx.currentTime, at || this.ctx.currentTime);
     const src = this.ctx.createBufferSource();
-    src.buffer = buf;
+    src.buffer = this.noiseBuf;
     const filter = this.ctx.createBiquadFilter();
-    filter.type = 'lowpass';
-    filter.frequency.value = lowpass;
+    filter.type = type;
+    filter.frequency.value = cutoff;
     const gain = this.ctx.createGain();
-    gain.gain.value = gainPeak;
-    src.connect(filter).connect(gain).connect(this.master);
-    src.start(t0);
+    gain.gain.setValueAtTime(gainPeak, t0);
+    gain.gain.linearRampToValueAtTime(0, t0 + duration);
+    src.connect(filter).connect(gain).connect(dest);
+    // Start somewhere random in the buffer so no two hits are the same grain.
+    src.start(t0, Math.random() * 0.5, duration + 0.02);
   }
 
   private arpeggio(notes: number[], gap: number, type: OscillatorType = 'square', gainPeak = 0.16, len = 0.14): void {
     if (!this.ctx) return;
     const t = this.ctx.currentTime;
     notes.forEach((n, i) => this.tone(midi(n), len, type, gainPeak, t + i * gap));
+  }
+
+  /** Pull the score down under a big moment, then let it back up. */
+  private duckFor(seconds: number): void {
+    if (!this.ctx) return;
+    this.duckedUntil = Math.max(this.duckedUntil, this.ctx.currentTime + seconds);
+    this.applyMood();
+    setTimeout(() => this.applyMood(), seconds * 1000 + 30);
+  }
+
+  // ── voices ──────────────────────────────────────────────────────────────
+
+  /** One syllable of someone talking. */
+  syllable(voice: Voice, ch: string, progress: number, question: boolean): void {
+    const { freq, len } = syllable(voice, ch, progress, question);
+    this.tone(freq, len, voice.wave, voice.gain, 0, this.sfx, voice.slide === 1 ? undefined : freq * voice.slide);
+  }
+
+  /** A line said all at once (reduced motion): a short signature instead of every syllable. */
+  murmur(voice: Voice, line: string): void {
+    if (!this.ctx) return;
+    const letters = line.replace(/[^a-z0-9]/gi, '').slice(0, 6);
+    const t = this.ctx.currentTime;
+    [...letters].forEach((ch, i) => {
+      if (!speaks(ch, i)) return;
+      const { freq, len } = syllable(voice, ch, i / 6, line.trim().endsWith('?'));
+      this.tone(freq, len, voice.wave, voice.gain, t + i / voice.cps);
+    });
   }
 
   // ── effects ─────────────────────────────────────────────────────────────
@@ -253,6 +330,7 @@ class AudioEngine {
   }
   /** The big one: a found fragment, a relic, an assembled artifact. */
   fanfare(big = false): void {
+    this.duckFor(big ? 2.2 : 1.2);
     const notes = big ? [67, 71, 74, 79, 83, 86, 91] : [72, 76, 79, 84];
     this.arpeggio(notes, big ? 0.09 : 0.08, 'square', 0.16, 0.22);
     if (big) this.arpeggio([55, 62, 67], 0.3, 'triangle', 0.2, 0.6);
@@ -269,20 +347,20 @@ class AudioEngine {
   }
   doorOpen(): void {
     this.noise(0.4, 0.14, 500);
-    this.tone(110, 0.4, 'sawtooth', 0.08, 0, this.master, 70);
+    this.tone(110, 0.4, 'sawtooth', 0.08, 0, this.sfx, 70);
   }
   doorLocked(): void {
     this.tone(140, 0.1, 'square', 0.14);
     this.tone(120, 0.12, 'square', 0.12, (this.ctx?.currentTime ?? 0) + 0.1);
   }
   dart(): void {
-    this.tone(1800, 0.12, 'sawtooth', 0.08, 0, this.master, 300);
+    this.tone(1800, 0.12, 'sawtooth', 0.08, 0, this.sfx, 300);
   }
   rock(): void {
     this.noise(0.35, 0.3, 300);
   }
   hurt(): void {
-    this.tone(220, 0.25, 'square', 0.18, 0, this.master, 90);
+    this.tone(220, 0.25, 'square', 0.18, 0, this.sfx, 90);
   }
   talk(): void {
     this.tone(520 + Math.random() * 80, 0.04, 'square', 0.08);
@@ -291,18 +369,18 @@ class AudioEngine {
     this.tone(300, 0.05, 'square', 0.08);
   }
   meow(): void {
-    this.tone(700, 0.35, 'triangle', 0.14, 0, this.master, 480);
+    this.tone(700, 0.35, 'triangle', 0.14, 0, this.sfx, 480);
   }
   /** The questioning little trill a cat makes when you touch it. */
   mrrp(): void {
     if (!this.ctx) return;
     const t = this.ctx.currentTime;
-    this.tone(520, 0.09, 'triangle', 0.1, t, this.master, 700);
-    this.tone(700, 0.14, 'triangle', 0.11, t + 0.08, this.master, 940);
+    this.tone(520, 0.09, 'triangle', 0.1, t, this.sfx, 700);
+    this.tone(700, 0.14, 'triangle', 0.11, t + 0.08, this.sfx, 940);
   }
   /** Settling down for a nap: a long yawn sliding down. */
   yawn(): void {
-    this.tone(640, 0.55, 'triangle', 0.07, 0, this.master, 280);
+    this.tone(640, 0.55, 'triangle', 0.07, 0, this.sfx, 280);
   }
   /** A purr: a low, soft rumble with no edges. */
   purr(seconds = 1.2): void {
@@ -328,7 +406,7 @@ class AudioEngine {
     this.nextPingAt = now + interval;
     const { aim, proximity } = reading;
     if (reading.kind === 'mechanism') {
-      this.tone(260 - proximity * 60, 0.09, 'triangle', 0.05 + proximity * 0.08, 0, this.master, 180);
+      this.tone(260 - proximity * 60, 0.09, 'triangle', 0.05 + proximity * 0.08, 0, this.sfx, 180);
       return;
     }
     const gain = 0.025 + proximity * (0.03 + aim * 0.08);
@@ -357,7 +435,7 @@ class AudioEngine {
     this.tone(120, 0.14, 'square', 0.1, (this.ctx?.currentTime ?? 0) + 0.08);
   }
   hop(): void {
-    this.tone(420, 0.12, 'square', 0.08, 0, this.master, 820);
+    this.tone(420, 0.12, 'square', 0.08, 0, this.sfx, 820);
   }
   land(): void {
     this.noise(0.05, 0.12, 600);
@@ -379,7 +457,7 @@ class AudioEngine {
   }
   whoosh(): void {
     this.noise(0.25, 0.2, 3000);
-    this.tone(1200, 0.2, 'sawtooth', 0.04, 0, this.master, 400);
+    this.tone(1200, 0.2, 'sawtooth', 0.04, 0, this.sfx, 400);
   }
   trickle(): void {
     this.noise(0.4, 0.08, 1800);
@@ -395,23 +473,23 @@ class AudioEngine {
   }
   crash(): void {
     this.noise(0.8, 0.45, 500);
-    this.tone(70, 0.6, 'sawtooth', 0.14, 0, this.master, 35);
+    this.tone(70, 0.6, 'sawtooth', 0.14, 0, this.sfx, 35);
   }
   splat(): void {
-    this.tone(300, 0.2, 'square', 0.16, 0, this.master, 80);
+    this.tone(300, 0.2, 'square', 0.16, 0, this.sfx, 80);
     this.noise(0.15, 0.2, 800);
   }
   crumble(): void {
     this.noise(0.3, 0.22, 700);
   }
   creak(): void {
-    this.tone(180, 0.12, 'sawtooth', 0.05, 0, this.master, 140);
+    this.tone(180, 0.12, 'sawtooth', 0.05, 0, this.sfx, 140);
   }
   fall(): void {
-    this.tone(700, 0.45, 'square', 0.12, 0, this.master, 120);
+    this.tone(700, 0.45, 'square', 0.12, 0, this.sfx, 120);
   }
   spikes(): void {
-    this.tone(2200, 0.05, 'sawtooth', 0.08, 0, this.master, 900);
+    this.tone(2200, 0.05, 'sawtooth', 0.08, 0, this.sfx, 900);
     this.noise(0.08, 0.12, 4000);
   }
 
@@ -423,14 +501,47 @@ class AudioEngine {
     this.stepIndex = 0;
     this.steps = region ? compose(SONGS[region]) : [];
     if (this.ctx) {
-      if (this.musicBus) {
+      this.setRoom(region);
+      if (this.fade) {
         // A short dip so region changes cross rather than cut.
-        this.musicBus.gain.setTargetAtTime(0, this.ctx.currentTime, 0.05);
-        this.musicBus.gain.setTargetAtTime(0.2, this.ctx.currentTime + 0.35, 0.3);
+        this.fade.gain.setTargetAtTime(0, this.ctx.currentTime, 0.05);
+        this.fade.gain.setTargetAtTime(1, this.ctx.currentTime + 0.35, 0.3);
       }
       this.nextStepAt = this.ctx.currentTime + 0.4;
       this.startSequencer();
     }
+  }
+
+  /** Called every frame with what's happening; the score follows it smoothly. */
+  setMood(mood: Mood): void {
+    this.mood = mood;
+    this.applyMood();
+  }
+
+  setJournalOpen(open: boolean): void {
+    this.journalOpen = open;
+    this.applyMood();
+  }
+
+  private applyMood(): void {
+    if (!this.ctx || !this.layers || !this.duck || !this.filter) return;
+    const now = this.ctx.currentTime;
+    const m = this.mood;
+    // Quantised, so a per-frame call only touches the graph when something moved.
+    const q = (v: number) => Math.round(v * 20) / 20;
+    const danger = q(m.danger);
+    const shimmer = q(Math.max(0, m.curiosity - 0.15) * (1 - danger)) * 0.9;
+    const duck = now < this.duckedUntil ? 0.25 : m.talking ? 0.5 : 1;
+    const cutoff = m.muffled || this.journalOpen ? 900 : 18000;
+    const set = (key: 'shimmer' | 'drive' | 'duck' | 'cutoff', param: AudioParam, value: number, tc: number) => {
+      if (this.sent[key] === value) return;
+      this.sent[key] = value;
+      param.setTargetAtTime(value, now, tc);
+    };
+    set('shimmer', this.layers.shimmer.gain, shimmer, 0.4);
+    set('drive', this.layers.drive.gain, danger, danger > this.sent.drive ? 0.08 : 0.8);
+    set('duck', this.duck.gain, duck, 0.12);
+    set('cutoff', this.filter.frequency, cutoff, 0.15);
   }
 
   private startSequencer(): void {
@@ -440,25 +551,46 @@ class AudioEngine {
   }
 
   private schedule(): void {
-    if (!this.ctx || !this.song || this.steps.length === 0) return;
+    if (!this.ctx || !this.song || this.steps.length === 0 || !this.layers) return;
     const song = SONGS[this.song];
-    const stepLen = 60 / song.bpm / 4;
+    const stepLen = stepLength(song);
+    const { base, perc, shimmer, drive } = this.layers;
+    const style = song.style;
+    const soft = style === 'drone' || style === 'dream';
+    // Layers that are silent and staying silent cost nothing.
+    const shimmerOn = this.sent.shimmer > 0.02;
+    const driveOn = this.sent.drive > 0.02;
     while (this.nextStepAt < this.ctx.currentTime + 0.25) {
       const step = this.steps[this.stepIndex % this.steps.length]!;
       const t = this.nextStepAt;
-      const bus = this.musicBus;
       if (step.bass !== undefined) {
-        this.tone(midi(step.bass), song.style === 'drone' ? stepLen * 14 : stepLen * 3.2, 'triangle', 0.5, t, bus);
+        this.tone(midi(step.bass), style === 'drone' ? stepLen * 14 : stepLen * 3.2, 'triangle', 0.5, t, base);
       }
       if (step.lead !== undefined) {
-        const soft = song.style === 'drone' || song.style === 'dream';
-        this.tone(midi(step.lead), soft ? stepLen * 6 : stepLen * 1.8, soft ? 'sine' : 'square', soft ? 0.3 : 0.16, t, bus);
+        this.tone(midi(step.lead), soft ? stepLen * 6 : stepLen * 1.8, soft ? 'sine' : 'square', soft ? 0.3 : 0.16, t, base);
       }
-      if (step.arp !== undefined) this.tone(midi(step.arp), stepLen * 0.9, 'square', 0.06, t, bus);
+      if (step.arp !== undefined) this.tone(midi(step.arp), stepLen * 0.9, 'square', 0.06, t, base);
+      if (step.counter !== undefined) this.tone(midi(step.counter), stepLen * 14, 'sine', 0.14, t, base);
+      if (step.kick) {
+        const low = style === 'drone' ? 70 : 140;
+        this.tone(low, 0.14, 'sine', style === 'drone' ? 0.45 : 0.6, t, perc, 42);
+      }
+      if (step.hat) this.noise(0.03, style === 'dream' ? 0.08 : 0.12, 7000, t, perc, 'highpass');
+      if (step.snare) this.noise(0.09, 0.22, 2400, t, perc, 'bandpass');
+      if (shimmerOn && step.shimmer !== undefined) this.tone(midi(step.shimmer), stepLen * 2.5, 'sine', 0.12, t, shimmer);
+      if (driveOn) {
+        if (step.driveBass !== undefined) this.tone(midi(step.driveBass), stepLen * 0.8, 'square', 0.16, t, drive);
+        if (step.driveSnare) this.noise(0.08, 0.3, 2000, t, drive, 'bandpass');
+        if (this.stepIndex % 4 === 0) this.tone(130, 0.12, 'sine', 0.6, t, drive, 40);
+      }
       this.nextStepAt += stepLen;
       this.stepIndex++;
     }
   }
+}
+
+function clamp01(v: number): number {
+  return Math.max(0, Math.min(1, v));
 }
 
 export const audio = new AudioEngine();

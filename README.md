@@ -134,6 +134,19 @@ facing, and footsteps sound like the ground they land on.
   journey goes down, with shinies and secret nooks found versus total in
   each — so going back somewhere is a decision, not a guess. Rooms not yet
   reached show only as a "?" beside somewhere CK has been.
+- **The score listens.** Each region has its own eight-bar piece (A, A',
+  a B section, home again) with a pulse to match: a bouncy kick at home, a
+  heartbeat in the crypt. As the collar closes in on something buried, high
+  chord tones swell in over it; when the boulder rolls or a strip clicks, a
+  running bass and snare take over. It steps back while someone talks, dips
+  under a fanfare, and sounds like it's in the next room while the journal
+  is open. Effects and music run through each region's room, so the crypt
+  rings and the meadow doesn't. The ♪ button sets music and effects apart.
+- **Everyone has a voice.** Lines type out with a run of pitched syllables:
+  Shellby slow and low, the magpie chattering, Mortimer grumbling, Pip
+  squeaking, and a question lifting at the end. A tap finishes a line that's
+  still typing before it moves on. With reduced motion on, lines appear
+  whole with a short murmur instead.
 - **Finds** get held up overhead with a fanfare and a card. **Fragments
   assemble themselves** the instant CK carries the whole set.
 - **Puzzles** use pushable blocks: into a pit to make a bridge, or onto
@@ -189,7 +202,11 @@ src/
                     cards, chapter titles, journal, title and ending screens;
                     TitleScene.tsx is CK's front room and the trail on the title;
                     PixelText.tsx draws words in render/pixelFont.ts's 5×7 font
-  engine/audio.ts     synthesised SFX, the collar's pings, a chiptune loop per region
+  engine/audio.ts     the mixer: synthesised SFX, the collar's pings, each region's room
+                      reverb, the layered score and the volume settings
+  engine/score.ts     pure: each region's eight-bar piece, split into the layers the
+                      mixer brings in and out, and how much each room rings
+  engine/voices.ts    pure: a voice for everyone CK meets, letter to syllable
   core/
     game.ts               the live Store<GameState> + dispatch()
     store.ts                tiny framework-agnostic observable
