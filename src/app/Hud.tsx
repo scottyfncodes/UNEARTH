@@ -4,9 +4,11 @@ import { MAPS } from '@/content/maps';
 import { computeCollarReading } from '@/game/collar';
 import { progressOf } from '@/content/progress';
 import { audio } from '@/engine/audio';
+import { SoundPanel } from './SoundPanel';
 
 export function Hud({ onOpenJournal }: { onOpenJournal: () => void }) {
   const state = useGameState();
+  const [panel, setPanel] = useState(false);
   const [sound, setSound] = useState(audio.isEnabled());
   const map = MAPS[state.mapId]!;
   const reading = computeCollarReading(map, state);
@@ -40,10 +42,11 @@ export function Hud({ onOpenJournal }: { onOpenJournal: () => void }) {
           className="hud__icon-btn"
           onClick={() => {
             audio.unlock();
-            audio.setEnabled(!sound);
-            setSound(!sound);
+            audio.ui();
+            setPanel(!panel);
           }}
-          aria-label={sound ? 'Mute sound' : 'Unmute sound'}
+          aria-label="Sound settings"
+          aria-expanded={panel}
         >
           {sound ? '♪' : '✕'}
         </button>
@@ -51,6 +54,15 @@ export function Hud({ onOpenJournal }: { onOpenJournal: () => void }) {
           <JournalGlyph />
         </button>
       </div>
+
+      {panel ? (
+        <SoundPanel
+          onClose={() => {
+            setPanel(false);
+            setSound(audio.isEnabled());
+          }}
+        />
+      ) : null}
 
       <div className="hud__status">
         <div className={`collar collar--${reading.kind ?? 'quiet'} ${reading.locked ? 'collar--locked' : ''}`} aria-label="Collar signal">

@@ -23,6 +23,7 @@ import { haptics } from '@/engine/haptics';
 import { fx } from '@/render/fx';
 import { PALETTES } from '@/render/palette';
 import { createEngineContext } from '@/content/initialState';
+import { continueDialogue } from './typewriter';
 
 const ctx = createEngineContext();
 
@@ -90,6 +91,7 @@ export function releaseDirection(dir?: Direction): void {
 
 export function pressInteract(): void {
   if (isBlocking() || isBusy()) return;
+  if (game.get().dialogue) return continueDialogue();
   dispatch({ type: 'interact' });
 }
 

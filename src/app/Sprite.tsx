@@ -27,9 +27,21 @@ export function ItemIcon({ itemId, size = 48, dim = false }: { itemId: string; s
   );
 }
 
-/** An animated portrait: CK (the default) or any NPC sprite id. */
-export function Portrait({ sprite = 'ck', size = 64, facing = 'down' }: { sprite?: string; size?: number; facing?: 'down' | 'right' }) {
+/** An animated portrait: CK (the default) or any NPC sprite id. While `talking`, it bobs with the words. */
+export function Portrait({
+  sprite = 'ck',
+  size = 64,
+  facing = 'down',
+  talking = false,
+}: {
+  sprite?: string;
+  size?: number;
+  facing?: 'down' | 'right';
+  talking?: boolean;
+}) {
   const ref = useRef<HTMLCanvasElement>(null);
+  const talkingRef = useRef(talking);
+  talkingRef.current = talking;
   useEffect(() => {
     const canvas = ref.current;
     const ctx = canvas?.getContext('2d');
@@ -40,8 +52,10 @@ export function Portrait({ sprite = 'ck', size = 64, facing = 'down' }: { sprite
       const t = (now - start) / 1000;
       ctx.imageSmoothingEnabled = false;
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      if (sprite === 'ck') drawCK(ctx, 0, 4, 64, { facing, walking: false, time: t + 1 });
-      else drawNpc(ctx, sprite, 0, 4, 64, t);
+      // A whole-pixel hop on the syllables: one sprite pixel is four canvas pixels.
+      const y = talkingRef.current && Math.floor(t * 9) % 2 === 0 ? 0 : 4;
+      if (sprite === 'ck') drawCK(ctx, 0, y, 64, { facing, walking: false, time: t + 1 });
+      else drawNpc(ctx, sprite, 0, y, 64, t);
       raf = requestAnimationFrame(draw);
     };
     raf = requestAnimationFrame(draw);

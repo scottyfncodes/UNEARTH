@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useGameState } from './useGameState';
 import { CLUES, FIELD_NOTE_PAGES } from '@/content/clues';
 import { getItem, SHINY_IDS } from '@/content/items';
@@ -20,6 +20,12 @@ export function Journal({ onClose }: { onClose: () => void }) {
   });
   const observations = state.clues.filter((id) => CLUES[id] && CLUES[id]!.page === undefined);
   const selectedItem = selected ? getItem(selected) : undefined;
+
+  // The score carries on, as if from the next room, while the journal is open.
+  useEffect(() => {
+    audio.setJournalOpen(true);
+    return () => audio.setJournalOpen(false);
+  }, []);
 
   return (
     <div className="journal-overlay">
