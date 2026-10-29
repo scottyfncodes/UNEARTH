@@ -56,7 +56,7 @@ test('the prologue: Dad leaves, the vase falls, the note is found, the door open
   await press(page, 'Interact');
   const find = page.getByTestId('find-card');
   await expect(find).toContainText('Shiny Button');
-  await expect(find).toContainText('1 of 16');
+  await expect(find).toContainText('1 of 17');
   await find.click();
   await expect(find).not.toBeVisible();
 
@@ -137,4 +137,32 @@ test('the sound panel sets the score and the effects apart, and remembers them',
   const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('unearth.audio.v1') ?? '{}'));
   expect(saved.music).toBeCloseTo(0.3);
   expect(saved.sfx).toBe(1);
+});
+
+test('in the Hush, Paw becomes Mew, and the dark answers', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  await page.addInitScript(() => {
+    localStorage.setItem(
+      'unearth.save.v2',
+      JSON.stringify({
+        mapId: 'hush',
+        player: { pos: { x: 5, y: 5 }, facing: 'right' },
+        hearts: 3,
+        maxHearts: 3,
+        inventory: ['idol_sunstone'],
+        clues: [],
+        flags: { dadLeft: true, foundOldNote: true, learnedEcho: true, tookSunstone: true },
+        mapStates: {},
+      }),
+    );
+  });
+  await page.goto('/?debug=1');
+  await page.getByRole('button', { name: 'Keep digging' }).click();
+  await expect(page.getByText('Sunken Crypt: The Hush')).toBeVisible();
+  const paw = page.getByRole('button', { name: 'Interact', exact: true });
+  await expect(paw).toHaveText('Mew');
+  await press(page, 'Interact');
+  await page.waitForTimeout(800);
+  expect(errors).toEqual([]);
 });

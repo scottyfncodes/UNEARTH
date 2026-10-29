@@ -207,6 +207,13 @@ const list: ItemDef[] = [
     kind: 'shiny',
     sprite: 'star',
   },
+  {
+    id: 'shiny_tuningfork',
+    name: 'Silver Tuning Fork',
+    description: 'Out on the far ledge of the Hush, where no lamp ever reached. Tap it and it hums the same note as the collar.',
+    kind: 'shiny',
+    sprite: 'tuningFork',
+  },
 ];
 
 export const ITEMS: Record<string, ItemDef> = Object.fromEntries(list.map((item) => [item.id, item]));

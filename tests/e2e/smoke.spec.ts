@@ -56,7 +56,7 @@ test('the opening is the game itself, one verb to start, and remembers where CK 
   await expect(page.getByRole('button', { name: 'Keep digging' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'New game' })).toBeVisible();
   await expect(page.getByTestId('title-progress')).toContainText("CK is in CK's Home");
-  await expect(page.getByTestId('title-progress')).toContainText('0/16 shinies');
+  await expect(page.getByTestId('title-progress')).toContainText('0/17 shinies');
 });
 
 test('opens and closes the journal overlay', async ({ page }) => {

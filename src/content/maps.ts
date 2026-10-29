@@ -767,6 +767,18 @@ const crypt1 = buildMap({
         'His lamp kept going out. He bumped into EVERYTHING. Very funny. Squeak.',
         'He dropped something pale and moony up by the east wall. It went down between the stones. I\'d have fetched it, but... no hands.',
         'And mind the ceiling. When it starts to trickle, MOVE. Bonk.',
+        "Oh! And where it's too dark even for your light: SHOUT. A little mew. Then listen.",
+        'The walls shout back. The holes go quiet. The loose stones rattle. That is how I see! Go on, try it somewhere dark.',
+      ],
+      onCompleteFlag: 'learnedEcho',
+      flagLines: [
+        {
+          flag: 'learnedEcho',
+          lines: [
+            "Still got your mew? Good. East of the flooded hall there's a room so still my own squeaks get lost in it.",
+            'The hat man went in, said a word I won\'t repeat, and came straight back out. Squeak.',
+          ],
+        },
       ],
     },
     { kind: 'trap', id: 'rock_a', pos: { x: 4, y: 4 }, trapType: 'fallingRock', triggers: [{ x: 4, y: 4 }], delayMs: 600, detectable: true },
@@ -854,7 +866,7 @@ const crypt2 = buildMap({
     '#.~~~~~:~~~~~..#',
     '#.~~~~~:~~~~~..#',
     '#..............#',
-    '#..............#',
+    '#..............>',
     '#..............#',
     '#..P.......P...#',
     '#..............#',
@@ -913,8 +925,70 @@ const crypt2 = buildMap({
   exits: [
     { at: { x: 7, y: 0 }, toMap: 'chasm', spawn: { x: 7, y: 12 }, spawnFacing: 'up' },
     { at: { x: 7, y: 12 }, toMap: 'crypt3', spawn: { x: 7, y: 1 }, spawnFacing: 'down' },
+    { at: { x: 15, y: 5 }, toMap: 'hush', spawn: { x: 1, y: 5 }, spawnFacing: 'right' },
   ],
   defaultSpawn: { x: 7, y: 1 },
+});
+
+// The Hush: air so still and black the Sunstone barely gets past CK's
+// whiskers. A causeway of loose stones forks across a pit to a far ledge,
+// and from the near end every branch looks the same. One reaches the ledge;
+// the other runs out over nothing, and the stones behind it won't wait.
+// Dad's lamp was no help in here, so he turned back. A mew shows the way.
+const hush = buildMap({
+  id: 'hush',
+  name: 'Sunken Crypt: The Hush',
+  region: 'crypt',
+  dark: true,
+  hush: true,
+  rows: [
+    '################',
+    '#....#^^^^^^^^^#',
+    '#....#^%%%%%%^^#',
+    '#....#^%^^%^^^.#',
+    '#....#^%^^%%%%.#',
+    '>.....%%^^^^^^.#',
+    '#....#^%^^^^^^.#',
+    '#....#^%%%%^^^s#',
+    '#....#^^^^%^^^.#',
+    '#....#^^^^^^^^.#',
+    '################',
+  ],
+  props: [
+    '................',
+    '.z..............',
+    '..............e.',
+    '...N............',
+    '................',
+    '................',
+    '.q..............',
+    '................',
+    '..e.............',
+    '................',
+    '................',
+  ],
+  entities: [
+    {
+      kind: 'decoration',
+      id: 'deco_dad_chalk',
+      pos: { x: 1, y: 1 },
+      spriteId: 'glyph',
+      walkable: true,
+      line: "Chalk on the floor, in Dad's hand: 'Lamp useless in here. Can't see the far side. Not worth a broken leg. Turning back.'",
+    },
+    { kind: 'trap', id: 'rock_hush', pos: { x: 3, y: 3 }, trapType: 'fallingRock', triggers: [{ x: 3, y: 3 }], delayMs: 600, detectable: true },
+    { kind: 'item', id: 'treat_hush', pos: { x: 1, y: 9 }, itemId: 'fish_treat', heals: 1 },
+    { kind: 'item', id: 'item_tuningfork', pos: { x: 14, y: 6 }, itemId: 'shiny_tuningfork' },
+    {
+      kind: 'curio',
+      id: 'curio_hush',
+      pos: { x: 2, y: 5 },
+      bubble: '…',
+      line: "The Sunstone's light shrinks to almost nothing, as if the dark in here is thick enough to soak it up. Somewhere ahead, a stone ticks.",
+    },
+  ],
+  exits: [{ at: { x: 0, y: 5 }, toMap: 'crypt2', spawn: { x: 14, y: 5 }, spawnFacing: 'left' }],
+  defaultSpawn: { x: 1, y: 5 },
 });
 
 // The Hall of Echoes: earth everywhere, and the keepers buried decoy moons
@@ -1085,6 +1159,7 @@ export const MAPS: Record<string, GameMap> = {
   crypt1,
   chasm,
   crypt2,
+  hush,
   crypt3,
   passage,
   vault,

@@ -32,11 +32,11 @@ NOTICE → INVESTIGATE → INTERPRET → LOCATE → DIG → DISCOVER
 | | **Dad's Old Dig Site** *(optional)* | Dad's abandoned camp: a neat grid of trenches, every one empty; a dig log pointing at the one find he never came back for; junk everywhere; Mortimer the Mole, who explains the collar with contempt; and a tarp that isn't holding anything up — down into **The Old Trench**. |
 | Chapter I | **The Forgotten Temple** (3 rooms) | Follow the guardian's stare to half a bronze key; squeeze behind it for the other half. A strip of slightly-wrong bricks across a corridor, a frieze of a small figure leaping them, and a loose pebble to find out for sure. Grit from a loose ceiling. Push a block into a pit for a secret lever. Lift the **Sunstone** — and run from the boulder. |
 | | **The Old Well** | The way down — pitch black until CK carries the Sunstone. |
-| Chapter II | **The Sunken Crypt** (4 rooms + the Last Passage) | Dark rooms lit only by CK's glow. Ceilings that trickle before they drop. **The Crumbling Span**: a bridge that holds just long enough, with gaps to hop. Pip the bat. A weighted-plate door and a floor of spikes with a heartbeat. Three pieces of the **Moon Seal**, the last one buried among the keepers' decoy moons. Dad's hat, thick with dust. |
+| Chapter II | **The Sunken Crypt** (5 rooms + the Last Passage) | Dark rooms lit only by CK's glow. Pip the bat teaches CK to **mew into the dark and listen**. Ceilings that trickle before they drop. **The Crumbling Span**: a bridge that holds just long enough, with gaps to hop. Pip the bat. A weighted-plate door and a floor of spikes with a heartbeat. Three pieces of the **Moon Seal**, the last one buried among the keepers' decoy moons. Dad's hat, thick with dust. **The Hush** *(optional)*: so black the Sunstone barely reaches past CK's whiskers, and a causeway of loose stones that forks over a pit. Dad turned back here. |
 | Chapter III | **The Hollow** | Where Dad had to stop — and where CK doesn't. |
 
-Along the way: **16 shinies** to hoard, **5 pages of Dad's field notes**,
-**8 secret nooks**, nearly twenty things CK simply *notices*, and a
+Along the way: **17 shinies** to hoard, **5 pages of Dad's field notes**,
+**9 secret nooks**, nearly twenty things CK simply *notices*, and a
 Curiosity rating on the ending screen, from *Mildly Interested* to *Keeper
 of the Hollow*.
 
@@ -149,6 +149,14 @@ facing, and footsteps sound like the ground they land on.
   whole with a short murmur instead.
 - **Finds** get held up overhead with a fanfare and a card. **Fragments
   assemble themselves** the instant CK carries the whole set.
+- **Mew** (Paw, in the dark, at nothing) once Pip has shown how. A ring of
+  sound goes out from CK and the room answers as it passes: wall edges and
+  pit rims in pale blue, loose stones as broken outlines, exits and
+  cat-gaps as open arches, and trap mechanisms (strips, loose ceilings,
+  spike floors) as a red X. Buried things stay silent: that's the
+  collar's job. Crumbled stones grind back into place once every loose
+  one has dropped and CK is standing on solid ground, so a far ledge is
+  never a dead end.
 - **Puzzles** use pushable blocks: into a pit to make a bridge, or onto
   weighted plates to open a door. Loose blocks reset when CK leaves a room,
   so no puzzle can be softlocked; solved doors stay open.
@@ -195,6 +203,7 @@ src/
                            tall phone never shows black bars around the play area
     atmosphere.ts          light for lit rooms (cloud shadows, temple shafts, window light)
                            and a region-tinted vignette
+    echo.ts                the mew's answer: which tiles ring back, and the ring drawn over the dark
     draw.ts                camera, depth sorting, darkness and the Sunstone's light, and the
                            marker over whatever Paw would touch
   app/controls.ts   turn-then-walk, the timed dig and the hop — shared by touch and keyboard
@@ -272,7 +281,7 @@ end-to-end tests.
   save/load), content validation (every exit, entity, item, clue and door
   resolves; every map is reachable), and **a full playthrough**: a
   pathfinder drives genuine move actions through the real maps from the
-  prologue to the credits, collecting all 16 shinies and all 5 pages without
+  prologue to the credits, collecting all 17 shinies and all 5 pages without
   ever being hit: it hops the dart strips, steps on and straight off one
   to reach a nook, ducks into an alcove while the boulder passes, trots
   across the Crumbling Span, and waits for the spikes to drop. Break a wall,

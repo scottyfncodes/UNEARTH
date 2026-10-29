@@ -130,7 +130,16 @@ export function tick(maps: MapRegistry, state: GameState, dt: number, now: numbe
         break;
       }
     }
-    timed = { ...timed, crumbling: events.some((e) => e.type === 'fall' || e.type === 'knockout') ? [] : remaining };
+    const dropped = events.some((e) => e.type === 'fall' || e.type === 'knockout');
+    timed = { ...timed, crumbling: dropped ? [] : remaining };
+    // The last loose stone has gone and CK is on solid ground (a stone CK
+    // stood on would still be counting down): the span grinds back up, so a
+    // far ledge is never a trap with no way home.
+    const ms = mapStateOf(next, map.id);
+    if (!dropped && remaining.length === 0 && Object.keys(ms.collapsed).length > 0) {
+      next = { ...next, mapStates: { ...next.mapStates, [map.id]: { ...ms, collapsed: {} } } };
+      events.push({ type: 'settle' });
+    }
   }
 
   // ── spikes, on the beat ──────────────────────────────────────────────

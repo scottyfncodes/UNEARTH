@@ -17,8 +17,9 @@ import { dressingAt, entitiesAt, isDoorOpen, mapStateOf } from './world';
 import { checkDig } from './dig';
 import { jumpLanding } from './movement';
 import { computeCollarReading } from './collar';
+import { canMew } from './interact';
 
-export type PawVerb = 'Talk' | 'Open' | 'Pull' | 'Read' | 'Look' | 'Bat' | 'Knock' | 'Sniff';
+export type PawVerb = 'Talk' | 'Open' | 'Pull' | 'Read' | 'Look' | 'Bat' | 'Knock' | 'Sniff' | 'Mew';
 
 export interface PawAffordance {
   verb: PawVerb;
@@ -72,6 +73,7 @@ export function pawAffordance(maps: MapRegistry, state: GameState): PawAffordanc
     const fresh = deco.kick ? true : oneShot ? !used : !!deco.clueId && !state.clues.includes(deco.clueId);
     return { verb: decorationVerb(deco), at, fresh };
   }
+  if (canMew(map, state)) return { verb: 'Mew', at: state.player.pos, fresh: false };
   if (dressingAt(map, ahead)) return { verb: 'Sniff', at: ahead, fresh: false };
   if (dressingAt(map, state.player.pos)) return { verb: 'Sniff', at: state.player.pos, fresh: false };
   return null;

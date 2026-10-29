@@ -4,6 +4,7 @@
  * CK's Sunstone glow pushes it back), the collar's pulse, and the
  * screen-space flashes and fades.
  */
+import { drawEcho } from './echo';
 import type { GameMap, GameState, TrapEntity, Vec2 } from '@/game/types';
 import { computeCollarReading } from '@/game/collar';
 import { mapStateOf, visibleEntities } from '@/game/world';
@@ -92,7 +93,8 @@ function drawDarkness(ctx: CanvasRenderingContext2D, map: GameMap, state: GameSt
   const d = darkCanvas.getContext('2d')!;
   d.globalCompositeOperation = 'source-over';
   d.clearRect(0, 0, w, h);
-  d.fillStyle = 'rgba(2,3,8,0.97)';
+  // The Hush gives nothing away: past the glow, only a mew shows the room.
+  d.fillStyle = map.hush ? 'rgb(2,3,8)' : 'rgba(2,3,8,0.97)';
   d.fillRect(0, 0, w, h);
 
   // The Sunstone's glow, flickering slightly like something alive.
@@ -100,7 +102,8 @@ function drawDarkness(ctx: CanvasRenderingContext2D, map: GameMap, state: GameSt
   const cx = view.pos.x * T + T / 2;
   const cy = view.pos.y * T + T / 2;
   const flicker = 1 + Math.sin(view.time * 7.3) * 0.025 + Math.sin(view.time * 13.1) * 0.015;
-  const r = (lit ? 3.4 : 1.2) * T * flicker;
+  // In the Hush the dark soaks the light up: CK sees little past its whiskers.
+  const r = (lit ? (map.hush ? 1.55 : 3.4) : 1.2) * T * flicker;
   d.globalCompositeOperation = 'destination-out';
   const g = d.createRadialGradient(cx, cy, r * 0.25, cx, cy, r);
   g.addColorStop(0, 'rgba(0,0,0,1)');
@@ -273,7 +276,10 @@ export function drawFrame(ctx: CanvasRenderingContext2D, map: GameMap, state: Ga
   drawFxWorld(ctx);
   drawParticles(ctx, false);
 
-  if (map.dark) drawDarkness(ctx, map, state, view);
+  if (map.dark) {
+    drawDarkness(ctx, map, state, view);
+    drawEcho(ctx, map);
+  }
   drawParticles(ctx, true);
 
   // The collar: a ring that pulses faster the closer CK is, and sharper the
@@ -285,7 +291,8 @@ export function drawFrame(ctx: CanvasRenderingContext2D, map: GameMap, state: Ga
       const cx = view.pos.x * T + T / 2;
       const cy = view.pos.y * T + T / 2 - view.hop * T * 0.55;
       const speed = 1.5 + reading.proximity * 7;
-      const phase = (view.time * speed) % 1;
+      // Wrapped into 0-1 even while the clock is still below zero just after a load.
+      const phase = (((view.time * speed) % 1) + 1) % 1;
       const color = reading.kind === 'mechanism' ? '231,76,60' : reading.junk ? '214,178,110' : '242,193,78';
       const clarity = 0.25 + reading.aim * 0.75;
       for (const offset of [0, 0.5]) {
