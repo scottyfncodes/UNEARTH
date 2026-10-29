@@ -35,8 +35,9 @@ export function advanceDialogue(maps: MapRegistry, state: GameState): { state: G
   let next: GameState = { ...state, dialogue: null };
   const map = maps[state.mapId]!;
   const npc = map.entities.find((e): e is NpcEntity => e.kind === 'npc' && e.id === dialogue.npcId);
+  const flag = npc?.onCompleteFlag && !state.flags[npc.onCompleteFlag] ? npc.onCompleteFlag : undefined;
   if (npc?.onCompleteFlag) next = setFlag(next, npc.onCompleteFlag);
-  return { state: next, events: [{ type: 'talk-end' }] };
+  return { state: next, events: [flag ? { type: 'talk-end', flag } : { type: 'talk-end' }] };
 }
 
 function tryOpenDoor(state: GameState, map: GameMap, door: DoorEntity): { state: GameState; events: GameEvent[] } {
@@ -169,8 +170,18 @@ export function attemptInteract(maps: MapRegistry, state: GameState): { state: G
   const deco = candidates.find((e): e is DecorationEntity => e.kind === 'decoration');
   if (deco) return inspectDecoration(state, map, deco, at);
 
+  // In the dark, once Pip has shown how, CK mews and listens; that beats sniffing the scenery.
+  if (canMew(map, state)) return { state, events: [{ type: 'echo' }] };
+
   // Set dressing is scenery, not a puzzle: CK gives it a sniff and moves on.
   if (dressingAt(map, ahead) || dressingAt(map, state.player.pos)) return { state, events: [{ type: 'sniff' }] };
 
   return { state, events: [] };
+}
+
+/** The flag Pip sets: CK knows that the dark answers a mew. */
+export const ECHO_FLAG = 'learnedEcho';
+
+export function canMew(map: GameMap, state: GameState): boolean {
+  return !!map.dark && !!state.flags[ECHO_FLAG];
 }

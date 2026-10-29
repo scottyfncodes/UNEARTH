@@ -16,6 +16,8 @@ import { fx } from '@/render/fx';
 import { PALETTES } from '@/render/palette';
 import { startHop } from '@/render/motion';
 import { HOP_MS, lockFor } from './controls';
+import { startEcho } from '@/render/echo';
+import { ECHO_FLAG } from '@/game/interact';
 
 const JUST_DIRT = ['Just dirt.', 'Dirt. Very nice dirt. Still just dirt.', 'Nothing but earth and one surprised worm.', 'Just dirt. The collar was quiet here, to be fair.'];
 const MISSES = [
@@ -315,6 +317,23 @@ export function useGameEvents(): string | null {
           break;
         case 'talk-start':
           audio.talk();
+          break;
+        case 'talk-end':
+          if (event.flag === ECHO_FLAG) {
+            show('CK has a new trick: Mew. Somewhere dark, Paw at nothing and listen to what comes back.', 6000);
+          }
+          break;
+        case 'echo': {
+          const s = game.get();
+          audio.mew();
+          fx.bubble('♪', 0.9);
+          fx.squash(0.92, 1.1, 0.16);
+          startEcho(MAPS[s.mapId]!, s);
+          break;
+        }
+        case 'settle':
+          audio.settle();
+          fx.rumble();
           break;
         case 'flavor':
           audio.ui();

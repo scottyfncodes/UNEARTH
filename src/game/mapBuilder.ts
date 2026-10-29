@@ -93,6 +93,7 @@ export interface MapSpec {
   exits?: ExitDef[];
   defaultSpawn: Vec2;
   dark?: boolean;
+  hush?: boolean;
   chapter?: GameMap['chapter'];
   softGround?: boolean;
   /** Tiles dug long ago, keyed "x,y". */
@@ -160,6 +161,7 @@ export function buildMap(spec: MapSpec): GameMap {
     oldHoles,
     ...(spec.softGround ? { softGround: true } : {}),
     ...(spec.dark ? { dark: true } : {}),
+    ...(spec.hush ? { hush: true } : {}),
     ...(spec.chapter ? { chapter: spec.chapter } : {}),
   };
 }

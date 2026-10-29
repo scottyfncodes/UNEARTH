@@ -22,6 +22,7 @@ export const ROOM_LAYOUT: Record<string, { col: number; row: number }> = {
   crypt1: { col: 3, row: 2 },
   chasm: { col: 3, row: 3 },
   crypt2: { col: 3, row: 4 },
+  hush: { col: 4, row: 4 },
   crypt3: { col: 3, row: 5 },
   passage: { col: 3, row: 6 },
   vault: { col: 3, row: 7 },

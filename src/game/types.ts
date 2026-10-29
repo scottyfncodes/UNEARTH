@@ -300,6 +300,8 @@ export interface GameMap {
   region: Region;
   /** Unlit: the renderer only shows what CK's light reaches. */
   dark?: boolean;
+  /** So still and black that even the Sunstone barely reaches past CK's whiskers. */
+  hush?: boolean;
   /** A chapter title card shown the first time CK arrives. */
   chapter?: { number: string; title: string };
   width: number;
@@ -449,7 +451,12 @@ export type GameEvent =
   | { type: 'kick'; from: Vec2; to: Vec2 | null }
   | { type: 'knockout' }
   | { type: 'talk-start' }
-  | { type: 'talk-end' }
+  /** `flag` is set when finishing the conversation set a story flag for the first time. */
+  | { type: 'talk-end'; flag?: string }
+  /** CK mews into the dark; the room answers. */
+  | { type: 'echo' }
+  /** Every loose stone has dropped and CK is on solid ground: they grind back up. */
+  | { type: 'settle' }
   | { type: 'flavor'; line: string }
   | { type: 'exit-locked'; message: string };
 

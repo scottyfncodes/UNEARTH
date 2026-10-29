@@ -276,6 +276,11 @@ describe("CK's whole journey", () => {
     expect(run.dig('down')).toEqual([{ type: 'reveal', itemId: 'moon_crescent' }]);
     run.walkTo(2, 8);
     expect(run.dig('down')).toEqual([{ type: 'reveal', itemId: 'shiny_earring' }]);
+    // Pip, who sees with her ears, shows CK how.
+    run.walkTo(11, 9);
+    run.face('right');
+    run.talkThrough();
+    expect(run.state.flags.learnedEcho).toBe(true);
     run.walkTo(7, 11);
     run.leave('down', 'chasm');
 
@@ -297,6 +302,26 @@ describe("CK's whole journey", () => {
     expect(run.state.player.pos).toEqual({ x: 12, y: 11 });
     run.walkTo(7, 12);
     run.leave('down', 'crypt2');
+
+    // The Hush, east of the gallery: mew, listen, then cross on the branch
+    // that reaches the ledge, and come home once the stones grind back up.
+    run.walkTo(14, 5);
+    run.leave('right', 'hush');
+    expect(run.do({ type: 'interact' })).toEqual([{ type: 'echo' }]);
+    run.walkTo(5, 5);
+    const across: Direction[] = ['right', 'right', 'up', 'up', 'up', 'right', 'right', 'right', 'down', 'down', 'right', 'right', 'right', 'right'];
+    for (const dir of across) run.trot(dir);
+    expect(run.state.player.pos).toEqual({ x: 14, y: 4 });
+    expect(run.tick(1000).map((e) => e.type)).toContain('settle');
+    run.walkTo(14, 7); // the nook at the end of the ledge…
+    run.walkTo(14, 6); // …and the tuning fork
+    expect(run.state.inventory).toContain('shiny_tuningfork');
+    run.walkTo(14, 4);
+    const back: Direction[] = ['left', 'left', 'left', 'left', 'up', 'up', 'left', 'left', 'left', 'down', 'down', 'down', 'left', 'left'];
+    for (const dir of back) run.trot(dir);
+    expect(run.state.player.pos).toEqual({ x: 5, y: 5 });
+    run.walkTo(1, 5);
+    run.leave('left', 'crypt2');
 
     run.walkTo(3, 4);
     run.do({ type: 'move', direction: 'down' });
@@ -388,7 +413,7 @@ describe('world bookkeeping', () => {
       for (const b of Object.values(map.buried)) if (b.itemId) placements.push(b.itemId);
     }
     for (const id of SHINY_IDS) expect(placements.filter((p) => p === id), id).toHaveLength(1);
-    expect(SHINY_IDS).toHaveLength(16);
+    expect(SHINY_IDS).toHaveLength(17);
   });
 
   it('never parks a secret nook where nothing can reach it', () => {

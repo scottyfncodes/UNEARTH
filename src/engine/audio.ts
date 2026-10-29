@@ -378,6 +378,26 @@ class AudioEngine {
     this.tone(520, 0.09, 'triangle', 0.1, t, this.sfx, 700);
     this.tone(700, 0.14, 'triangle', 0.11, t + 0.08, this.sfx, 940);
   }
+  /**
+   * A mew into the dark, and the room giving it back: a few fainter, lower
+   * copies, further off each time, through the room's own reverb.
+   */
+  mew(): void {
+    if (!this.ctx) return;
+    const t = this.ctx.currentTime;
+    this.tone(760, 0.32, 'triangle', 0.13, t, this.sfx, 520);
+    [0.3, 0.58, 0.9].forEach((d, i) => {
+      const g = 0.05 / (i + 1);
+      this.tone(740 - i * 30, 0.3, 'sine', g, t + d, this.sfx, 500 - i * 20);
+    });
+    // The loose stones answer with a rattle, a beat after the walls.
+    this.noise(0.08, 0.05, 3200, t + 0.42, this.sfx, 'highpass');
+  }
+  /** Loose stones grinding back up into place. */
+  settle(): void {
+    this.noise(0.5, 0.14, 380);
+    this.tone(70, 0.45, 'triangle', 0.08, 0, this.sfx, 95);
+  }
   /** Settling down for a nap: a long yawn sliding down. */
   yawn(): void {
     this.tone(640, 0.55, 'triangle', 0.07, 0, this.sfx, 280);

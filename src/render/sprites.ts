@@ -204,6 +204,18 @@ const ITEM_ART: Record<string, (p: Painter) => void> = {
     }
     p.px(6, 7, '#fff4c0');
   },
+  tuningFork: (p) => {
+    // Two tines and a stem, standing up, with a glint where it was last struck.
+    p.rect(5, 2, 2, 7, SILVER_D);
+    p.rect(9, 2, 2, 7, SILVER_D);
+    p.rect(5, 2, 1, 7, SILVER);
+    p.rect(9, 2, 1, 7, SILVER);
+    p.rect(5, 9, 6, 2, SILVER_D);
+    p.rect(6, 9, 4, 1, SILVER);
+    p.rect(7, 11, 2, 4, SILVER_D);
+    p.rect(7, 11, 1, 4, SILVER);
+    p.px(5, 2, '#ffffff');
+  },
   star: (p) => {
     const pts: [number, number][] = [];
     for (let i = 0; i < 10; i++) {

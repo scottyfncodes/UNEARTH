@@ -19,7 +19,7 @@ describe('attemptInteract', () => {
     const closed = attemptInteract(CTX.maps, advanced.state);
     expect(closed.state.dialogue).toBeNull();
     expect(closed.state.flags.metGuide).toBe(true);
-    expect(closed.events).toEqual([{ type: 'talk-end' }]);
+    expect(closed.events).toEqual([{ type: 'talk-end', flag: 'metGuide' }]);
   });
 
   it('the NPC vanishes once its completion flag is set', () => {
