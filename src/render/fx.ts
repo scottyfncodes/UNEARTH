@@ -20,6 +20,9 @@ interface Particle {
   size: number;
   gravity: number;
   glow?: boolean;
+  /** Where a burst started, so a renderer with another projection can place it. */
+  ox?: number;
+  oy?: number;
 }
 
 interface Streak {
@@ -73,6 +76,8 @@ function burst(at: Vec2, count: number, colors: string[], opts: Partial<Particle
       size: opts.size ?? 3,
       gravity: opts.gravity ?? 0,
       glow: opts.glow,
+      ox: at.x,
+      oy: at.y,
     });
   }
   if (particles.length > 500) particles.splice(0, particles.length - 500);
@@ -149,6 +154,8 @@ export const fx = {
         color,
         size: 2,
         gravity: 10,
+        ox: c.x,
+        oy: c.y,
       });
     }
   },
@@ -433,3 +440,26 @@ export function drawOverlays(ctx: CanvasRenderingContext2D, w: number, h: number
     ctx.fillRect(0, 0, w, h);
   }
 }
+
+/**
+ * Read-only access to what the effects layer is doing, for a renderer that
+ * draws the same moments in another projection (the isometric preview).
+ */
+export const fxView = {
+  particles: particles as readonly Readonly<Particle>[],
+  streaks: streaks as readonly Readonly<Streak>[],
+  rocks: rocks as readonly Readonly<{ at: Vec2; t: number }>[],
+  crashes: crashes as readonly Readonly<{ at: Vec2; t: number }>[],
+  dig(): { tile: Vec2; progress: number; soil: string } | null {
+    return digging ? { tile: digging.tile, progress: Math.min(1, digging.t / digging.duration), soil: digging.soil } : null;
+  },
+  banner(): { text: string; t: number; duration: number } | null {
+    return banner ? { ...banner } : null;
+  },
+  iris(): number {
+    return iris;
+  },
+  shake(): number {
+    return shake;
+  },
+};

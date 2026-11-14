@@ -656,6 +656,17 @@ button.confirm--armed {
   top: 46px;
 }
 
+.dpad--iso {
+  transform: rotate(45deg);
+}
+
+.dpad__chevron {
+  display: block;
+  width: 20px;
+  height: 20px;
+  margin: auto;
+}
+
 .dpad__btn--right {
   left: 92px;
   top: 46px;

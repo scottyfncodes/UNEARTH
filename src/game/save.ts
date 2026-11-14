@@ -3,9 +3,11 @@
  * No slots, no cloud sync: this is a personal-project save, not a service.
  */
 import type { GameState } from './types';
+import { ISO_PREVIEW } from '@/core/preview';
 
 // v2: the world was rebuilt around CK's full journey; v1 positions no longer mean anything.
-const SAVE_KEY = 'unearth.save.v2';
+// The isometric preview keeps its own save, so trying it never touches real progress.
+const SAVE_KEY = ISO_PREVIEW ? 'unearth.save.isoPreview.v1' : 'unearth.save.v2';
 
 type Persisted = Omit<GameState, 'dialogue' | 'timed'>;
 

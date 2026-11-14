@@ -6,7 +6,7 @@
 import type { Direction } from '@/game/types';
 import { baked, blit } from './pixel';
 
-const CK: Record<string, string> = {
+export const CK_PALETTE: Record<string, string> = {
   k: '#2a1a10',
   o: '#e8964a',
   O: '#b8662a',
@@ -18,7 +18,7 @@ const CK: Record<string, string> = {
   y: '#f2c14e',
 };
 
-const DOWN = [
+export const DOWN = [
   '................',
   '..kk........kk..',
   '..kok......kok..',
@@ -40,7 +40,7 @@ const DOWN_STEP = [...DOWN.slice(0, 14), '..kowwk..kwwok..', '..kkk......kkk..']
 const DOWN_BLINK = [...DOWN.slice(0, 6), '.kooooooooooook.', '.kokkooooookkok.', ...DOWN.slice(8)];
 
 // Sitting: head drops a row, haunches spread, tail curled round the front paws.
-const SIT = [
+export const SIT = [
   '................',
   '................',
   '..kk........kk..',
@@ -58,9 +58,9 @@ const SIT = [
   '.kowwkwwkwwkkOk.',
   '..kkkkkkkkkk.k..',
 ];
-const SIT_BLINK = [...SIT.slice(0, 7), '.kooooooooooook.', '.kokkooooookkok.', ...SIT.slice(9)];
+export const SIT_BLINK = [...SIT.slice(0, 7), '.kooooooooooook.', '.kokkooooookkok.', ...SIT.slice(9)];
 // Grooming: eyes shut, one paw up at the mouth, tongue out.
-const GROOM = [
+export const GROOM = [
   ...SIT_BLINK.slice(0, 9),
   '.kwkwwkoppoowwk.',
   '..kkwwkkpwwwwk..',
@@ -71,7 +71,7 @@ const GROOM = [
   '..kkkkkkkkkk.k..',
 ];
 // Asleep: a curled loaf, tail wrapped across the front.
-const SLEEP = [
+export const SLEEP = [
   '................',
   '................',
   '................',
@@ -135,7 +135,7 @@ const RIGHT_STEP = [...RIGHT.slice(0, 13), '..kook...kook...', '.kook.....kook..
 const RIGHT_TAIL = [...RIGHT.slice(0, 5), '.kk....koooooWek', 'kok....koooooeek', 'kok....koooowwpk', ...RIGHT.slice(8)];
 
 function frame(id: string, rows: string[]): HTMLCanvasElement {
-  return baked(`ck:${id}`, (p) => p.rows(rows, CK));
+  return baked(`ck:${id}`, (p) => p.rows(rows, CK_PALETTE));
 }
 
 export interface CkPose {

@@ -11,6 +11,7 @@ import { createMotion, isHopping, snapMotion, stepHop, stepMotion } from '@/rend
 import { TILE_SIZE } from '@/render/constants';
 import { NAP_AFTER } from '@/render/ck';
 import type { Direction } from '@/game/types';
+import { ISO_PREVIEW, isoActive } from '@/core/preview';
 import { pressDig, pressDirection, pressInteract, pressJump, releaseDirection } from './controls';
 import { continueDialogue } from './typewriter';
 
@@ -58,6 +59,15 @@ export function GameCanvas() {
   const lastMapRef = useRef<string | null>(null);
   const cameraRef = useRef({ x: 0, y: 0 });
   const leadRef = useRef({ x: 0, y: 0 });
+  // The isometric preview's renderer, fetched only when the page asked for it.
+  const isoRef = useRef<typeof import('@/render/iso') | null>(null);
+
+  useEffect(() => {
+    if (!ISO_PREVIEW) return;
+    void import('@/render/iso').then((m) => {
+      isoRef.current = m;
+    });
+  }, []);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -108,10 +118,30 @@ export function GameCanvas() {
       // and the camera still has somewhere to follow CK. Whatever is left
       // over past the room's edges is drawn as the region carrying on.
       const box = canvas.parentElement!.getBoundingClientRect();
-      const fillHeight = box.height / map.height;
-      const tilePx = Math.max(8, Math.min(box.width / 9, Math.max(box.width / 11, fillHeight)));
-      const w = Math.round((box.width / tilePx) * TILE_SIZE);
-      const h = Math.round((box.height / tilePx) * TILE_SIZE);
+      const iso = isoActive(state.mapId) ? isoRef.current : null;
+      let w: number;
+      let h: number;
+      if (iso) {
+        // Iso draws at art resolution, scaled by a whole number of device
+        // pixels so every art pixel is the same size on screen.
+        const dpr = window.devicePixelRatio || 1;
+        const k = Math.max(1, Math.round(dpr * (box.width < 600 ? 2 : 3)));
+        w = Math.ceil((box.width * dpr) / k);
+        h = Math.ceil((box.height * dpr) / k);
+        const cssW = `${(w * k) / dpr}px`;
+        const cssH = `${(h * k) / dpr}px`;
+        if (canvas.style.width !== cssW) canvas.style.width = cssW;
+        if (canvas.style.height !== cssH) canvas.style.height = cssH;
+      } else {
+        const fillHeight = box.height / map.height;
+        const tilePx = Math.max(8, Math.min(box.width / 9, Math.max(box.width / 11, fillHeight)));
+        w = Math.round((box.width / tilePx) * TILE_SIZE);
+        h = Math.round((box.height / tilePx) * TILE_SIZE);
+        if (canvas.style.width) {
+          canvas.style.width = '';
+          canvas.style.height = '';
+        }
+      }
       if (canvas.width !== w || canvas.height !== h) {
         canvas.width = w;
         canvas.height = h;
@@ -203,7 +233,13 @@ export function GameCanvas() {
       // Keep the walk cycle going briefly after each step so held-down
       // movement reads as one continuous trot rather than a stutter.
       const walking = time - lastMovedAt < 0.22 && !hop;
-      drawFrame(ctx, map, state, { pos: { x: motion.x, y: motion.y }, walking, time, clock: gameClock, hop, idle: time - lastActiveAt, camera, width: w, height: h });
+      if (iso) {
+        const bristling =
+          (timed?.strikes.length ?? 0) > 0 || (timed?.crumbling.length ?? 0) > 0 || (reading.kind === 'mechanism' && reading.proximity > 0.6);
+        iso.drawIsoFrame(ctx, map, state, { pos: { x: motion.x, y: motion.y }, walking, time, dt, clock: gameClock, hop, idle: time - lastActiveAt, width: w, height: h, bristling });
+      } else {
+        drawFrame(ctx, map, state, { pos: { x: motion.x, y: motion.y }, walking, time, clock: gameClock, hop, idle: time - lastActiveAt, camera, width: w, height: h });
+      }
       raf = requestAnimationFrame(frame);
     };
 

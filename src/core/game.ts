@@ -10,10 +10,18 @@ import { createEngineContext, createInitialState } from '@/content/initialState'
 import { reduce } from '@/game/engine';
 import { loadGame, saveGame } from '@/game/save';
 import { Store } from './store';
+import { ISO_PREVIEW } from './preview';
 
 const ctx = createEngineContext();
 
-export const game = new Store<GameState>(loadGame(createInitialState()));
+/** Where a new game starts: home, or, in the isometric preview, the temple's entry hall. */
+function startState(): GameState {
+  const fresh = createInitialState();
+  if (!ISO_PREVIEW) return fresh;
+  return { ...fresh, mapId: 'temple1', player: { pos: { x: 7, y: 2 }, facing: 'down' } };
+}
+
+export const game = new Store<GameState>(loadGame(startState()));
 
 export type EventListener = (event: GameEvent) => void;
 const eventListeners = new Set<EventListener>();
@@ -39,7 +47,7 @@ export function dispatch(action: Action): GameEvent[] {
 /** Whether this save has any progress at all — decides Begin vs Continue. */
 export function hasProgress(): boolean {
   const s = game.get();
-  const fresh = createInitialState();
+  const fresh = startState();
   return (
     s.mapId !== fresh.mapId ||
     s.player.pos.x !== fresh.player.pos.x ||
@@ -50,7 +58,7 @@ export function hasProgress(): boolean {
 }
 
 export function resetSave(): void {
-  const fresh = createInitialState();
+  const fresh = startState();
   game.set(fresh);
   saveGame(fresh);
 }
