@@ -9,6 +9,7 @@ import { needsTick } from '@/game/hazards';
 import { dismissCard, isBlocking, ui } from '@/core/ui';
 import { createMotion, isHopping, snapMotion, stepHop, stepMotion } from '@/render/motion';
 import { TILE_SIZE } from '@/render/constants';
+import { fitGameCanvas } from '@/render/viewport';
 import { NAP_AFTER } from '@/render/ck';
 import type { Direction } from '@/game/types';
 import { pressDig, pressDirection, pressInteract, pressJump, releaseDirection } from './controls';
@@ -58,6 +59,7 @@ export function GameCanvas() {
   const lastMapRef = useRef<string | null>(null);
   const cameraRef = useRef({ x: 0, y: 0 });
   const leadRef = useRef({ x: 0, y: 0 });
+  const placedRef = useRef('');
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -107,14 +109,25 @@ export function GameCanvas() {
       // showing between nine and eleven tiles across, so the art stays big
       // and the camera still has somewhere to follow CK. Whatever is left
       // over past the room's edges is drawn as the region carrying on.
+      // Each canvas pixel gets a whole number of device pixels, so the art
+      // never stretches unevenly; see fitGameCanvas.
       const box = canvas.parentElement!.getBoundingClientRect();
-      const fillHeight = box.height / map.height;
-      const tilePx = Math.max(8, Math.min(box.width / 9, Math.max(box.width / 11, fillHeight)));
-      const w = Math.round((box.width / tilePx) * TILE_SIZE);
-      const h = Math.round((box.height / tilePx) * TILE_SIZE);
+      const fit = fitGameCanvas(box, map.height, window.devicePixelRatio || 1);
+      const w = fit.width;
+      const h = fit.height;
       if (canvas.width !== w || canvas.height !== h) {
         canvas.width = w;
         canvas.height = h;
+      }
+      // Compared against what was last set, not read back: the browser
+      // serialises styles rounded, which would restyle the canvas every frame.
+      const placement = `${fit.cssWidth}|${fit.cssHeight}|${fit.offsetX}|${fit.offsetY}`;
+      if (placement !== placedRef.current) {
+        placedRef.current = placement;
+        canvas.style.width = `${fit.cssWidth}px`;
+        canvas.style.height = `${fit.cssHeight}px`;
+        canvas.style.left = `${fit.offsetX}px`;
+        canvas.style.top = `${fit.offsetY}px`;
       }
 
       const motion = motionRef.current;
