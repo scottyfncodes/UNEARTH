@@ -121,6 +121,8 @@ CPU throttling is a proxy, not a substitute.
 
 ## Estimate for a full conversion
 
+> **Superseded.** The validation pass ([iso-prototype-validation.md](iso-prototype-validation.md)) re-estimates this at ≈ 35–51 days and recommends keeping the original presentation. The table below is kept for the record; it assumed ~23 rooms, and the game has 15.
+
 Assumes the architecture above. Gameplay code untouched. Roughly 23 rooms
 across 6 regions.
 
